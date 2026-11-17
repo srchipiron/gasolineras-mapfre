@@ -46,6 +46,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 Solo hace falta [Node.js](https://nodejs.org) 20 o superior.
 
 ```bash
+git clone https://github.com/srchipiron/gasolineras-mapfre.git
 cd gasolineras-mapfre
 npm start          # datos reales del Ministerio
 # o
@@ -146,7 +147,6 @@ gasolineras-mapfre/
 - **Error de certificado al descargar del Ministerio** (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`): el servidor del Ministerio a veces no envía el certificado intermedio. Arranca con `NODE_OPTIONS=--use-system-ca npm start` (Node 22.15 o superior) o define `NODE_EXTRA_CA_CERTS` con ese certificado.
 - **Histórico**: se construye con los datos diarios por municipio del Ministerio (`EstacionesTerrestresHist/FiltroMunicipio`). La primera vez tarda unos segundos; después se guarda en `data/historico/`.
 - **Nominatim y OSRM** son servicios públicos gratuitos con uso razonable (la app limita a 1 búsqueda por segundo y guarda caché). Para mucho tráfico, configura servidores propios con `NOMINATIM_URL` y `OSRM_URL`.
-- La CI (`.github/workflows/ci.yml`) funciona cuando esta carpeta es la raíz de su propio repositorio.
 
 ## Fuentes de datos
 
