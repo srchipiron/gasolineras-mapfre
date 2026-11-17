@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Repostar con Tréboles</title>
+  <meta name="description" content="Encuentra la gasolinera más barata teniendo en cuenta los tréboles de Club MAPFRE.">
+  <meta name="theme-color" content="#14804a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/app.css">
+  <script src="vendor/leaflet/leaflet.js" defer></script>
+  <script src="js/app.js" type="module"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icons/icon.svg" alt="" width="28" height="28">
+      <div>
+        <h1>Repostar con Tréboles</h1>
+        <p class="subtitle">Gasolineras más baratas para socios de Club MAPFRE</p>
+      </div>
+    </div>
+    <div id="boost-banner" class="boost" role="status"></div>
+  </header>
+
+  <div id="demo-banner" class="demo-banner" hidden>Modo demostración: los precios son inventados.</div>
+
+  <section class="controls" aria-label="Búsqueda">
+    <form id="search-form" class="search" autocomplete="off">
+      <input id="q" type="search" placeholder="Dirección, ciudad o código postal" aria-label="Dirección, ciudad o código postal">
+      <button type="submit" class="btn primary">Buscar</button>
+      <button type="button" id="locate" class="btn icon" title="Usar mi ubicación" aria-label="Usar mi ubicación">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8.94 3A8.99 8.99 0 0 0 13 3.06V1h-2v2.06A8.99 8.99 0 0 0 3.06 11H1v2h2.06A8.99 8.99 0 0 0 11 20.94V23h2v-2.06A8.99 8.99 0 0 0 20.94 13H23v-2h-2.06ZM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg>
+      </button>
+    </form>
+    <ul id="suggestions" class="suggestions" hidden></ul>
+    <div class="filters">
+      <label class="field"><span>Carburante</span><select id="fuel"></select></label>
+      <label class="field"><span>Radio</span>
+        <select id="radius">
+          <option value="2">2 km</option><option value="5">5 km</option><option value="10">10 km</option>
+          <option value="15">15 km</option><option value="25">25 km</option><option value="50">50 km</option>
+        </select>
+      </label>
+      <label class="field"><span>Ordenar por</span><select id="sort"></select></label>
+      <div class="chips">
+        <label class="chip"><input type="checkbox" id="only-mapfre"> Solo Club MAPFRE</label>
+        <label class="chip"><input type="checkbox" id="open-now"> Abiertas ahora</label>
+      </div>
+    </div>
+  </section>
+
+  <main class="layout">
+    <div id="map" class="map" aria-label="Mapa de gasolineras"></div>
+    <aside class="panel">
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="results" aria-selected="true">Cerca</button>
+        <button role="tab" data-tab="route" aria-selected="false">Ruta</button>
+        <button role="tab" data-tab="favorites" aria-selected="false">Favoritas</button>
+        <button role="tab" data-tab="log" aria-selected="false">Repostajes</button>
+        <button role="tab" data-tab="settings" aria-selected="false">Ajustes</button>
+      </nav>
+
+      <section class="tab" data-tab="results">
+        <p id="location-label" class="muted small"></p>
+        <div id="summary"></div>
+        <ol id="results" class="results"></ol>
+      </section>
+
+      <section class="tab" data-tab="route" hidden>
+        <form id="route-form" class="stack" autocomplete="off">
+          <label class="field"><span>Origen</span><input id="route-from" placeholder="Mi ubicación"></label>
+          <label class="field"><span>Destino</span><input id="route-to" placeholder="Ciudad o dirección de destino" required></label>
+          <div class="row">
+            <label class="field"><span>Desvío máximo</span>
+              <select id="route-corridor">
+                <option value="1">1 km</option><option value="2">2 km</option><option value="5">5 km</option><option value="10">10 km</option>
+              </select>
+            </label>
+            <label class="field"><span>Orden</span>
+              <select id="route-sort">
+                <option value="effective">Precio con tréboles</option>
+                <option value="total">Coste real (con desvío)</option>
+                <option value="along">Orden en la ruta</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn primary" type="submit">Buscar gasolineras en la ruta</button>
+        </form>
+        <div id="route-summary"></div>
+        <ol id="route-results" class="results"></ol>
+      </section>
+
+      <section class="tab" data-tab="favorites" hidden>
+        <p class="muted small">Pulsa ☆ en una gasolinera para guardarla. Pon un precio objetivo y te avisaremos al abrir la app si baja de él.</p>
+        <ol id="favorites" class="results"></ol>
+      </section>
+
+      <section class="tab" data-tab="log" hidden>
+        <div id="log-summary"></div>
+        <div class="row wrap">
+          <button id="log-add" class="btn primary" type="button">+ Añadir repostaje</button>
+          <button id="log-export" class="btn" type="button">Exportar CSV</button>
+        </div>
+        <ol id="log-list" class="log-list"></ol>
+      </section>
+
+      <section class="tab" data-tab="settings" hidden>
+        <div id="settings"></div>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="detail" class="sheet" aria-label="Detalle de la gasolinera"></dialog>
+  <dialog id="refuel" class="sheet" aria-label="Registrar repostaje"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "gasolineras-club-mapfre",
+  "version": "1.0.0",
+  "description": "Encuentra la gasolinera más barata de España teniendo en cuenta los tréboles de Club MAPFRE.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "demo": "DEMO=1 node server/index.js",
+    "test": "node --test"
+  }
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#14804a"/>
+  <g fill="#ffffff">
+    <!-- surtidor -->
+    <rect x="118" y="132" width="168" height="270" rx="22"/>
+    <rect x="96" y="384" width="212" height="34" rx="12"/>
+    <path d="M286 190h34c22 0 38 16 38 38v108c0 12 8 20 20 20s20-8 20-20V214l-40-40 18-18 52 52v128c0 34-26 60-60 60s-60-26-60-60V236h-22z"/>
+  </g>
+  <rect x="144" y="160" width="116" height="74" rx="10" fill="#14804a"/>
+  <!-- trébol -->
+  <g fill="#14804a" transform="translate(202 318)">
+    <circle cx="-22" cy="-16" r="22"/>
+    <circle cx="22" cy="-16" r="22"/>
+    <circle cx="-22" cy="22" r="22"/>
+    <circle cx="22" cy="22" r="22"/>
+    <rect x="-4" y="20" width="8" height="40" rx="4" transform="rotate(-20)"/>
+  </g>
+</svg>
