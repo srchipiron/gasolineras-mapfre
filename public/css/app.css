@@ -426,3 +426,4 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 .brand-row.is-mapfre .brand-price { color: var(--accent); }
 .brands-more > summary { cursor: pointer; color: var(--accent); margin-top: 4px; }
 .brands p { margin: 6px 0 0; }
+.file-btn { cursor: pointer; display: inline-flex; align-items: center; }
