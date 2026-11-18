@@ -69,6 +69,17 @@ const FILTER_TITLES = {
   repsol: ['Mejor «Gasolinera Repsol»', 'Mejor fuera del filtro'],
 };
 
+/** Estadísticas de la lista: cuántas, la más barata (con su nombre), media, máximo y cambio desde ayer. */
+function statsHtml(s) {
+  return html`<div class="stats">
+      <span><b>${s.count}</b> en la lista</span>
+      <span>Mín. <b>${eurL(s.min)}</b>${s.cheapestPump ? html` <button type="button" class="link" data-open="${s.cheapestPump.station.id}">${s.cheapestPump.station.brand}</button>` : ''}</span>
+      <span>Media <b>${eurL(s.avg)}</b></span>
+      <span>Máx. <b>${eurL(s.max)}</b></span>
+      ${s.avgChange != null ? html`<span>Desde ayer ${changeChip(s.avgChange)} <span class="muted">(${s.changedDown} bajan, ${s.changedUp} suben)</span></span>` : ''}
+    </div>`;
+}
+
 export function summaryHtml(s, {
   litres, fuel, program, capLeft = Infinity, onlyMapfre = false, officialCount = 0, comparison = null, tipo = 'all', radiusKm = null,
 }) {
@@ -79,7 +90,8 @@ export function summaryHtml(s, {
   if (!officialCount) {
     return html`<div class="empty">Todavía no hay gasolineras adheridas cargadas: la app solo cuenta las de la <b>lista oficial del mapa de Club MAPFRE</b>.<br>
       <button type="button" class="btn primary small" data-goto="settings">Importar la lista oficial</button>
-      ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>`;
+      ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>
+      ${s.count ? statsHtml(s) : ''}`;
   }
   const c = comparison ?? {};
   const [inTitle, outTitle] = FILTER_TITLES[tipo] ?? FILTER_TITLES.all;
@@ -119,13 +131,7 @@ export function summaryHtml(s, {
     ${Number.isFinite(capLeft) && i && !i.rule?.noCap && capLeft < i.price * litres
       ? html`<p class="small warn">Hoy solo te quedan ${eur(capLeft)} con tréboles por el tope de 100 € al día y 300 € a la semana: los precios con tréboles ya lo tienen en cuenta.</p>`
       : ''}
-    ${s.count ? html`<div class="stats">
-      <span><b>${s.count}</b> en la lista</span>
-      <span>Mín. <b>${eurL(s.min)}</b></span>
-      <span>Media <b>${eurL(s.avg)}</b></span>
-      <span>Máx. <b>${eurL(s.max)}</b></span>
-      ${s.avgChange != null ? html`<span>Desde ayer ${changeChip(s.avgChange)} <span class="muted">(${s.changedDown} bajan, ${s.changedUp} suben)</span></span>` : ''}
-    </div>` : html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)} (o con el tipo elegido).
+    ${s.count ? statsHtml(s) : html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)} (o con el tipo elegido).
       ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>`}`;
 }
 

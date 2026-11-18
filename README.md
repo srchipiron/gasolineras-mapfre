@@ -12,7 +12,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Gasolineras cerca de tu ubicación (GPS) o de una dirección, ciudad o código postal.
 - Todos los carburantes del Ministerio: diésel, gasolina 95/98, premium, GLP, GNC, GNL, AdBlue, hidrógeno…
 - Radio de búsqueda de 2 a 50 km.
-- Filtros: solo Club MAPFRE, abiertas ahora y ocultar las de venta restringida (cooperativas y flotas).
+- **Todas las gasolineras por defecto** (Alcampo, Petroprix, Plenoil…) con las adheridas marcadas con 🍀 y su precio con tréboles, para comparar de un vistazo. Filtros: «Solo Club MAPFRE» (con el tipo del mapa oficial), abiertas ahora y ocultar las de venta restringida (cooperativas y flotas).
 - Cuatro órdenes: precio con tréboles, precio en surtidor, **coste real** (incluye la gasolina que gastas en ir y volver) y distancia.
 - **Tendencia**: ▲▼ con lo que ha subido o bajado cada gasolinera desde ayer, y la variación media de la zona. El servidor descarga una vez al día los precios de ayer del Ministerio.
 - **Precio medio de tu provincia (14 días)**: gráfico del precio medio del carburante en la provincia de la búsqueda y si está subiendo, bajando o estable en la última semana, comparado con toda España. Es lo que ha pasado, no una predicción. El servidor guarda solo la media de cada día de los datos diarios del Ministerio.
@@ -23,7 +23,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Precio efectivo por litro con el porcentaje de tréboles del día: **6 % del día 1 al 5** de cada mes y **3 % el resto**.
 - Comparativa directa entre la mejor de Club MAPFRE y la más barata sin tréboles, con la diferencia en €/L y en € por depósito.
 - Aviso de cuándo es día de 6 % y cuántos días faltan para el siguiente.
-- **Solo gasolineras adheridas de verdad**: las de la lista oficial del mapa de Club MAPFRE (importada desde un HAR) y las que marques tú; nada por la marca.
+- **Solo dan tréboles las adheridas de verdad**: las de la lista oficial del mapa de Club MAPFRE (importada desde un HAR) y las que marques tú; nada por la marca.
 - **Modo marcar**: botón «＋ Adherida» / «✓ Adherida» en cada gasolinera de la lista para revisarlas rápido.
 - Condiciones reales del programa: GLP y GNC no dan tréboles, y hay un tope de 100 € al día y 300 € a la semana.
 - Aviso de cuándo es día de 6 %, de las promociones del mes y de cuándo caduca la oferta.

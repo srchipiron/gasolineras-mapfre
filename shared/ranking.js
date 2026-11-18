@@ -126,6 +126,7 @@ export function summarize(list) {
     bestEffective: minBy(list, 'effective'),
     bestMapfre: minBy(mapfreList, 'effective'),
     bestNonMapfre: minBy(nonMapfre, 'price'),
+    cheapestPump: minBy(list, 'price'),
     bestTotal: minBy(list, 'totalCost'),
     avgChange: changes.length ? changes.reduce((a, c) => a + c, 0) / changes.length : null,
     changedUp: changes.filter((c) => c > 0).length,
