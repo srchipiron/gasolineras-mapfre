@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { haversineKm, distanceToPolyline, simplifyPolyline, cumulativeKm } from '../shared/geo.js';
-import { enrich, filterResults, sortResults, summarize, priceLevel } from '../shared/ranking.js';
+import { enrich, filterResults, sortResults, summarize, priceLevel, compareFilter } from '../shared/ranking.js';
 import { cloneProgram } from '../shared/treboles.js';
 import { parseResponse } from '../server/minetur.js';
 import { nearby, alongRoute } from '../server/search.js';
@@ -169,4 +169,28 @@ test('coste real incluye el desvío de ida y vuelta', () => {
   assert.equal(r.detourKm.toFixed(1), '26.0');
   assert.equal(r.detourCost.toFixed(2), '1.95');
   assert.equal(r.totalCost.toFixed(2), (40 * 1.5 + 1.95).toFixed(2));
+});
+
+test('¿merecen la pena los tréboles? mejor del filtro frente a mejor de fuera, por coste real', () => {
+  const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true });
+  const official = { provinces: [], stations: { 1001: { tipo: 'colaboradora' }, 1003: { tipo: 'repsol' } } };
+  const list = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), official, litres: 40, consumption: 6, now: new Date(2026, 11, 2) });
+  // Filtro «Más EESS colaboradoras»: dentro la Galp 1001; fuera la Plenoil 1002 y la Repsol 1003
+  const c = compareFilter(list, { tipo: 'colaboradora' });
+  assert.equal(c.bestIn.station.id, '1001');
+  assert.equal(c.insideCount, 1);
+  assert.equal(c.outsideCount, 2);
+  assert.equal(c.bestOut.station.id, [list.find((r) => r.station.id === '1002'), list.find((r) => r.station.id === '1003')]
+    .sort((a, b) => a.totalCost - b.totalCost)[0].station.id);
+  assert.equal(c.saving.toFixed(4), (c.bestOut.totalCost - c.bestIn.totalCost).toFixed(4));
+  // El día 2 (6 %) la Galp con tréboles sale mejor que la Plenoil más cercana
+  assert.ok(c.saving > 0);
+  // Día 20 (3 %): la Galp ya no compensa
+  const later = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), official, litres: 40, consumption: 6, now: new Date(2026, 11, 20) });
+  assert.ok(compareFilter(later, { tipo: 'colaboradora' }).saving < 0);
+  // Con «Todas», dentro están las dos adheridas
+  assert.equal(compareFilter(list, { tipo: 'all' }).insideCount, 2);
+  // Sin adheridas no hay mejor del filtro
+  const none = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), now: new Date(2026, 11, 2) });
+  assert.equal(compareFilter(none, { tipo: 'all' }).bestIn, null);
 });

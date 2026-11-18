@@ -12,7 +12,7 @@ import { renderFavorites, checkAlerts } from './views/favorites.js';
 import { renderLog, exportLogCsv } from './views/log.js';
 import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
-import { enrich, filterResults, sortResults, summarize, SORTS, OFFICIAL_FILTERS } from '/shared/ranking.js';
+import { enrich, filterResults, sortResults, summarize, compareFilter, SORTS, OFFICIAL_FILTERS } from '/shared/ranking.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
   isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, mergeOfficial, emptyOfficial, DEFAULT_PROGRAM,
@@ -102,10 +102,11 @@ function computeList(stations, sort) {
     fuel: s.fuel, program: s.program, overrides: s.overrides, official: state.official, litres: s.litres, consumption: s.consumption,
     capLeft: capLeftToday(),
   });
-  const filtered = filterResults(enriched, {
-    onlyMapfre: s.onlyMapfre, openNow: s.openNow, hideRestricted: s.hideRestricted, tipo: s.officialFilter ?? 'all',
-  });
-  return { results: sortResults(filtered, sort), summary: summarize(filtered) };
+  // Todas las gasolineras (para comparar) y las que se ven en la lista.
+  const all = filterResults(enriched, { openNow: s.openNow, hideRestricted: s.hideRestricted });
+  const tipo = s.officialFilter ?? 'all';
+  const filtered = filterResults(all, { onlyMapfre: s.onlyMapfre, tipo, hideRestricted: false });
+  return { results: sortResults(filtered, sort), summary: summarize(filtered), comparison: compareFilter(all, { tipo }) };
 }
 
 function renderList(el, results, mode) {
@@ -157,11 +158,11 @@ function bindSummaryLinks(root, results) {
 function recompute({ fit = false } = {}) {
   const s = state.settings;
   if (state.nearby) {
-    const { results, summary } = computeList(state.nearby.stations, s.sort);
+    const { results, summary, comparison } = computeList(state.nearby.stations, s.sort);
     state.computed.nearby = results;
     $('#summary').innerHTML = summaryHtml(summary, {
       litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
-      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(),
+      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(), comparison, tipo: s.officialFilter ?? 'all', radiusKm: state.nearby.radiusKm,
     });
     renderAdvice(summary);
     renderList($('#results'), results, 'nearby');
@@ -189,14 +190,14 @@ function renderAdvice(summary) {
 function renderRoute({ fit }) {
   const s = state.settings;
   const r = state.route;
-  const { results, summary } = computeList(r.stations, s.routeSort === 'along' ? 'along' : s.routeSort);
+  const { results, summary, comparison } = computeList(r.stations, s.routeSort === 'along' ? 'along' : s.routeSort);
   state.computed.route = results;
   $('#route-summary').innerHTML = html`
     <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
     ${summaryHtml(summary, {
       litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
-      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(),
+      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(), comparison, tipo: s.officialFilter ?? 'all',
     })}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);

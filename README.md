@@ -115,6 +115,8 @@ Por ejemplo, el día 2 un diésel a 1,489 € sale a 1,489 × 0,94 = **1,400 €
 
 Junto a los filtros hay un selector como el del mapa oficial: «Todas las adheridas», «Más EESS colaboradoras» o «Gasolinera Repsol».
 
+**¿Merecen la pena los tréboles?** La app compara siempre la mejor gasolinera del filtro elegido con la mejor de fuera del filtro (por ejemplo, una low cost), por **coste real**: tus litros al precio con tréboles más el combustible de ir y volver. Te dice si ahorras o pierdes, y cuánto, aunque la lista solo muestre las del filtro.
+
 Por defecto la app muestra solo esas gasolineras («Solo Club MAPFRE» activado). Mientras no importes la lista, te lo indica y te ofrece importarla o ver todas las gasolineras.
 
 Si el mapa oficial indica un porcentaje para una estación (campo «ventajas»), la app usa ese porcentaje y muestra el texto en la ficha. Si no, aplica las condiciones del carnet: 6 % del día 1 al 5 y 3 % el resto, con el tope de 100 €/día y 300 €/semana.
