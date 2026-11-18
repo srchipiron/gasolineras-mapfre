@@ -343,6 +343,8 @@ table.prices { width: 100%; border-collapse: collapse; margin: 8px 0; font-varia
 fieldset.rule { border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px 12px; margin: 0; display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
 fieldset.rule.on { border-color: var(--accent); }
 fieldset.rule legend { padding: 0 4px; }
+.pairs { display: flex; flex-direction: column; gap: 6px; }
+.pairs li.weak { color: var(--warn-text); }
 .prov-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip.small { min-height: 32px; padding: 4px 10px; font-size: 0.85rem; }
 .conditions { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }

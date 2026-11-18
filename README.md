@@ -129,7 +129,7 @@ Desde un ordenador con Chrome o Edge:
 4. En la app: **Ajustes → Importar del mapa oficial**, elige el fichero y pulsa «Leer y emparejar».
 5. Revisa el resultado por provincia, marca las que estén completas y pulsa «Guardar».
 
-El HAR se lee en el navegador. Al servidor solo llegan los nombres y las posiciones de las gasolineras, nunca las cookies ni las cabeceras. Cada gasolinera del mapa oficial se empareja con la del Ministerio más cercana (máximo 250 m, o 500 m si coincide el nombre).
+El HAR se lee en el navegador. Al servidor solo llegan los nombres y las posiciones de las gasolineras, nunca las cookies ni las cabeceras. Cada gasolinera del mapa oficial se empareja con la del Ministerio solo si es seguro: misma calle y número (hasta 600 m), misma calle (hasta 250 m), mismo nombre (hasta 400 m) o mismas coordenadas (menos de 30 m). Lo que no case queda «sin emparejar» para revisarlo a mano; nunca se atribuye a la gasolinera de al lado. El resultado de la importación muestra cada pareja.
 
 Lo importado se guarda en ese navegador. Para verlo en todos tus dispositivos, pulsa **Descargar lista (adheridas.json)** y súbela al repositorio:
 

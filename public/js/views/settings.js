@@ -67,7 +67,9 @@ function importResult(r) {
       <thead><tr><th>Provincia</th><th>Adheridas encontradas</th></tr></thead>
       <tbody>${r.provinces.map((p) => html`<tr><td>${provinciaName(p.idProvincia)}</td><td>${p.count} de ${p.total} gasolineras</td></tr>`)}</tbody>
     </table>
-    ${r.unmatched.length ? html`<details class="small"><summary>Ver las ${r.unmatched.length} sin emparejar</summary><ul>${r.unmatched.slice(0, 100).map((u) => html`<li>${u.nombre} · ${u.direccion}, ${u.localidad}</li>`)}</ul></details>` : ''}
+    <details class="small"><summary>Ver las ${r.matched.length} emparejadas (mapa oficial → Ministerio)</summary>
+      <ul class="pairs">${r.matched.map((m) => html`<li class="${m.por === 'posición' ? 'weak' : ''}"><b>${m.nombre}</b> · ${m.direccionOficial || '—'}<br>→ ${m.brand} · ${m.address}, ${m.locality} <span class="muted">(${m.distanceM} m, por ${m.por})</span></li>`)}</ul></details>
+    ${r.unmatched.length ? html`<details class="small"><summary>Ver las ${r.unmatched.length} sin emparejar (revísalas y márcalas a mano)</summary><ul>${r.unmatched.slice(0, 200).map((u) => html`<li>${u.nombre} · ${u.direccion}, ${u.localidad}</li>`)}</ul></details>` : ''}
     <div class="row wrap"><button type="button" class="btn primary" id="import-save">Guardar</button><button type="button" class="btn" id="import-cancel">Descartar</button></div>`;
 }
 
