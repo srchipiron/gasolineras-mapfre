@@ -10,6 +10,14 @@ export const num2 = (n) => (n == null ? '—' : NF2.format(n));
 export const num3 = (n) => (n == null ? '—' : NF3.format(n));
 export const pct = (n) => `${NF0.format(n)} %`;
 
+/** Variación de precio en céntimos: «▼ 1,2 cts», «▲ 0,5 cts» o «= ». */
+export function cents(delta) {
+  if (delta == null) return '';
+  const c = Math.round(delta * 1000) / 10;
+  if (c === 0) return '= ayer';
+  return `${c < 0 ? '▼' : '▲'} ${NF1.format(Math.abs(c))} cts`;
+}
+
 export function km(n) {
   if (n == null) return '';
   if (n < 1) return `${NF0.format(Math.round(n * 1000 / 10) * 10)} m`;

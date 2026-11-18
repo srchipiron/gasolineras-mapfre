@@ -1,6 +1,7 @@
 // Persistencia local (en el navegador): ajustes, favoritas y repostajes.
 
 import { cloneProgram, emptyOfficial, migrateProgram } from '/shared/treboles.js';
+import { ensureVehicles } from '/shared/vehiculos.js';
 
 export const KEYS = {
   settings: 'gm.settings.v1',
@@ -42,17 +43,19 @@ export const DEFAULT_SETTINGS = {
   program: cloneProgram(),
   overrides: {}, // { idEstacion: 'in' | 'out' }
   markMode: false, // botón rápido para marcar adheridas en la lista
+  vehicles: [], // perfiles de vehículo (ver shared/vehiculos.js)
+  vehicleId: null,
   lastLocation: null, // { lat, lon, label }
 };
 
 export function loadSettings() {
   const saved = read(KEYS.settings, {});
-  return {
+  return ensureVehicles({
     ...structuredClone(DEFAULT_SETTINGS),
     ...saved,
     program: migrateProgram(saved.program),
     overrides: saved.overrides ?? {},
-  };
+  });
 }
 
 export const saveSettings = (s) => write(KEYS.settings, s);
@@ -60,6 +63,12 @@ export const saveSettings = (s) => write(KEYS.settings, s);
 export function resetSettings(current) {
   const s = structuredClone(DEFAULT_SETTINGS);
   s.lastLocation = current?.lastLocation ?? null;
+  // Se conservan tus vehículos.
+  s.vehicles = current?.vehicles ?? [];
+  s.vehicleId = current?.vehicleId ?? null;
+  ensureVehicles(s);
+  const v = s.vehicles.find((x) => x.id === s.vehicleId);
+  if (v) Object.assign(s, { fuel: v.fuel, litres: v.litres, consumption: v.consumption });
   saveSettings(s);
   return s;
 }

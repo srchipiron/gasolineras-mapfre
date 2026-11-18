@@ -152,6 +152,19 @@ export function generateDemoResponse(now = new Date()) {
   };
 }
 
+/** Precios de «ayer» para la demostración: los de hoy con pequeñas variaciones. */
+export function generateDemoPrevResponse(now = new Date()) {
+  const res = generateDemoResponse(now);
+  const rnd = mulberry32(4242);
+  for (const st of res.ListaEESSPrecio) {
+    const shift = Math.round((rnd() - 0.55) * 30) / 1000; // entre -0,016 y +0,013 €
+    for (const k of Object.keys(st)) {
+      if (k.startsWith('Precio ') && st[k]) st[k] = fmt(Number(st[k].replace(',', '.')) + shift);
+    }
+  }
+  return res;
+}
+
 export function createDemoGeocoder() {
   return {
     async search(q) {

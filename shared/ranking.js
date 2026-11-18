@@ -42,6 +42,9 @@ export function enrich(stations, opts) {
     const detourCost = (detourKm * consumption / 100) * price;
     const fillCost = litres * eff;
     const week = parseSchedule(st.schedule);
+    // Variación frente a ayer (si el servidor conoce los precios de ayer).
+    const prevPrice = st.prev?.[fuel];
+    const change = prevPrice != null ? Math.round((price - prevPrice) * 1000) / 1000 : null;
     out.push({
       station: st,
       price,
@@ -57,6 +60,7 @@ export function enrich(stations, opts) {
       detourCost,
       totalCost: fillCost + detourCost,
       open: isOpenAt(week, now),
+      change,
     });
   }
   return out;
@@ -96,6 +100,7 @@ export function summarize(list) {
   const prices = list.map((r) => r.price).sort((a, b) => a - b);
   const avg = prices.reduce((s, p) => s + p, 0) / prices.length;
   const mapfreList = list.filter((r) => r.mapfre);
+  const changes = list.map((r) => r.change).filter((c) => c != null);
   const nonMapfre = list.filter((r) => !r.mapfre);
   return {
     count: list.length,
@@ -110,6 +115,9 @@ export function summarize(list) {
     bestMapfre: minBy(mapfreList, 'effective'),
     bestNonMapfre: minBy(nonMapfre, 'price'),
     bestTotal: minBy(list, 'totalCost'),
+    avgChange: changes.length ? changes.reduce((a, c) => a + c, 0) / changes.length : null,
+    changedUp: changes.filter((c) => c > 0).length,
+    changedDown: changes.filter((c) => c < 0).length,
   };
 }
 

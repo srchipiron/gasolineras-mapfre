@@ -1,6 +1,6 @@
 // Service worker: la app funciona sin conexión con los últimos datos vistos.
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL_CACHE = `shell-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 const SHELL = [
@@ -27,6 +27,7 @@ const SHELL = [
   '/shared/provincias.js',
   '/shared/ranking.js',
   '/shared/treboles.js',
+  '/shared/vehiculos.js',
   '/vendor/leaflet/leaflet.js',
   '/vendor/leaflet/leaflet.css',
   '/icons/icon.svg',

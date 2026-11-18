@@ -8,7 +8,7 @@ import { createHttpServer } from './app.js';
 import { StationStore } from './store.js';
 import { createMineturClient, DEFAULT_BASE_URL } from './minetur.js';
 import { createGeocoder, createRouter, createHistory } from './services.js';
-import { generateDemoResponse, createDemoGeocoder, createDemoRouter, createDemoHistory } from './demo.js';
+import { generateDemoResponse, generateDemoPrevResponse, createDemoGeocoder, createDemoRouter, createDemoHistory } from './demo.js';
 import { createOfficialSource } from './adheridas.js';
 
 const env = process.env;
@@ -27,7 +27,9 @@ const client = createMineturClient({ baseUrl: env.MINETUR_BASE_URL ?? DEFAULT_BA
 
 const store = new StationStore({
   load: demo ? async () => generateDemoResponse() : () => client.fetchAll(),
+  loadPrev: demo ? async () => generateDemoPrevResponse() : (date) => client.fetchHistAll(date),
   cacheFile: demo ? null : join(DATA_DIR, 'estaciones.json'),
+  prevCacheFile: demo ? null : (date) => join(DATA_DIR, `precios-${date}.json`),
   refreshMs: Number(env.REFRESH_MINUTES ?? 30) * 60 * 1000,
   source: demo ? 'demo' : 'minetur',
   logger,

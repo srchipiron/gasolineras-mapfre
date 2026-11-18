@@ -113,6 +113,17 @@ test('el tope restante de hoy reduce los tréboles', () => {
   assert.ok(full.effective < half.effective && half.effective < none.effective);
 });
 
+test('variación frente a ayer', () => {
+  const st = (id, price, prev) => ({ id, brand: 'X', prices: { gasoleoA: price }, prev: prev == null ? undefined : { gasoleoA: prev }, schedule: '' });
+  const list = enrich([st('a', 1.5, 1.52), st('b', 1.6, 1.59), st('c', 1.55, 1.55), st('d', 1.7)], { fuel: 'gasoleoA', program: cloneProgram() });
+  assert.deepEqual(list.map((r) => r.change), [-0.02, 0.01, 0, null]);
+  const s = summarize(list);
+  assert.equal(s.avgChange.toFixed(4), (-0.01 / 3).toFixed(4));
+  assert.equal(s.changedDown, 1);
+  assert.equal(s.changedUp, 1);
+  assert.equal(summarize(enrich([st('d', 1.7)], { fuel: 'gasoleoA', program: cloneProgram() })).avgChange, null);
+});
+
 test('resumen y filtros', () => {
   const near = nearby(stations, { ...MADRID, radiusKm: 50 });
   const list = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), now: new Date(2026, 11, 20, 12) });

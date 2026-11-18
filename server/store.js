@@ -5,6 +5,12 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { parseResponse } from './minetur.js';
 
+/** Fecha de hoy en España peninsular (aaaa-mm-dd), sea cual sea la zona del servidor. */
+export function madridDate(now = new Date(), offsetDays = 0) {
+  const d = new Date(now.getTime() + offsetDays * 86400000);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
 export class StationStore {
   /**
    * @param {object} o
@@ -13,8 +19,12 @@ export class StationStore {
    * @param {number} [o.refreshMs] cada cuánto refrescar (0 = nunca)
    * @param {string} [o.source] 'minetur' | 'demo'
    */
-  constructor({ load, cacheFile, refreshMs = 30 * 60 * 1000, source = 'minetur', logger = console }) {
+  constructor({ load, loadPrev = null, cacheFile, prevCacheFile = null, refreshMs = 30 * 60 * 1000, source = 'minetur', logger = console }) {
     this.load = load;
+    this.loadPrev = loadPrev; // (Date) => respuesta en bruto de los precios de ese día
+    this.prevCacheFile = prevCacheFile;
+    this.prev = null; // { date, byId: Map(id -> prices) } con los precios de ayer
+    this.loadingPrev = null;
     this.cacheFile = cacheFile;
     this.refreshMs = refreshMs;
     this.source = source;
@@ -79,6 +89,7 @@ export class StationStore {
         this.lastError = null;
         this.log.info?.(`Precios actualizados: ${parsed.stations.length} estaciones (${parsed.fecha}) en ${Date.now() - t0} ms`);
         await this.saveCache().catch((e) => this.log.warn?.(`No se pudo guardar la caché: ${e.message}`));
+        this.ensurePrev().catch(() => {});
       } catch (err) {
         this.lastError = { message: err.message, at: new Date().toISOString() };
         this.log.error?.(`Error al actualizar precios: ${err.message}`);
@@ -106,6 +117,50 @@ export class StationStore {
     }
   }
 
+  /** Precios de ayer de una estación (o null si aún no se han descargado). */
+  prevFor(id) {
+    return this.prev?.byId.get(id) ?? null;
+  }
+
+  /**
+   * Descarga (una vez al día) los precios de ayer de todas las estaciones,
+   * para mostrar si el precio ha subido o bajado.
+   */
+  ensurePrev(now = new Date()) {
+    if (!this.loadPrev) return Promise.resolve();
+    const date = madridDate(now, -1);
+    if (this.prev?.date === date) return Promise.resolve();
+    if (this.loadingPrev) return this.loadingPrev;
+    this.loadingPrev = (async () => {
+      try {
+        const file = this.prevCacheFile?.(date);
+        if (file) {
+          try {
+            const d = JSON.parse(await readFile(file, 'utf8'));
+            if (d.date === date) {
+              this.prev = { date, byId: new Map(Object.entries(d.prices)) };
+              return;
+            }
+          } catch { /* sin caché de ayer */ }
+        }
+        const t0 = Date.now();
+        const [y, m, dd] = date.split('-').map(Number);
+        const parsed = parseResponse(await this.loadPrev(new Date(y, m - 1, dd, 12)));
+        this.prev = { date, byId: new Map(parsed.stations.map((s) => [s.id, s.prices])) };
+        this.log.info?.(`Precios de ayer (${date}): ${parsed.stations.length} estaciones en ${Date.now() - t0} ms`);
+        if (file) {
+          await mkdir(dirname(file), { recursive: true });
+          await writeFile(file, JSON.stringify({ date, prices: Object.fromEntries(this.prev.byId) })).catch(() => {});
+        }
+      } catch (err) {
+        this.log.warn?.(`No se pudieron descargar los precios de ayer: ${err.message}`);
+      } finally {
+        this.loadingPrev = null;
+      }
+    })();
+    return this.loadingPrev;
+  }
+
   stop() {
     if (this.timer) clearInterval(this.timer);
     if (this.retryTimer) clearInterval(this.retryTimer);
@@ -120,6 +175,7 @@ export class StationStore {
       updatedAt: this.updatedAt,
       fetchedAt: this.fetchedAt,
       lastError: this.lastError,
+      prevDate: this.prev?.date ?? null,
     };
   }
 

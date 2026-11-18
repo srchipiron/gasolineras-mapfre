@@ -14,6 +14,8 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Radio de búsqueda de 2 a 50 km.
 - Filtros: solo Club MAPFRE, abiertas ahora y ocultar las de venta restringida (cooperativas y flotas).
 - Cuatro órdenes: precio con tréboles, precio en surtidor, **coste real** (incluye la gasolina que gastas en ir y volver) y distancia.
+- **Tendencia**: ▲▼ con lo que ha subido o bajado cada gasolinera desde ayer, y la variación media de la zona. El servidor descarga una vez al día los precios de ayer del Ministerio.
+- **Vehículos**: coche, moto…, cada uno con su carburante, litros por repostaje y consumo, y un selector junto a los filtros para cambiar de uno a otro.
 
 **Club MAPFRE**
 - Precio efectivo por litro con el porcentaje de tréboles del día: **6 % del día 1 al 5** de cada mes y **3 % el resto**.
@@ -64,7 +66,7 @@ npm run demo       # datos inventados, para probar sin conexión
 Abre <http://localhost:3000>. La primera descarga de precios tarda unos segundos, porque son unas 12.000 gasolineras. Después se guarda en `data/` y se refresca sola cada 30 minutos.
 
 ```bash
-npm test           # 64 tests
+npm test           # 71 tests
 ```
 
 ## Usarla en el móvil
@@ -156,6 +158,8 @@ gasolineras-mapfre/
 │   ├── geo.js         distancias, rutas y simplificación de polilíneas
 │   ├── locator.js     lee los datos del mapa oficial (JSON o HAR)
 │   ├── provincias.js  códigos de provincia del INE
+│   ├── vehiculos.js   perfiles de vehículo
+│   ├── ics.js         recordatorio de calendario de los días del 6 %
 │   └── fuels.js       carburantes del Ministerio
 ├── config/
 │   └── adheridas.json lista compartida de gasolineras adheridas

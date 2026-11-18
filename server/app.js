@@ -121,6 +121,12 @@ export function createApp({
     }
   }
 
+  // Añade los precios de ayer a cada estación, si se conocen.
+  const withPrev = (st) => {
+    const prev = store.prevFor?.(st.id);
+    return prev ? { ...st, prev } : st;
+  };
+
   const routes = {
     'GET /api/status': () => ({ ...store.status(), demo }),
 
@@ -142,13 +148,13 @@ export function createApp({
         fuel: fuelParam(q.get('fuel')),
         publicOnly: q.get('public') === '1',
       });
-      return { fecha: store.fecha, updatedAt: store.updatedAt, center: { lat, lon }, radiusKm, stations };
+      return { fecha: store.fecha, updatedAt: store.updatedAt, prevDate: store.prev?.date ?? null, center: { lat, lon }, radiusKm, stations: stations.map(withPrev) };
     },
 
     'GET /api/stations/byIds': (q) => {
       requireData();
       const ids = String(q.get('ids') ?? '').split(',').filter(Boolean).slice(0, 200);
-      return { fecha: store.fecha, stations: ids.map((id) => store.byId.get(id)).filter(Boolean) };
+      return { fecha: store.fecha, stations: ids.map((id) => store.byId.get(id)).filter(Boolean).map(withPrev) };
     },
 
     'GET /api/route': async (q) => {
@@ -167,7 +173,7 @@ export function createApp({
         fuel: fuelParam(q.get('fuel')),
         publicOnly: q.get('public') === '1',
       });
-      return { fecha: store.fecha, route, corridorKm, stations };
+      return { fecha: store.fecha, route, corridorKm, stations: stations.map(withPrev) };
     },
 
     'GET /api/geocode': async (q) => {
@@ -219,7 +225,7 @@ export function createApp({
       requireData();
       const st = store.byId.get(m[1]);
       if (!st) throw new HttpError(404, 'Estación no encontrada');
-      return { fecha: store.fecha, station: st };
+      return { fecha: store.fecha, station: withPrev(st) };
     }
     m = /^\/api\/history\/([A-Za-z0-9]+)$/.exec(url.pathname);
     if (m && (req.method === 'GET' || req.method === 'HEAD')) {

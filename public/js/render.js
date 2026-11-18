@@ -1,6 +1,6 @@
 // Plantillas HTML de resultados, resumen y ficha de la gasolinera.
 
-import { html, raw, eurL, eur, km, num2, pct, date } from './format.js';
+import { html, raw, eurL, eur, km, num2, pct, date, cents } from './format.js';
 import { openStatus } from '/shared/horario.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
@@ -19,6 +19,12 @@ function mapfreBadge(r) {
   if (!r.mapfre) return html`<span class="badge" title="Este carburante no da tréboles">🍀 sin tréboles</span>`;
   return html`<span class="badge mapfre" title="${r.rule.name}">🍀 ${pct(r.percent)}</span>${
     r.approx ? html`<span class="badge approx" title="Solo por la marca: compruébalo en el mapa oficial">aprox.</span>` : ''}`;
+}
+
+function changeChip(delta) {
+  if (delta == null) return '';
+  const cls = delta < 0 ? 'down' : delta > 0 ? 'up' : 'same';
+  return html`<span class="chg ${cls}" title="Variación del precio en surtidor desde ayer">${cents(delta)}</span>`;
 }
 
 function noteBadges(note) {
@@ -51,6 +57,7 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, ma
     <div class="price">
       <div class="eff">${eurL(r.effective)}</div>
       ${r.mapfre ? html`<div class="pump">surtidor ${eurL(r.price)}</div>` : html`<div class="pump">sin tréboles</div>`}
+      ${r.change ? changeChip(r.change) : ''}
       ${markMode ? html`<button type="button" class="btn small mark ${r.adherida ? 'on' : ''}" data-mark="${st.id}" aria-pressed="${r.adherida}">${r.adherida ? '✓ Adherida' : '＋ Adherida'}</button>` : ''}
     </div>
   </li>`;
@@ -102,6 +109,7 @@ export function summaryHtml(s, { litres, fuel, program, capLeft = Infinity }) {
       <span>Mín. <b>${eurL(s.min)}</b></span>
       <span>Media <b>${eurL(s.avg)}</b></span>
       <span>Máx. <b>${eurL(s.max)}</b></span>
+      ${s.avgChange != null ? html`<span>Desde ayer ${changeChip(s.avgChange)} <span class="muted">(${s.changedDown} bajan, ${s.changedUp} suben)</span></span>` : ''}
     </div>`;
 }
 
@@ -142,7 +150,8 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
     const withT = rule && fuelEligible(program, f.key)
       ? eurL(effectivePrice(v, p, program.trebolValue, { amountEur: v * litres, program }))
       : '—';
-    return html`<tr class="${f.key === fuel ? 'sel' : ''}"><td>${f.label}</td><td>${eurL(v)}</td><td>${withT}</td></tr>`;
+    const prev = st.prev?.[f.key];
+    return html`<tr class="${f.key === fuel ? 'sel' : ''}"><td>${f.label}</td><td>${eurL(v)} ${prev != null ? changeChip(Math.round((v - prev) * 1000) / 1000) : ''}</td><td>${withT}</td></tr>`;
   });
   // Carburantes que no están en la lista conocida
   for (const [k, v] of Object.entries(st.prices)) {

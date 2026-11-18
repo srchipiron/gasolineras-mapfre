@@ -131,6 +131,9 @@ input:focus-visible, select:focus-visible, button:focus-visible, .result:focus-v
 .filters select { min-height: 38px; padding: 6px 8px; }
 .chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
 .chips .chip { min-height: 34px; padding: 5px 12px; }
+.chip.vehicle { padding: 0 4px 0 8px; }
+.chip.vehicle select { border: 0; background: transparent; min-height: 32px; padding: 2px 4px; width: auto; font-size: 0.9rem; }
+.icon-field { flex: 0 0 76px !important; }
 .field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .field > span { font-size: 0.75rem; color: var(--muted); }
 .chip {
@@ -268,6 +271,10 @@ input:focus-visible, select:focus-visible, button:focus-visible, .result:focus-v
 .btn.sel-ok { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 .btn.sel-ko { background: var(--warn-bg); border-color: var(--danger); color: var(--danger); }
 .note-icon { font-size: 0.85rem; }
+.chg { font-size: 0.72rem; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.chg.down { color: var(--cheap); }
+.chg.up { color: var(--expensive); }
+.chg.same { color: var(--muted); font-weight: 400; }
 .caps { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 10px; }
 .cap-row { justify-content: space-between; }
 .bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
