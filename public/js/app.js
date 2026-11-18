@@ -345,17 +345,22 @@ async function loadNearby({ fit = true } = {}) {
     saveLastNearby({ key, savedAt: new Date().toISOString(), data });
     recompute({ fit });
     retries = 0;
+    wakeSince = null;
     // Si al abrir la app el servidor aún estaba descargando, ahora ya tiene datos.
     if (!state.status?.ready || state.status.fecha !== state.nearby.fecha) refreshStatus();
   } catch (err) {
     if (nearbyKey() !== key) return;
-    if (err.status === 503 && retries < 40) {
-      // El servidor está descargando los precios del Ministerio (tarda ~20 s al arrancar).
+    // 503: el servidor está descargando los precios (unos 20 s al arrancar).
+    // 502/504 o sin respuesta: Render gratuito se está despertando (hasta 1 min).
+    const waking = !err.status || [502, 503, 504].includes(err.status);
+    if (waking && retries < 50) {
       retries++;
+      wakeSince ??= Date.now();
       if (state.staleSince) showStale('waking');
       else {
+        const secs = Math.round((Date.now() - wakeSince) / 1000);
         $('#summary').innerHTML = '';
-        $('#results').innerHTML = html`<li class="empty">⏳ Descargando los precios del Ministerio… (se reintenta solo)</li>`;
+        $('#results').innerHTML = html`<li class="empty">⏳ ${err.status === 503 ? 'El servidor está descargando los precios del Ministerio' : 'El servidor se está despertando'}… se reintenta solo${secs >= 5 ? ` (${secs} s)` : ''}.<br><span class="small muted">La primera vez del día puede tardar hasta un minuto.</span></li>`;
       }
       setTimeout(() => loadNearby({ fit }), 5000);
       return;
@@ -367,6 +372,27 @@ async function loadNearby({ fit = true } = {}) {
   }
 }
 let retries = 0;
+let wakeSince = null;
+
+/** Botón «🔄 Actualizar»: vuelve a descargar todo y busca versión nueva de la app. */
+async function syncNow() {
+  const btn = $('#sync');
+  btn.disabled = true;
+  btn.textContent = '🔄 Actualizando…';
+  retries = 0;
+  navigator.serviceWorker?.getRegistration?.().then((r) => r?.update()).catch(() => {});
+  try {
+    state.serverOfficial = await api.adheridas();
+    setOfficial();
+  } catch { /* sin conexión: se queda la lista que hubiera */ }
+  await refreshStatus();
+  await loadNearby({ fit: false });
+  refreshTab(state.tab);
+  btn.disabled = false;
+  btn.textContent = '🔄 Actualizar';
+  if (state.nearby && !state.staleSince && !retries) toast(`✓ Precios actualizados (Ministerio, ${state.nearby.fecha ?? 'ahora'})`);
+  else toast('El servidor se está despertando: la lista se actualizará sola en cuanto responda', 5000);
+}
 
 /** Vuelve a pedir el estado del servidor (nº de gasolineras, fecha, errores). */
 async function refreshStatus() {
@@ -656,6 +682,7 @@ function bindControls() {
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));
   $('#log-add').addEventListener('click', () => openRefuel(ctx, null));
   $('#open-card').addEventListener('click', () => openCard(ctx));
+  $('#sync').addEventListener('click', syncNow);
   $('#log-export').addEventListener('click', () => {
     if (!state.log.length) return toast('No hay repostajes que exportar');
     exportLogCsv(state);

@@ -48,10 +48,12 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - **Registro de repostajes** con los tréboles ganados este mes, este año y en total, gráfico por meses y exportación a CSV (Excel).
 - **¿Te llegaron los tréboles?**: a los 10 días de cada repostaje la app te pregunta. Si no llegaron, te dice hasta qué día puedes reclamarlos (30 días) y qué datos pide Club MAPFRE.
 - Todo se guarda en tu dispositivo; no hay cuentas ni se envía nada a terceros.
+- **Copia de seguridad** (Ajustes): guarda en un fichero tu lista oficial importada, favoritas, repostajes, carnet, vehículos y ajustes, y cárgala en otro móvil, otro navegador o la app instalada (en iPhone la app de la pantalla de inicio no comparte datos con Safari). En el móvil se comparte por WhatsApp, correo o Archivos.
 
 **Técnicas**
 - PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos. Al mantener pulsado el icono hay accesos directos («Carnet», «Cerca», «Repostaje», «Ruta»), y la app avisa cuando hay una versión nueva.
 - **Instalar la app**: botón «Instalar» en Android y aviso con los pasos en iPhone (Safari no deja instalar desde un botón). También en Ajustes.
+- **🔄 Actualizar**: vuelve a descargar los precios, la lista compartida y el estado del servidor, y busca si hay versión nueva de la app. Si el servidor está despertando, la app reintenta sola (hasta unos 4 minutos) aunque falle la conexión.
 - **Al momento al abrir**: la app enseña la última lista guardada en el móvil para esa búsqueda, con la hora de esos precios, mientras el servidor responde. Si Render gratuito está dormido, se actualiza sola en cuanto despierta (sin esperar en blanco).
 - Leyenda del mapa: colores por precio y borde amarillo para las de la lista oficial. En modo oscuro el mapa se oscurece.
 - Modo oscuro automático.
