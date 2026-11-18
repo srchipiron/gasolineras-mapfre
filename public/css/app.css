@@ -182,6 +182,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, .result:focus-v
 .best .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
 .best .big { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .best .small { overflow: hidden; text-overflow: ellipsis; }
+.best .cost { margin-top: 2px; }
 .best.none { cursor: default; box-shadow: none; }
 .verdict { padding: 8px 12px; border-radius: 10px; margin: 10px 0; font-size: 0.92rem; }
 .verdict.good { background: var(--accent-soft); }

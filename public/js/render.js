@@ -63,63 +63,70 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, ma
   </li>`;
 }
 
-export function summaryHtml(s, { litres, fuel, program, capLeft = Infinity, onlyMapfre = false, officialCount = 0 }) {
-  if (!s.count) {
-    if (onlyMapfre && !officialCount) {
-      return html`<div class="empty">Todavía no hay gasolineras adheridas cargadas: la app solo muestra las de la <b>lista oficial del mapa de Club MAPFRE</b>.<br>
-        <button type="button" class="btn primary small" data-goto="settings">Importar la lista oficial</button>
-        <button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button></div>`;
-    }
-    if (onlyMapfre) {
-      return html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)} (o con el tipo elegido). Amplía el radio o importa más zonas del mapa oficial.<br>
-        <button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button></div>`;
-    }
-    return html`<div class="empty">No hay gasolineras con ${fuelLabel(fuel)} que cumplan los filtros. Prueba a ampliar el radio o quitar filtros.</div>`;
-  }
+const FILTER_TITLES = {
+  all: ['Mejor Club MAPFRE', 'Mejor sin Club MAPFRE'],
+  colaboradora: ['Mejor «Más EESS colaboradoras»', 'Mejor fuera del filtro'],
+  repsol: ['Mejor «Gasolinera Repsol»', 'Mejor fuera del filtro'],
+};
+
+export function summaryHtml(s, {
+  litres, fuel, program, capLeft = Infinity, onlyMapfre = false, officialCount = 0, comparison = null, tipo = 'all', radiusKm = null,
+}) {
   if (!fuelEligible(program, fuel)) {
     return html`<p class="verdict bad">El ${fuelLabel(fuel)} no da tréboles en Club MAPFRE: la lista está ordenada por precio en surtidor.</p>
-      <div class="stats"><span><b>${s.count}</b> gasolineras</span><span>Mín. <b>${eurL(s.min)}</b></span><span>Media <b>${eurL(s.avg)}</b></span><span>Máx. <b>${eurL(s.max)}</b></span></div>`;
+      ${s.count ? html`<div class="stats"><span><b>${s.count}</b> gasolineras</span><span>Mín. <b>${eurL(s.min)}</b></span><span>Media <b>${eurL(s.avg)}</b></span><span>Máx. <b>${eurL(s.max)}</b></span></div>` : ''}`;
   }
-  const m = s.bestMapfre, o = s.bestNonMapfre;
-  let verdict = '';
-  if (m && o) {
-    const diff = o.price - m.effective; // >0: MAPFRE sale más barata
-    verdict = diff >= 0
-      ? html`<p class="verdict good">La mejor de Club MAPFRE te sale <b>${eurL(diff)}/L más barata</b> que la mejor sin tréboles (${eur(diff * litres)} en ${litres} L).</p>`
-      : html`<p class="verdict bad">Aunque cuentes los tréboles, la mejor sin Club MAPFRE es <b>${eurL(-diff)}/L más barata</b> (${eur(-diff * litres)} en ${litres} L).</p>`;
-  } else if (!m) {
-    verdict = html`<p class="verdict bad">No hay gasolineras de Club MAPFRE en esta zona. Amplía el radio o revisa la lista de adheridas en Ajustes.</p>`;
+  if (!officialCount) {
+    return html`<div class="empty">Todavía no hay gasolineras adheridas cargadas: la app solo cuenta las de la <b>lista oficial del mapa de Club MAPFRE</b>.<br>
+      <button type="button" class="btn primary small" data-goto="settings">Importar la lista oficial</button>
+      ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>`;
   }
-  const t = s.bestTotal;
-  const totalNote = t && s.bestEffective && t.station.id !== s.bestEffective.station.id
-    ? html`<p class="small">Contando el desvío (${num2(t.detourKm)} km ida y vuelta), lo que menos te cuesta es <a href="#" data-open="${t.station.id}">${t.station.brand} · ${t.station.address}</a>: ${eur(t.totalCost)} por ${litres} L.</p>`
-    : '';
+  const c = comparison ?? {};
+  const [inTitle, outTitle] = FILTER_TITLES[tipo] ?? FILTER_TITLES.all;
+  const tv = program?.trebolValue ?? 1;
   const card = (r, title, cls) => r
     ? html`<button class="best ${cls}" data-open="${r.station.id}">
-        <span class="label">${title}${r.approx ? ' (aprox.)' : ''}</span>
+        <span class="label">${title}</span>
         <strong>${r.station.brand}</strong>
-        <span class="small">${r.station.address}</span>
+        <span class="small">${r.station.address} · ${km(r.station.offRouteKm ?? r.station.distanceKm)}</span>
         <span class="big">${eurL(r.effective)}</span>
-        <span class="small">${r.mapfre ? html`surtidor ${eurL(r.price)} · ${pct(r.percent)} en tréboles` : 'precio en surtidor'} · ${km(r.station.offRouteKm ?? r.station.distanceKm)}</span>
+        <span class="small">${r.mapfre ? html`surtidor ${eurL(r.price)} · ${pct(r.percent)} en tréboles` : 'precio en surtidor, sin tréboles'}</span>
+        <span class="small cost">Coste real: <b>${eur(r.totalCost)}</b>${r.detourCost > 0.005 ? html` (desvío ${eur(r.detourCost)})` : ''}</span>
       </button>`
     : html`<div class="best ${cls} none"><span class="label">${title}</span><span class="small">Ninguna en la zona</span></div>`;
+
+  let verdict = '';
+  const i = c.bestIn, o = c.bestOut;
+  if (i && o) {
+    const tre = i.treboles * tv;
+    verdict = c.saving >= 0
+      ? html`<p class="verdict good">✅ <b>Te merecen la pena los tréboles:</b> en ${i.station.brand} pagas <b>${eur(i.totalCost)}</b> por ${litres} L
+          (con ${eur(tre)} en tréboles ya descontados y el desvío incluido) frente a ${eur(o.totalCost)} en ${o.station.brand}. <b>Ahorras ${eur(c.saving)}.</b></p>`
+      : html`<p class="verdict bad">❌ <b>No te merecen la pena:</b> ${o.station.brand} te sale <b>${eur(-c.saving)} más barata</b> que ${i.station.brand}
+          aunque cuentes sus ${eur(tre)} en tréboles (${eur(o.totalCost)} frente a ${eur(i.totalCost)}, desvío incluido).</p>`;
+  } else if (!i) {
+    verdict = html`<p class="verdict bad">No hay ninguna gasolinera del filtro en ${radiusKm ? html`${km(radiusKm)} a la redonda` : 'esta zona'}: amplía el radio o cambia el filtro.</p>`;
+  } else if (!o) {
+    verdict = html`<p class="small muted">Todas las gasolineras de la zona están en el filtro: no hay con qué comparar.</p>`;
+  }
   return html`
-    <div class="best-grid ${onlyMapfre ? 'single' : ''}">
-      ${card(m, 'Mejor Club MAPFRE', 'mapfre')}
-      ${onlyMapfre ? '' : card(o, 'Más barata sin MAPFRE', 'other')}
+    <div class="best-grid">
+      ${card(i, inTitle, 'mapfre')}
+      ${card(o, outTitle, 'other')}
     </div>
-    ${onlyMapfre ? '' : verdict}
-    ${totalNote}
-    ${Number.isFinite(capLeft) && m && capLeft < m.price * litres
+    ${verdict}
+    <p class="small muted">Coste real = ${litres} L al precio con tréboles + el combustible de ir y volver a la gasolinera. Cambia los litros y el consumo en Ajustes → Tus vehículos.</p>
+    ${Number.isFinite(capLeft) && i && !i.rule?.noCap && capLeft < i.price * litres
       ? html`<p class="small warn">Hoy solo te quedan ${eur(capLeft)} con tréboles por el tope de 100 € al día y 300 € a la semana: los precios con tréboles ya lo tienen en cuenta.</p>`
       : ''}
-    <div class="stats">
-      <span><b>${s.count}</b> gasolineras (${s.mapfreCount} Club MAPFRE)</span>
+    ${s.count ? html`<div class="stats">
+      <span><b>${s.count}</b> en la lista</span>
       <span>Mín. <b>${eurL(s.min)}</b></span>
       <span>Media <b>${eurL(s.avg)}</b></span>
       <span>Máx. <b>${eurL(s.max)}</b></span>
       ${s.avgChange != null ? html`<span>Desde ayer ${changeChip(s.avgChange)} <span class="muted">(${s.changedDown} bajan, ${s.changedUp} suben)</span></span>` : ''}
-    </div>`;
+    </div>` : html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)} (o con el tipo elegido).
+      ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>`}`;
 }
 
 /** Tarjeta «¿reposto hoy o espero al 6 %?». */

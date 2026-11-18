@@ -80,7 +80,7 @@ export function filterResults(list, { onlyMapfre = false, openNow = false, hideR
     if (onlyMapfre && !r.mapfre) return false;
     // Como en el mapa oficial: «Más EESS colaboradoras» o «Gasolinera Repsol».
     // Las que marcas tú a mano se ven siempre.
-    if (tipo !== 'all' && r.tipo !== tipo && r.tipo !== 'manual') return false;
+    if (tipo !== 'all' && !inOfficialFilter(r, tipo)) return false;
     if (openNow && r.open === false) return false;
     if (hideRestricted && r.station.saleType === 'R') return false;
     return true;
@@ -130,6 +130,32 @@ export function summarize(list) {
     avgChange: changes.length ? changes.reduce((a, c) => a + c, 0) / changes.length : null,
     changedUp: changes.filter((c) => c > 0).length,
     changedDown: changes.filter((c) => c < 0).length,
+  };
+}
+
+/** ¿La gasolinera entra en el filtro de tipo del mapa oficial? */
+export function inOfficialFilter(r, tipo = 'all') {
+  return r.mapfre && (tipo === 'all' || r.tipo === tipo || r.tipo === 'manual');
+}
+
+/**
+ * ¿Merecen la pena los tréboles? Compara la mejor gasolinera del filtro
+ * (adheridas del tipo elegido) con la mejor de fuera del filtro, por coste
+ * real: lo que pagas por tus litros ya descontados los tréboles, más el
+ * combustible del desvío de ida y vuelta. Así cuentan el precio y la distancia.
+ * `list` debe incluir todas las gasolineras, no solo las del filtro.
+ */
+export function compareFilter(list, { tipo = 'all' } = {}) {
+  const inside = list.filter((r) => inOfficialFilter(r, tipo));
+  const outside = list.filter((r) => !inOfficialFilter(r, tipo));
+  const bestIn = minBy(inside, 'totalCost');
+  const bestOut = minBy(outside, 'totalCost');
+  return {
+    bestIn,
+    bestOut,
+    saving: bestIn && bestOut ? bestOut.totalCost - bestIn.totalCost : null,
+    insideCount: inside.length,
+    outsideCount: outside.length,
   };
 }
 
