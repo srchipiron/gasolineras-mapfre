@@ -33,7 +33,7 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
+  "img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com",
   "connect-src 'self'",
   "manifest-src 'self'",
   "worker-src 'self'",
@@ -90,7 +90,9 @@ function send(req, res, status, body, headers = {}) {
   let buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
   const h = {
     'X-Content-Type-Options': 'nosniff',
-    'Referrer-Policy': 'same-origin',
+    // Los servidores de mapas de OpenStreetMap exigen saber desde qué web se
+    // piden las teselas: sin el origen devuelven «Access blocked».
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
     ...headers,
   };
   if (!h['Content-Type']) h['Content-Type'] = MIME['.json'];
