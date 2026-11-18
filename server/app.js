@@ -139,7 +139,7 @@ export function createApp({
   };
 
   const routes = {
-    'GET /api/status': () => ({ ...store.status(), demo }),
+    'GET /api/status': () => ({ ...store.status(), demo, trendDays: trend ? trend.days.size : 0 }),
 
     'GET /api/program': () => DEFAULT_PROGRAM,
 

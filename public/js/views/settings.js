@@ -103,6 +103,21 @@ async function readImport(root) {
   return parseLocatorPayload(payloads);
 }
 
+const NF0 = new Intl.NumberFormat('es-ES');
+
+/** Estado de los datos del servidor, en palabras. */
+function dataStatus(st) {
+  if (!st) return html`Sin conexión con el servidor: se muestran los últimos datos guardados.`;
+  if (!st.ready) {
+    return st.lastError
+      ? html`Todavía no hay precios: el servidor no ha podido descargarlos del Ministerio (lo reintenta cada minuto).`
+      : html`⏳ El servidor está descargando los precios del Ministerio (tarda un minuto al despertar).`;
+  }
+  return html`Precios del <b>${st.fecha}</b> · ${NF0.format(st.count)} gasolineras.
+    ${st.prevDate ? html`<br>Comparación con ayer: precios del ${date(st.prevDate)}.` : ''}
+    ${st.trendDays != null ? html`<br>Precio medio de la provincia: ${st.trendDays >= 14 ? 'últimos 14 días' : html`${st.trendDays} de 14 días descargados (se completa solo)`}.` : ''}`;
+}
+
 export function renderSettings(ctx) {
   const { state } = ctx;
   const s = state.settings;
@@ -155,7 +170,7 @@ export function renderSettings(ctx) {
 
     <h3>Datos</h3>
     <p class="small">Fuente: ${st?.source === 'demo' ? 'datos de DEMOSTRACIÓN (inventados)' : 'Ministerio para la Transición Ecológica (Geoportal de Hidrocarburos)'}.<br>
-      Última actualización: ${st?.fecha ?? '—'} · ${st?.count ?? 0} gasolineras.
+      ${dataStatus(st)}
       ${st?.lastError ? html`<br><span class="warn">Último error: ${st.lastError.message}</span>` : ''}</p>
     <p class="small muted">App no oficial, sin relación con MAPFRE. Comprueba las condiciones y las estaciones adheridas en la web de Club MAPFRE.</p>
     <div class="row wrap">
