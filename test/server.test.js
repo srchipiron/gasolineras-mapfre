@@ -129,6 +129,37 @@ test('emparejado de estaciones del localizador', async () => {
   assert.equal(big.status, 413);
 });
 
+test('precios de ayer: se descargan una vez y se añaden a las estaciones', async () => {
+  const { StationStore: Store, madridDate } = await import('../server/store.js');
+  assert.match(madridDate(new Date(Date.UTC(2026, 10, 17, 23, 30))), /^2026-11-18$/, 'a las 00:30 en Madrid ya es el día 18');
+  let calls = 0;
+  const yesterday = structuredClone(raw);
+  yesterday.ListaEESSPrecio[0]['Precio Gasoleo A'] = '1,509';
+  const store = new Store({ load: async () => raw, loadPrev: async () => { calls++; return yesterday; }, refreshMs: 0, logger: quiet });
+  await store.init();
+  await store.ensurePrev();
+  await store.ensurePrev();
+  assert.equal(calls, 1);
+  assert.equal(store.prevFor('1001').gasoleoA, 1.509);
+  assert.equal(store.status().prevDate, madridDate(new Date(), -1));
+  const s = createHttpServer({ store, geocoder: createDemoGeocoder(), router: createDemoRouter(), history: createDemoHistory(), logger: quiet });
+  await new Promise((r) => s.listen(0, '127.0.0.1', r));
+  const res = await fetch(`http://127.0.0.1:${s.address().port}/api/stations?lat=40.4168&lon=-3.7038&radius=50`);
+  const body = await res.json();
+  assert.equal(body.stations.find((x) => x.id === '1001').prev.gasoleoA, 1.509);
+  assert.equal(body.prevDate, store.prev.date);
+  s.close();
+});
+
+test('si falla la descarga de ayer, la app sigue funcionando', async () => {
+  const { StationStore: Store } = await import('../server/store.js');
+  const store = new Store({ load: async () => raw, loadPrev: async () => { throw new Error('sin red'); }, refreshMs: 0, logger: quiet });
+  await store.init();
+  await store.ensurePrev();
+  assert.equal(store.prevFor('1001'), null);
+  assert.equal(store.ready, true);
+});
+
 test('503 mientras no hay datos', async () => {
   const store = new StationStore({ load: async () => { throw new Error('sin red'); }, refreshMs: 0, logger: quiet });
   await store.init();

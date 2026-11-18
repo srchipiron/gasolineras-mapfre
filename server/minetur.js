@@ -108,6 +108,10 @@ export function createMineturClient({ baseUrl = DEFAULT_BASE_URL, timeoutMs = 90
     async fetchAll() {
       return fetchJson(`${baseUrl}/EstacionesTerrestres/`, { timeoutMs });
     },
+    /** Precios de todas las estaciones en una fecha pasada (~12 MB). */
+    async fetchHistAll(date) {
+      return fetchJson(`${baseUrl}/EstacionesTerrestresHist/${histDate(date)}`, { timeoutMs });
+    },
     /** Precios de un municipio en una fecha pasada. */
     async fetchHistMunicipio(date, idMunicipio) {
       return fetchJson(

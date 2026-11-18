@@ -19,6 +19,7 @@ import {
   capStatus, waitAdvice, fuelEligible,
 } from '/shared/treboles.js';
 import { boostReminderIcs } from '/shared/ics.js';
+import { selectVehicle, syncActiveVehicle } from '/shared/vehiculos.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const DEFAULT_CENTER = { lat: 40.4168, lon: -3.7038, label: 'Madrid (ubicación por defecto)' };
@@ -456,8 +457,16 @@ function fillFuelSelect(fuels) {
   if (!list.some((f) => f.key === state.settings.fuel)) state.settings.fuel = list[0].key;
 }
 
+function fillVehicleSelect() {
+  const s = state.settings;
+  $('#vehicle').innerHTML = html`${s.vehicles.map((v) => html`<option value="${v.id}">${v.icon} ${v.name} · ${v.litres} L</option>`)}`;
+  $('#vehicle').value = s.vehicleId;
+  $('#vehicle-chip').hidden = s.vehicles.length < 2;
+}
+
 function syncControls() {
   const s = state.settings;
+  fillVehicleSelect();
   $('#fuel').value = s.fuel;
   $('#radius').value = String(s.radiusKm);
   $('#sort').value = s.sort;
@@ -484,7 +493,15 @@ function bindControls() {
       $('#route-results').innerHTML = '';
     }
   };
-  $('#fuel').addEventListener('change', (e) => { s().fuel = e.target.value; refetch(); });
+  $('#fuel').addEventListener('change', (e) => { s().fuel = e.target.value; syncActiveVehicle(s()); fillVehicleSelect(); refetch(); });
+  $('#vehicle').addEventListener('change', (e) => {
+    const before = s().fuel;
+    selectVehicle(s(), e.target.value);
+    syncControls();
+    if (s().fuel !== before) refetch();
+    else { persist(); recompute(); }
+    toast(`Vehículo: ${$('#vehicle').selectedOptions[0]?.textContent ?? ''}`);
+  });
   $('#radius').addEventListener('change', (e) => { s().radiusKm = Number(e.target.value); persist(); loadNearby({ fit: true }); });
   $('#sort').addEventListener('change', (e) => { s().sort = e.target.value; persist(); recompute(); });
   $('#only-mapfre').addEventListener('change', (e) => { s().onlyMapfre = e.target.checked; persist(); recompute(); });
@@ -516,6 +533,7 @@ const ctx = {
   setVerdict: (st, v) => setVerdict(st, v),
   capLeftToday,
   reload: () => { persist(); loadNearby({ fit: false }); },
+  refetch: () => { syncControls(); persist(); loadNearby({ fit: false }); },
 };
 
 async function init() {

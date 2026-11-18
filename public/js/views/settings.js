@@ -5,6 +5,8 @@ import { DEFAULT_PROGRAM, mergeOfficial, emptyOfficial, TIPOS } from '/shared/tr
 import { parseLocatorPayload } from '/shared/locator.js';
 import { REGIONES, provinciaName } from '/shared/provincias.js';
 import { resetSettings, saveLocalOfficial, KEYS } from '../store.js';
+import { FUELS } from '/shared/fuels.js';
+import { VEHICLE_ICONS, addVehicle, updateVehicle, removeVehicle, selectVehicle } from '/shared/vehiculos.js';
 
 let lastImport = null; // resultado del último emparejado, pendiente de guardar
 
@@ -123,12 +125,23 @@ export function renderSettings(ctx) {
 
   root.innerHTML = html`
   <form id="settings-form" class="stack">
-    <h3>Tu repostaje</h3>
-    <div class="row">
-      <label class="field"><span>Litros por repostaje</span><input type="number" min="1" max="1000" step="1" data-k="litres" value="${s.litres}"></label>
-      <label class="field"><span>Consumo (L/100 km)</span><input type="number" min="1" max="50" step="0.1" data-k="consumption" value="${s.consumption}"></label>
-    </div>
-    <p class="small muted">Se usan para calcular el coste real: lo que pagas al llenar más el combustible que gastas en ir y volver.</p>
+    <h3>Tus vehículos</h3>
+    <p class="small muted">Cada vehículo tiene su carburante, los litros que sueles echar y su consumo (para el coste real: lo que pagas al llenar más lo que gastas en ir y volver). Con más de uno, aparece un selector junto a los filtros.</p>
+    ${s.vehicles.map((v) => html`
+      <fieldset class="rule vehicle-card ${v.id === s.vehicleId ? 'on' : ''}">
+        <legend><label><input type="radio" name="vehicle-active" data-vsel="${v.id}" ${v.id === s.vehicleId ? 'checked' : ''}> <b>${v.icon} ${v.name}</b>${v.id === s.vehicleId ? ' (en uso)' : ''}</label></legend>
+        <div class="row">
+          <label class="field icon-field"><span>Icono</span><select data-v="${v.id}" data-vk="icon">${VEHICLE_ICONS.map((i) => html`<option ${i === v.icon ? 'selected' : ''}>${i}</option>`)}</select></label>
+          <label class="field"><span>Nombre</span><input data-v="${v.id}" data-vk="name" value="${v.name}" maxlength="40"></label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Carburante</span><select data-v="${v.id}" data-vk="fuel">${FUELS.map((f) => html`<option value="${f.key}" ${f.key === v.fuel ? 'selected' : ''}>${f.label}</option>`)}</select></label>
+          <label class="field"><span>Litros</span><input type="number" min="1" max="1000" step="1" data-v="${v.id}" data-vk="litres" value="${v.litres}"></label>
+          <label class="field"><span>L/100 km</span><input type="number" min="1" max="50" step="0.1" data-v="${v.id}" data-vk="consumption" value="${v.consumption}"></label>
+        </div>
+        ${s.vehicles.length > 1 ? html`<button type="button" class="btn small" data-vdel="${v.id}">Eliminar</button>` : ''}
+      </fieldset>`)}
+    <button type="button" class="btn" id="add-vehicle">+ Añadir vehículo</button>
 
     ${officialSection(ctx)}
 
@@ -201,6 +214,40 @@ export function renderSettings(ctx) {
       save();
     }),
   );
+  // ---- Vehículos ----
+  const afterVehicle = (fuelChanged) => {
+    ctx.persist();
+    if (fuelChanged) ctx.refetch();
+    else { ctx.syncControls(); ctx.recompute(); }
+    renderSettings(ctx);
+  };
+  root.querySelectorAll('[data-v]').forEach((el) =>
+    el.addEventListener('change', () => {
+      const before = s.fuel;
+      updateVehicle(s, el.dataset.v, { [el.dataset.vk]: el.value });
+      afterVehicle(s.fuel !== before);
+    }),
+  );
+  root.querySelectorAll('[data-vsel]').forEach((el) =>
+    el.addEventListener('change', () => {
+      const before = s.fuel;
+      selectVehicle(s, el.dataset.vsel);
+      afterVehicle(s.fuel !== before);
+    }),
+  );
+  root.querySelectorAll('[data-vdel]').forEach((b) =>
+    b.addEventListener('click', () => {
+      if (!confirm('¿Eliminar este vehículo?')) return;
+      const before = s.fuel;
+      removeVehicle(s, b.dataset.vdel);
+      afterVehicle(s.fuel !== before);
+    }),
+  );
+  root.querySelector('#add-vehicle').addEventListener('click', () => {
+    addVehicle(s, { name: 'Moto', icon: '🏍️', fuel: 'g95e5', litres: 12, consumption: 4 });
+    afterVehicle(false);
+  });
+
   root.querySelectorAll('[data-rule]').forEach((el) =>
     el.addEventListener('change', () => {
       const r = s.program.rules[Number(el.dataset.rule)];
