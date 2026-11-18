@@ -26,7 +26,7 @@ test('porcentaje del texto de ventajas del mapa oficial', () => {
   assert.deepEqual(percentsIn('Hasta un 6 % del 1 al 5 y un 3,5 % el resto'), [6, 3.5]);
   assert.deepEqual(percentsIn(''), []);
   assert.deepEqual(percentsIn(undefined), []);
-  const official = { provinces: [], stations: { 9: { tipo: 'repsol', ventajas: '10% en Tréboles' }, 8: { tipo: 'colaboradora' } } };
+  const official = { provinces: [], stations: { 9: { tipo: 'colaboradora', ventajas: '10% en Tréboles' }, 8: { tipo: 'colaboradora' } } };
   const r = findRule(st('9', 'REPSOL'), DEFAULT_PROGRAM, {}, official);
   assert.equal(percentFor(r, new Date(2026, 10, 18)), 10);
   assert.equal(percentFor(r, new Date(2026, 11, 2)), 10);
@@ -45,10 +45,25 @@ test('porcentaje del texto de ventajas del mapa oficial', () => {
   assert.equal(percentFor(d, new Date(2026, 11, 3)), 5);
 });
 
+test('solo cuentan las «Más EESS colaboradoras»; las «Gasolinera Repsol» solo si se activan', () => {
+  const official = { provinces: [], stations: { 1: { tipo: 'colaboradora' }, 2: { tipo: 'repsol' }, 3: { tipo: 'manual' } } };
+  assert.equal(findRule(st('1', 'X'), DEFAULT_PROGRAM, {}, official)?.source, 'official');
+  assert.equal(findRule(st('2', 'REPSOL'), DEFAULT_PROGRAM, {}, official), null);
+  assert.equal(findRule(st('3', 'Y'), DEFAULT_PROGRAM, {}, official)?.source, 'official', 'añadida a mano');
+  const conRepsol = { ...cloneProgram(), officialTypes: ['colaboradora', 'repsol'] };
+  assert.equal(findRule(st('2', 'REPSOL'), conRepsol, {}, official)?.source, 'official');
+  // Tu marca manual manda
+  assert.equal(findRule(st('2', 'REPSOL'), DEFAULT_PROGRAM, { 2: 'in' }, official)?.source, 'manual');
+  // La preferencia se conserva al cargar ajustes de la misma versión
+  assert.deepEqual(migrateProgram(conRepsol).officialTypes, ['colaboradora', 'repsol']);
+  assert.deepEqual(migrateProgram({ ...conRepsol, version: 4 }).officialTypes, ['colaboradora']);
+});
+
 test('solo cuentan las estaciones de la lista oficial', () => {
   const official = { provinces: ['41'], stations: { 10: { tipo: 'colaboradora', nombre: 'X' }, 11: { tipo: 'repsol' } } };
   assert.equal(findRule(st('10', 'BALLENOIL'), DEFAULT_PROGRAM, {}, official)?.source, 'official');
-  assert.match(findRule(st('11', 'REPSOL'), DEFAULT_PROGRAM, {}, official).name, /Repsol/);
+  const conRepsol = { ...cloneProgram(), officialTypes: ['colaboradora', 'repsol'] };
+  assert.match(findRule(st('11', 'REPSOL'), conRepsol, {}, official).name, /Repsol/);
   assert.equal(findRule(st('12', 'REPSOL'), DEFAULT_PROGRAM, {}, official), null);
   assert.equal(findRule(st('13', 'REPSOL', '29'), DEFAULT_PROGRAM, {}, official), null);
   assert.equal(findRule(st('10', 'BALLENOIL', '29'), DEFAULT_PROGRAM, {}, official)?.source, 'official');

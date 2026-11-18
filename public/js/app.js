@@ -53,6 +53,13 @@ function toast(msg, ms = 3500) {
 
 const persist = () => saveSettings(state.settings);
 
+/** Gasolineras que cuentan como adheridas (tipos elegidos + marcas a mano). */
+function countableOfficial() {
+  const types = state.settings.program.officialTypes ?? ['colaboradora'];
+  const list = Object.values(state.official?.stations ?? {}).filter((v) => v.tipo === 'manual' || types.includes(v.tipo)).length;
+  return list + Object.values(state.settings.overrides).filter((v) => v === 'in').length;
+}
+
 /** Euros que aún dan tréboles hoy según tus repostajes registrados. */
 const capLeftToday = () => capStatus(todayISO(), state.log, state.settings.program).left;
 
@@ -154,7 +161,7 @@ function recompute({ fit = false } = {}) {
     state.computed.nearby = results;
     $('#summary').innerHTML = summaryHtml(summary, {
       litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
-      onlyMapfre: s.onlyMapfre, officialCount: Object.keys(state.official?.stations ?? {}).length + Object.values(s.overrides).filter((v) => v === 'in').length,
+      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(),
     });
     renderAdvice(summary);
     renderList($('#results'), results, 'nearby');
@@ -189,7 +196,7 @@ function renderRoute({ fit }) {
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
     ${summaryHtml(summary, {
       litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
-      onlyMapfre: s.onlyMapfre, officialCount: Object.keys(state.official?.stations ?? {}).length + Object.values(s.overrides).filter((v) => v === 'in').length,
+      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(),
     })}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
