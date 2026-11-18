@@ -53,7 +53,9 @@ export function openRefuel(ctx, station = null) {
     el('percent').value = ok ? percentFor(ruleFor(), d) : 0;
   };
   // Importe que da tréboles: tope de 100 € al día y 300 € a la semana.
-  const eligible = () => cappedAmount(Number(el('amount').value) || 0, el('date').value, state.log, s.program);
+  const eligible = () => (rule?.noCap
+    ? Number(el('amount').value) || 0
+    : cappedAmount(Number(el('amount').value) || 0, el('date').value, state.log, s.program));
   const calc = () => {
     const amount = Number(el('amount').value) || 0;
     const base = eligible();

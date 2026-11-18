@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_PROGRAM, cloneProgram, brandMatches, findRule, percentFor, effectivePrice, treblesFor, daysUntilBoost,
   programExpired, fuelEligible, eligibleAmount, cappedAmount, weekStart, activePromos, mergeOfficial, migrateProgram,
-  capStatus, waitAdvice, trebolStatus,
+  capStatus, waitAdvice, trebolStatus, isApprox,
 } from '../shared/treboles.js';
 
 const st = (id, brand, idProvincia = '41') => ({ id, brand, idProvincia });
@@ -16,11 +16,30 @@ test('las marcas se comparan por palabras completas, sin tildes ni mayúsculas',
   assert.ok(!brandMatches('GALP', ''));
 });
 
-test('sin lista oficial: la red Repsol cuenta como adherida (aproximado) y Galp no', () => {
-  assert.equal(findRule(st('1', 'REPSOL'))?.source, 'brand');
+test('sin lista oficial: Repsol (tarjeta) y Galp (carnet) en Península y Baleares', () => {
+  const r = findRule(st('1', 'REPSOL'));
+  assert.equal(r?.id, 'repsol');
+  assert.equal(isApprox(r), false);
   assert.equal(findRule(st('2', 'PETRONOR'))?.id, 'repsol');
-  assert.equal(findRule(st('3', 'GALP')), null);
+  const g = findRule(st('3', 'GALP'));
+  assert.equal(g?.id, 'galp');
+  assert.equal(isApprox(g), true);
   assert.equal(findRule(st('4', 'MOEVE')), null);
+  // Canarias, Ceuta y Melilla no entran
+  assert.equal(findRule(st('5', 'REPSOL', '35')), null);
+  assert.equal(findRule(st('6', 'GALP', '52')), null);
+  assert.equal(findRule(st('7', 'REPSOL', '07'))?.id, 'repsol', 'Baleares sí');
+});
+
+test('Tarjeta Repsol: 10 % en la promoción de noviembre y 6 % el resto, sin días bonificados', () => {
+  const repsol = DEFAULT_PROGRAM.rules.find((r) => r.id === 'repsol');
+  assert.equal(percentFor(repsol, new Date(2026, 10, 18)), 10);
+  assert.equal(percentFor(repsol, new Date(2026, 11, 2)), 6);
+  assert.equal(percentFor(repsol, new Date(2026, 11, 20)), 6);
+  assert.equal(repsol.noCap, true);
+  const galp = DEFAULT_PROGRAM.rules.find((r) => r.id === 'galp');
+  assert.equal(percentFor(galp, new Date(2026, 10, 18)), 3);
+  assert.equal(percentFor(galp, new Date(2026, 11, 2)), 6);
 });
 
 test('la lista oficial manda en las provincias que cubre', () => {
@@ -117,13 +136,13 @@ test('migración de ajustes guardados con las reglas antiguas (Galp activada)', 
   const p = migrateProgram(old);
   assert.equal(p.version, DEFAULT_PROGRAM.version);
   assert.equal(p.trebolValue, 0.5);
-  assert.deepEqual(p.rules.map((r) => r.id), ['repsol', 'custom-1']);
-  assert.equal(findRule(st('1', 'GALP'), p), null);
+  assert.deepEqual(p.rules.map((r) => r.id), ['repsol', 'galp', 'custom-1']);
+  assert.equal(findRule(st('1', 'GALP'), p)?.id, 'galp');
   // Misma versión: se respetan los cambios del usuario en las reglas de fábrica
   const same = cloneProgram();
   same.rules[0].enabled = false;
   assert.equal(migrateProgram(same).rules[0].enabled, false);
-  assert.deepEqual(migrateProgram(undefined).rules.map((r) => r.id), ['repsol']);
+  assert.deepEqual(migrateProgram(undefined).rules.map((r) => r.id), ['repsol', 'galp']);
 });
 
 test('estado del tope según los repostajes', () => {

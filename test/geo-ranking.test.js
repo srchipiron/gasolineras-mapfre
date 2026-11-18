@@ -70,15 +70,19 @@ test('ranking: el precio con tréboles puede cambiar el orden', () => {
   assert.equal(sortResults(list, 'price')[0].station.id, '1002');
 });
 
-test('sin lista oficial, la Repsol cuenta por marca (aproximado)', () => {
+test('sin lista oficial: Repsol con la tarjeta (confirmado) y Galp con el carnet (aprox.)', () => {
   const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true });
   const list = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), now: new Date(2026, 11, 2) });
   const repsol = list.find((r) => r.station.id === '1003');
+  const galp = list.find((r) => r.station.id === '1001');
   assert.equal(repsol.mapfre, true);
-  assert.equal(repsol.approx, true);
-  assert.equal(list.find((r) => r.station.id === '1001').mapfre, false, 'Galp ya no cuenta por defecto');
-  // 1,519 × 0,94 = 1,4279 € < Plenoil 1,429 €
-  assert.equal(sortResults(list, 'effective')[0].station.id, '1003');
+  assert.equal(repsol.approx, false);
+  assert.equal(repsol.percent, 6);
+  assert.equal(galp.mapfre, true);
+  assert.equal(galp.approx, true);
+  assert.equal(galp.percent, 6, 'día 2: 6 % con el carnet');
+  // Galp 1,489 × 0,94 = 1,3997 € < Repsol 1,519 × 0,94 = 1,4279 € < Plenoil 1,429 €
+  assert.deepEqual(sortResults(list, 'effective').map((r) => r.station.id), ['1001', '1003', '1002']);
 });
 
 test('GLP: la estación está adherida pero no da tréboles', () => {
@@ -91,21 +95,24 @@ test('GLP: la estación está adherida pero no da tréboles', () => {
   assert.equal(r.effective, r.price);
 });
 
-test('tope de 100 € al día en el precio efectivo', () => {
+test('tope de 100 € al día en el precio efectivo (carnet) y sin tope con la tarjeta Repsol', () => {
   const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true });
-  const [r] = enrich(near.filter((s) => s.id === '1003'), { fuel: 'gasoleoA', program: cloneProgram(), litres: 80, now: new Date(2026, 11, 2) });
-  const amount = 1.519 * 80;
-  assert.equal(r.treboles, 6); // 6 % de 100 €
-  assert.equal(r.effective.toFixed(5), (1.519 * (1 - 0.06 * (100 / amount))).toFixed(5));
+  const opts = { fuel: 'gasoleoA', program: cloneProgram(), litres: 80, now: new Date(2026, 11, 2) };
+  const [galp] = enrich(near.filter((s) => s.id === '1001'), opts);
+  assert.equal(galp.treboles, 6); // 6 % de 100 €
+  assert.equal(galp.effective.toFixed(5), (1.489 * (1 - 0.06 * (100 / (1.489 * 80)))).toFixed(5));
+  const [repsol] = enrich(near.filter((s) => s.id === '1003'), opts);
+  assert.equal(repsol.treboles, Math.round(1.519 * 80 * 6) / 100, 'la tarjeta no tiene tope');
+  assert.equal(repsol.effective.toFixed(5), (1.519 * 0.94).toFixed(5));
 });
 
-test('el tope restante de hoy reduce los tréboles', () => {
-  const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true }).filter((s) => s.id === '1003');
+test('el tope restante de hoy reduce los tréboles del carnet', () => {
+  const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true }).filter((s) => s.id === '1001');
   const opts = { fuel: 'gasoleoA', program: cloneProgram(), litres: 40, now: new Date(2026, 11, 2) };
   const [full] = enrich(near, opts);
   const [half] = enrich(near, { ...opts, capLeft: 30 });
   const [none] = enrich(near, { ...opts, capLeft: 0 });
-  assert.equal(full.treboles, Math.round(1.519 * 40 * 6) / 100);
+  assert.equal(full.treboles, Math.round(1.489 * 40 * 6) / 100);
   assert.equal(half.treboles, 1.8);
   assert.ok(half.cappedBy > 0);
   assert.equal(none.treboles, 0);
@@ -129,10 +136,10 @@ test('resumen y filtros', () => {
   const list = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), now: new Date(2026, 11, 20, 12) });
   assert.equal(filterResults(list, { hideRestricted: true }).length, 3);
   assert.equal(filterResults(list, { hideRestricted: false }).length, 4);
-  assert.equal(filterResults(list, { onlyMapfre: true }).length, 1);
+  assert.equal(filterResults(list, { onlyMapfre: true }).length, 2);
   const s = summarize(filterResults(list));
   assert.equal(s.count, 3);
-  assert.equal(s.mapfreCount, 1);
+  assert.equal(s.mapfreCount, 2);
   assert.equal(s.min, 1.429);
   assert.equal(s.max, 1.519);
   assert.equal(s.bestMapfre.station.id, '1003');

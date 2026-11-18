@@ -4,7 +4,7 @@ import { html, raw, eurL, eur, km, num2, pct, date, cents } from './format.js';
 import { openStatus } from '/shared/horario.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
-  findRule, percentFor, effectivePrice, treblesFor, fuelEligible, eligibleAmount, DEFAULT_PROGRAM,
+  findRule, percentFor, effectivePrice, treblesFor, fuelEligible, eligibleAmount, isApprox, DEFAULT_PROGRAM,
 } from '/shared/treboles.js';
 import { provinciaName } from '/shared/provincias.js';
 
@@ -133,7 +133,8 @@ function navLinks(st) {
 
 const SOURCE_TEXT = {
   official: 'Según la lista oficial de Club MAPFRE.',
-  brand: 'Solo por la marca: puede que esta estación no esté adherida. Compruébalo en el mapa oficial y márcala.',
+  brand: 'Por la marca, según las condiciones publicadas.',
+  approx: 'Por la marca, sin confirmar: compruébalo en el mapa oficial o con «Tu experiencia».',
   manual: 'La has marcado tú como adherida.',
 };
 
@@ -159,7 +160,7 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
   }
   const covered = official?.provinces?.includes(st.idProvincia);
   const amount = price != null ? price * litres : 0;
-  const capped = Math.max(0, Math.min(eligibleAmount(amount, program), capLeft));
+  const capped = rule?.noCap ? amount : Math.max(0, Math.min(eligibleAmount(amount, program), capLeft));
   return html`
   <form method="dialog" class="sheet-head">
     <div>
@@ -176,11 +177,11 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
     <div class="mapfre-box ${rule ? 'yes' : 'no'} ${rule?.source === 'brand' ? 'approx' : ''}">
       ${rule
         ? html`<p><b>🍀 Club MAPFRE: ${rule.name}</b></p>
-               <p class="small">${SOURCE_TEXT[rule.source] ?? ''}</p>
+               <p class="small">${isApprox(rule) ? SOURCE_TEXT.approx : SOURCE_TEXT[rule.source] ?? ''}</p>
                ${eligible && price != null
                  ? html`<p>Hoy te devuelve el <b>${pct(p)}</b> en tréboles: ${num2(treblesFor(capped, p))} tréboles por ${litres} L de ${fuelLabel(fuel)} (${eur(amount)})${capped < amount ? html` <span class="small">— solo cuentan ${eur(capped)} por el tope de 100 €/día y 300 €/semana</span>` : ''}.</p>`
                  : html`<p class="warn small">El ${fuelLabel(fuel)} no da tréboles (el GLP y el GNC están excluidos).</p>`}
-               <p class="small muted">${program.requirement ?? DEFAULT_PROGRAM.requirement}</p>`
+               <p class="small muted">${rule.requirement ?? program.requirement ?? DEFAULT_PROGRAM.requirement}</p>`
         : html`<p><b>No consta como adherida a Club MAPFRE</b>${covered ? html` en la lista oficial de ${provinciaName(st.idProvincia)}` : ' con tus reglas actuales'}.</p>`}
       <div class="row wrap">
         ${ov !== 'in' && !rule ? html`<button class="btn small" data-action="mark-in">Marcar como adherida</button>` : ''}

@@ -66,7 +66,7 @@ npm run demo       # datos inventados, para probar sin conexión
 Abre <http://localhost:3000>. La primera descarga de precios tarda unos segundos, porque son unas 12.000 gasolineras. Después se guarda en `data/` y se refresca sola cada 30 minutos.
 
 ```bash
-npm test           # 71 tests
+npm test           # 72 tests
 ```
 
 ## Usarla en el móvil
@@ -111,11 +111,21 @@ Por ejemplo, el día 2 un diésel a 1,489 € sale a 1,489 × 0,94 = **1,400 €
 
 ## Qué gasolineras cuentan como adheridas
 
-El mapa oficial de Club MAPFRE (<https://www.mapfretecuidamos.com/gasolineras/>) distingue dos tipos: **«Gasolinera Repsol»** y **«Más EESS colaboradoras»**. Galp ya no aparece. La lista no se publica en ningún formato abierto, así que la app decide así, de más a menos prioridad:
+Club MAPFRE anuncia «+3.800 estaciones adheridas» y dos formas de ganar tréboles al repostar. Su mapa oficial (<https://www.mapfretecuidamos.com/gasolineras/>) las separa en «Gasolinera Repsol» y «Más EESS colaboradoras», pero no publica la lista en ningún formato abierto. Esto es lo que se puede sacar de fuentes públicas (consultadas el 18/11/2026):
 
-1. **Tus marcas manuales** («Marcar como adherida» / «NO adherida», o el modo marcar).
+| Red | Cómo se ganan tréboles | Fuente | En la app |
+|---|---|---|---|
+| Repsol, Campsa y Petronor (Península y Baleares) | Pagando con la **Tarjeta Repsol Carburante** comprada en Club MAPFRE: tréboles al comprarla (10 % en noviembre de 2026), sin días bonificados ni tope | Condiciones de la tarjeta: «canjeable en cualquiera de las Estaciones de Servicio Repsol de Península y Baleares» | Por marca, confirmada |
+| Galp (Península y Baleares) | **Carnet de socio**: 6 % del día 1 al 5 y 3 % el resto, con tope de 100 €/día y 300 €/semana | Web de Galp («6 % con Mapfre») y condiciones de MAPFRE (citan MundoGalp) | Por marca, «aprox.» |
+| Otras colaboradoras (~300) | Carnet de socio | Solo el mapa oficial | Importar o marcar a mano |
+
+Con los datos del Ministerio salen 3.002 gasolineras de la red Repsol y 482 Galp en Península y Baleares (622 y 65 en Andalucía y Murcia).
+
+Prioridad al decidir si una gasolinera da tréboles:
+
+1. **Tus marcas manuales** («Marcar como adherida» / «NO adherida», el modo marcar o «Tu experiencia»).
 2. **La lista oficial importada**: si una gasolinera está en ella, cuenta. En las provincias marcadas como *revisadas por completo*, solo cuentan las de la lista.
-3. **Por marca (aproximado)**: en el resto, las de la red Repsol (Repsol, Campsa, Petronor) cuentan, con la etiqueta «aprox.».
+3. **Las reglas por marca** de la tabla, editables en Ajustes.
 
 ### Importar la lista del mapa oficial
 

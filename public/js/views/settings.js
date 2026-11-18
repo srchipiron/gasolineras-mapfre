@@ -147,8 +147,10 @@ export function renderSettings(ctx) {
 
     <h3>Condiciones de Ahorro al Repostar</h3>
     <ul class="small conditions">
-      <li><b>6 %</b> en tréboles del día 1 al 5 de cada mes y <b>3 %</b> el resto. 1 trébol = 1 € de descuento en tu seguro.</li>
-      <li>Tope: compra máxima de <b>${s.program.cap?.perDay ?? 100} € al día</b> o <b>${s.program.cap?.perWeek ?? 300} € a la semana</b>.</li>
+      <li><b>Con el carnet de socio</b> (Galp y otras colaboradoras): <b>6 %</b> en tréboles del día 1 al 5 de cada mes y <b>3 %</b> el resto. 1 trébol = 1 € de descuento en tu seguro.</li>
+      <li><b>En Repsol, con la Tarjeta Repsol Carburante</b> comprada en Club MAPFRE: los tréboles te los dan al comprarla (10 % en noviembre de 2026). Vale en todas las Repsol de Península y Baleares, sin días bonificados ni tope, y no se acumula con el carnet.</li>
+      <li>Solo Península y Baleares. Para canjear los tréboles necesitas al menos 5 y una póliza MAPFRE (coche, moto, hogar, salud…).</li>
+      <li>Tope del carnet: compra máxima de <b>${s.program.cap?.perDay ?? 100} € al día</b> o <b>${s.program.cap?.perWeek ?? 300} € a la semana</b>.</li>
       <li>No dan tréboles el <b>GLP</b> ni el <b>GNC</b>, ni los vehículos de más de 3.500 kg de uso no particular.</li>
       <li>${s.program.requirement}</li>
       <li>No acumulable con otros descuentos de la estación (MundoGalp, Waylet, Club Moeve gow…).</li>
@@ -158,6 +160,7 @@ export function renderSettings(ctx) {
     <p class="small muted">Si no vas a poder gastar los tréboles en tus seguros, pon un valor menor.</p>
 
     <h3>Reglas por marca (donde no hay lista oficial)</h3>
+    <p class="small muted">Sacadas de fuentes públicas: la red Repsol por las condiciones de la Tarjeta Repsol Carburante y Galp por su propia web. Las demás colaboradoras solo están en el mapa oficial: impórtalas o márcalas a mano.</p>
     ${s.program.rules.map((r, i) => html`
       <fieldset class="rule ${r.enabled ? 'on' : ''}">
         <legend><label><input type="checkbox" data-rule="${i}" data-rk="enabled" ${r.enabled ? 'checked' : ''}> <b>${r.name}</b></label></legend>
