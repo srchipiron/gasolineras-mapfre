@@ -102,6 +102,18 @@ El navegador **solo da tu ubicación GPS en webs con HTTPS** (o en `localhost`).
 | `NOMINATIM_URL` | `https://nominatim.openstreetmap.org` | Buscador de direcciones |
 | `OSRM_URL` | `https://router.project-osrm.org` | Cálculo de rutas |
 | `LOG_REQUESTS` | — | `1` para registrar cada petición |
+| `ADHERIDAS_FILE` | `config/adheridas.json` | Lista de adheridas para todos |
+| `ADMIN_KEY` | — | Clave para «Publicar para todos» desde Ajustes. Sin ella no se puede publicar |
+| `GITHUB_TOKEN` | — | Token de GitHub con permiso de escritura en *Contents* del repositorio: la lista publicada se guarda en `config/adheridas.json` del repositorio y sobrevive a reinicios y despliegues |
+| `GITHUB_REPO` / `GITHUB_BRANCH` | `srchipiron/gasolineras-mapfre` / `main` | Dónde se guarda la lista publicada |
+
+### Lista de adheridas para todos los usuarios
+
+La lista importada del mapa oficial se guarda en el dispositivo donde se importa. Para que la use la app en todos los móviles:
+
+1. En Render, *Environment*, añade `ADMIN_KEY` (una contraseña larga que elijas) y `GITHUB_TOKEN`: en GitHub, *Settings → Developer settings → Fine-grained tokens → Generate new token*, solo el repositorio `gasolineras-mapfre`, permiso *Contents: Read and write*.
+2. En el móvil donde importaste la lista: *Ajustes → Publicar para todos*, escribe la clave y pulsa «Publicar».
+3. El servidor la guarda al momento y la sube al repositorio. Render despliega la versión nueva en unos minutos y desde entonces todos los móviles la reciben al abrir la app (o con 🔄 Actualizar).
 
 ## Cómo se calculan los tréboles
 
@@ -196,6 +208,7 @@ gasolineras-mapfre/
 | GET | `/api/history/:id?days=30` | Histórico de precios |
 | GET | `/api/trend?province=41&fuel=gasoleoA` | Precio medio de la provincia (o `ES`) en los últimos 14 días y su tendencia |
 | GET | `/api/adheridas` | Lista compartida de gasolineras adheridas |
+| POST | `/api/adheridas/publish` | Publica la lista para todos (`{ key, list }`, necesita `ADMIN_KEY`) |
 | POST | `/api/adheridas/match` | Empareja gasolineras del mapa oficial (`{ entries: [...] }`) con las del Ministerio |
 
 ## Problemas conocidos

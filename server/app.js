@@ -6,7 +6,8 @@ import { join, normalize, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { nearby, alongRoute } from './search.js';
-import { matchEntries, provinceSummary } from './adheridas.js';
+import { matchEntries, provinceSummary, normalizeOfficial } from './adheridas.js';
+import { checkAdminKey, createAttemptLimiter, writeJsonAtomic, commitToGitHub } from './publish.js';
 import { DEFAULT_PROGRAM, emptyOfficial } from '../shared/treboles.js';
 import { FUELS } from '../shared/fuels.js';
 import { provinciaName } from '../shared/provincias.js';
@@ -118,7 +119,54 @@ function send(req, res, status, body, headers = {}) {
  */
 export function createApp({
   store, geocoder, router, history, trend = null, official = { get: async () => emptyOfficial() }, demo = false, logger = console,
+  publish = null, // { adminKey, officialFile, github: { token, repo, branch } | null }
 }) {
+  const perIp = createAttemptLimiter({ max: 5 });
+  const global = createAttemptLimiter({ max: 30 });
+  // Render añade la IP real al final de X-Forwarded-For.
+  const clientIp = (req) => String(req.headers['x-forwarded-for'] ?? '').split(',').map((s) => s.trim()).filter(Boolean).pop() || req.socket.remoteAddress || '?';
+
+  async function publishOfficial(req) {
+    if (!publish?.adminKey || !publish.officialFile) {
+      throw new HttpError(503, 'Publicar no está activado en el servidor: falta la variable ADMIN_KEY');
+    }
+    const ip = clientIp(req);
+    if (perIp.blocked(ip) || global.blocked('*')) throw new HttpError(429, 'Demasiados intentos con la clave incorrecta: espera 15 minutos');
+    const body = await readJson(req, 4 * 1024 * 1024);
+    if (!checkAdminKey(body?.key, publish.adminKey)) {
+      perIp.fail(ip);
+      global.fail('*');
+      throw new HttpError(403, 'Clave de administrador incorrecta');
+    }
+    perIp.reset(ip);
+    const list = normalizeOfficial(body?.list);
+    const n = Object.keys(list.stations).length;
+    if (!n) throw new HttpError(400, 'La lista está vacía');
+    list.version = 1;
+    list.updatedAt = new Date().toISOString().slice(0, 10);
+    list.source = 'Mapa oficial de Club MAPFRE (publicada desde la app)';
+    await writeJsonAtomic(publish.officialFile, list);
+    logger.info?.(`Lista de adheridas publicada desde la app: ${n} gasolineras`);
+    let github = null;
+    let warning = null;
+    if (publish.github?.token) {
+      try {
+        github = await commitToGitHub({
+          ...publish.github,
+          path: 'config/adheridas.json',
+          content: `${JSON.stringify(list, null, 2)}\n`,
+          message: `Lista de adheridas publicada desde la app (${n} gasolineras)`,
+        });
+      } catch (err) {
+        logger.warn?.(`No se pudo subir la lista a GitHub: ${err.message}`);
+        warning = `Guardada en el servidor, pero no se pudo subir a GitHub (${err.message}): se perderá cuando el servidor se reinicie.`;
+      }
+    } else {
+      warning = 'Guardada en el servidor, pero sin GITHUB_TOKEN se perderá cuando Render se reinicie o se despliegue una versión nueva.';
+    }
+    return { saved: true, stations: n, updatedAt: list.updatedAt, github, warning };
+  }
+
   // Medias de hoy (precios actuales), recalculadas solo cuando cambian los datos.
   let todayAvg = { key: null, data: null };
   const todayAverages = () => {
@@ -139,7 +187,7 @@ export function createApp({
   };
 
   const routes = {
-    'GET /api/status': () => ({ ...store.status(), demo, trendDays: trend ? trend.days.size : 0 }),
+    'GET /api/status': () => ({ ...store.status(), demo, trendDays: trend ? trend.days.size : 0, canPublish: !!publish?.adminKey, publishPersists: !!publish?.github?.token }),
 
     'GET /api/program': () => DEFAULT_PROGRAM,
 
@@ -248,6 +296,7 @@ export function createApp({
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${url.pathname}`;
     if (routes[key]) return routes[key](url.searchParams);
     if (key === 'POST /api/adheridas/match') return matchOfficial(req);
+    if (key === 'POST /api/adheridas/publish') return publishOfficial(req);
 
     let m = /^\/api\/stations\/([A-Za-z0-9]+)$/.exec(url.pathname);
     if (m && (req.method === 'GET' || req.method === 'HEAD')) {

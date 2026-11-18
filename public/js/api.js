@@ -31,6 +31,16 @@ export const api = {
     }),
   geocode: (q) => get('/api/geocode', { q }),
   adheridas: () => get('/api/adheridas'),
+  publishOfficial: async ({ key, list }) => {
+    const res = await fetch('/api/adheridas/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ key, list }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
+    return body;
+  },
   matchOfficial: async (entries) => {
     const res = await fetch('/api/adheridas/match', {
       method: 'POST',
