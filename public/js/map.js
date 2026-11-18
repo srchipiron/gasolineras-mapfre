@@ -10,10 +10,27 @@ export function createMap(el, { onSelect }) {
     return { showResults() {}, showRoute() {}, showUser() {}, focus() {}, invalidate() {}, clearRoute() {} };
   }
   const map = L.map(el, { zoomControl: true, attributionControl: true, zoomSnap: 0.25 }).setView([40.2, -3.7], 6);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-  }).addTo(map);
+  // Capas de mapa. OpenStreetMap exige el origen de la web (Referer); CARTO
+  // sirve de alternativa y tiene una versión oscura.
+  const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  const CARTO = `${OSM} &copy; <a href="https://carto.com/attributions">CARTO</a>`;
+  const common = { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin' };
+  const layers = {
+    'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { ...common, attribution: OSM }),
+    'Claro (CARTO)': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { ...common, subdomains: 'abcd', attribution: CARTO }),
+    'Oscuro (CARTO)': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { ...common, subdomains: 'abcd', attribution: CARTO }),
+  };
+  const KEY = 'gm.mapLayer.v1';
+  let chosen = null;
+  try { chosen = localStorage.getItem(KEY); } catch { /* sin almacenamiento */ }
+  if (!layers[chosen]) {
+    chosen = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'Oscuro (CARTO)' : 'OpenStreetMap';
+  }
+  layers[chosen].addTo(map);
+  L.control.layers(layers, null, { position: 'topright' }).addTo(map);
+  map.on('baselayerchange', (e) => {
+    try { localStorage.setItem(KEY, e.name); } catch { /* sin almacenamiento */ }
+  });
 
   // Leyenda plegable.
   const legend = L.control({ position: 'bottomleft' });
