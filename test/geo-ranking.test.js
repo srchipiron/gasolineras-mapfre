@@ -157,6 +157,7 @@ test('resumen y filtros', () => {
   // Día 20: Galp 3 % = 1,4443 €; Repsol 6 % (ventajas) = 1,4279 €
   assert.equal(s.bestMapfre.station.id, '1003');
   assert.equal(s.bestNonMapfre.station.id, '1002');
+  assert.equal(s.cheapestPump.station.id, '1002', 'la más barata en surtidor, sea o no adherida');
   assert.equal(priceLevel(1.429, s), 'cheap');
   assert.equal(priceLevel(1.519, s), 'expensive');
   assert.deepEqual(summarize([]), { count: 0 });

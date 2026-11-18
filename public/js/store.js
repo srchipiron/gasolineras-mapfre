@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS = {
   fuel: 'gasoleoA',
   radiusKm: 10,
   sort: 'effective',
-  onlyMapfre: true, // por defecto solo se ven las adheridas de la lista oficial
+  onlyMapfre: false, // por defecto se ven todas; «Solo Club MAPFRE» deja solo las del filtro
   officialFilter: 'all', // 'all' | 'colaboradora' | 'repsol', como el mapa oficial
   openNow: false,
   hideRestricted: true,
@@ -45,7 +45,7 @@ export const DEFAULT_SETTINGS = {
   program: cloneProgram(),
   overrides: {}, // { idEstacion: 'in' | 'out' }
   markMode: false, // botón rápido para marcar adheridas en la lista
-  settingsVersion: 2,
+  settingsVersion: 3,
   vehicles: [], // perfiles de vehículo (ver shared/vehiculos.js)
   vehicleId: null,
   lastLocation: null, // { lat, lon, label }
@@ -60,10 +60,11 @@ export function loadSettings() {
     program: migrateProgram(saved.program),
     overrides: saved.overrides ?? {},
   });
-  // Versión 2: solo se muestran las adheridas de la lista oficial.
-  if ((saved.settingsVersion ?? 1) < 2) {
-    s.onlyMapfre = true;
-    s.settingsVersion = 2;
+  // Versión 3: por defecto se ven todas las gasolineras (las adheridas, marcadas)
+  // para comparar con las más baratas sin tréboles (Alcampo, Petroprix…).
+  if ((saved.settingsVersion ?? 1) < 3) {
+    s.onlyMapfre = false;
+    s.settingsVersion = 3;
   }
   return s;
 }
