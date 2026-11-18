@@ -71,7 +71,7 @@ export function summaryHtml(s, { litres, fuel, program, capLeft = Infinity, only
         <button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button></div>`;
     }
     if (onlyMapfre) {
-      return html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)}. Amplía el radio o importa más zonas del mapa oficial.<br>
+      return html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)} (o con el tipo elegido). Amplía el radio o importa más zonas del mapa oficial.<br>
         <button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button></div>`;
     }
     return html`<div class="empty">No hay gasolineras con ${fuelLabel(fuel)} que cumplan los filtros. Prueba a ampliar el radio o quitar filtros.</div>`;

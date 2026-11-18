@@ -111,7 +111,9 @@ Por ejemplo, el día 2 un diésel a 1,489 € sale a 1,489 × 0,94 = **1,400 €
 
 ## Qué gasolineras cuentan como adheridas
 
-**Solo las de la lista oficial del mapa de Club MAPFRE** (<https://www.mapfretecuidamos.com/gasolineras/>), importada desde un HAR o una respuesta del localizador, **y las que marques tú** (con «Marcar como adherida», el modo marcar o «✓ Me dieron tréboles»). Nada se deduce por la marca ni de otras webs.
+**Solo las de la lista oficial del mapa de Club MAPFRE** («Más EESS colaboradoras» y «Gasolinera Repsol») (<https://www.mapfretecuidamos.com/gasolineras/>), importada desde un HAR o una respuesta del localizador, **y las que marques tú** (con «Marcar como adherida», el modo marcar o «✓ Me dieron tréboles»). Nada se deduce por la marca ni de otras webs.
+
+Junto a los filtros hay un selector como el del mapa oficial: «Todas las adheridas», «Más EESS colaboradoras» o «Gasolinera Repsol».
 
 Por defecto la app muestra solo esas gasolineras («Solo Club MAPFRE» activado). Mientras no importes la lista, te lo indica y te ofrece importarla o ver todas las gasolineras.
 

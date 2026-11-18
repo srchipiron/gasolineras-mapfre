@@ -12,7 +12,7 @@ import { renderFavorites, checkAlerts } from './views/favorites.js';
 import { renderLog, exportLogCsv } from './views/log.js';
 import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
-import { enrich, filterResults, sortResults, summarize, SORTS } from '/shared/ranking.js';
+import { enrich, filterResults, sortResults, summarize, SORTS, OFFICIAL_FILTERS } from '/shared/ranking.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
   isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, mergeOfficial, emptyOfficial, DEFAULT_PROGRAM,
@@ -52,6 +52,13 @@ function toast(msg, ms = 3500) {
 }
 
 const persist = () => saveSettings(state.settings);
+
+/** Gasolineras que cuentan como adheridas (tipos elegidos + marcas a mano). */
+function countableOfficial() {
+  const types = state.settings.program.officialTypes ?? ['colaboradora'];
+  const list = Object.values(state.official?.stations ?? {}).filter((v) => v.tipo === 'manual' || types.includes(v.tipo)).length;
+  return list + Object.values(state.settings.overrides).filter((v) => v === 'in').length;
+}
 
 /** Euros que aún dan tréboles hoy según tus repostajes registrados. */
 const capLeftToday = () => capStatus(todayISO(), state.log, state.settings.program).left;
@@ -96,7 +103,7 @@ function computeList(stations, sort) {
     capLeft: capLeftToday(),
   });
   const filtered = filterResults(enriched, {
-    onlyMapfre: s.onlyMapfre, openNow: s.openNow, hideRestricted: s.hideRestricted,
+    onlyMapfre: s.onlyMapfre, openNow: s.openNow, hideRestricted: s.hideRestricted, tipo: s.officialFilter ?? 'all',
   });
   return { results: sortResults(filtered, sort), summary: summarize(filtered) };
 }
@@ -154,7 +161,7 @@ function recompute({ fit = false } = {}) {
     state.computed.nearby = results;
     $('#summary').innerHTML = summaryHtml(summary, {
       litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
-      onlyMapfre: s.onlyMapfre, officialCount: Object.keys(state.official?.stations ?? {}).length + Object.values(s.overrides).filter((v) => v === 'in').length,
+      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(),
     });
     renderAdvice(summary);
     renderList($('#results'), results, 'nearby');
@@ -189,7 +196,7 @@ function renderRoute({ fit }) {
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
     ${summaryHtml(summary, {
       litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
-      onlyMapfre: s.onlyMapfre, officialCount: Object.keys(state.official?.stations ?? {}).length + Object.values(s.overrides).filter((v) => v === 'in').length,
+      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(),
     })}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
@@ -486,6 +493,7 @@ function syncControls() {
   $('#radius').value = String(s.radiusKm);
   $('#sort').value = s.sort;
   $('#only-mapfre').checked = s.onlyMapfre;
+  $('#official-filter').value = s.officialFilter ?? 'all';
   $('#open-now').checked = s.openNow;
   $('#route-corridor').value = String(s.corridorKm);
   $('#route-sort').value = s.routeSort;
@@ -493,6 +501,7 @@ function syncControls() {
 
 function bindControls() {
   $('#sort').innerHTML = html`${Object.entries(SORTS).map(([k, v]) => html`<option value="${k}">${v}</option>`)}`;
+  $('#official-filter').innerHTML = html`${Object.entries(OFFICIAL_FILTERS).map(([k, v]) => html`<option value="${k}">${v}</option>`)}`;
   $('#search-form').addEventListener('submit', onSearch);
   $('#locate').addEventListener('click', () => { selectTab('results'); locate(); });
   $('#route-form').addEventListener('submit', onRoute);
@@ -520,6 +529,7 @@ function bindControls() {
   $('#radius').addEventListener('change', (e) => { s().radiusKm = Number(e.target.value); persist(); loadNearby({ fit: true }); });
   $('#sort').addEventListener('change', (e) => { s().sort = e.target.value; persist(); recompute(); });
   $('#only-mapfre').addEventListener('change', (e) => { s().onlyMapfre = e.target.checked; persist(); recompute(); });
+  $('#official-filter').addEventListener('change', (e) => { s().officialFilter = e.target.value; persist(); recompute(); });
   $('#open-now').addEventListener('change', (e) => { s().openNow = e.target.checked; persist(); recompute(); });
   $('#route-corridor').addEventListener('change', (e) => { s().corridorKm = Number(e.target.value); persist(); });
   $('#route-sort').addEventListener('change', (e) => { s().routeSort = e.target.value; persist(); if (state.route) renderRoute({ fit: false }); });

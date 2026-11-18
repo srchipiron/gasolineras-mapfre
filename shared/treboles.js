@@ -15,7 +15,7 @@
 // fuentes externas.
 
 export const DEFAULT_PROGRAM = Object.freeze({
-  version: 4,
+  version: 5,
   trebolValue: 1, // € de descuento en el seguro por cada trébol
   validUntil: '2026-12-31',
   excludedFuels: ['glp', 'gnc'],
@@ -33,6 +33,9 @@ export const DEFAULT_PROGRAM = Object.freeze({
   // Porcentajes de las estaciones de la lista oficial.
   official: { id: 'official', percent: 3, boostPercent: 6, boostFromDay: 1, boostToDay: 5 },
   rules: [], // sin reglas por marca: solo la lista oficial y tus marcas
+  // Tipos del mapa oficial que cuentan: «Más EESS colaboradoras» y
+  // «Gasolinera Repsol» (en la lista se filtran como en el mapa oficial).
+  officialTypes: ['colaboradora', 'repsol'],
   // Regla que se aplica a las estaciones que marcas tú como adheridas.
   manual: {
     id: 'manual',
@@ -67,6 +70,9 @@ export function migrateProgram(saved) {
   const trebolValue = Number.isFinite(saved.trebolValue) ? saved.trebolValue : base.trebolValue;
   // Al cambiar de versión se descartan todas las reglas por marca guardadas.
   if (saved.version !== base.version) return { ...base, trebolValue, rules: [...base.rules] };
+  const officialTypes = Array.isArray(saved.officialTypes)
+    ? saved.officialTypes.filter((t) => ['colaboradora', 'repsol'].includes(t))
+    : base.officialTypes;
   const custom = (saved.rules ?? []).filter((r) => String(r.id).startsWith('custom-'));
   const editable = ['enabled', 'match', 'percent', 'boostPercent', 'boostFromDay', 'boostToDay'];
   const rules = base.rules.map((r) => {
@@ -74,7 +80,7 @@ export function migrateProgram(saved) {
     if (!s) return r;
     return { ...r, ...Object.fromEntries(editable.filter((k) => s[k] !== undefined).map((k) => [k, s[k]])) };
   });
-  return { ...base, trebolValue, rules: [...rules, ...custom] };
+  return { ...base, trebolValue, officialTypes, rules: [...rules, ...custom] };
 }
 
 /** Normaliza un rótulo: sin tildes, mayúsculas y solo letras/números. */
@@ -132,12 +138,16 @@ export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, off
   if (ov === 'out') return null;
   if (ov === 'in') return { ...(program.manual ?? DEFAULT_PROGRAM.manual), source: 'manual' };
   const hit = official?.stations?.[station.id];
+  const types = program.officialTypes ?? DEFAULT_PROGRAM.officialTypes;
+  // Las añadidas a mano en una lista exportada («manual») cuentan siempre.
+  if (hit && hit.tipo !== 'manual' && !types.includes(hit.tipo)) return null;
   if (hit) {
     const base = {
       ...(program.official ?? DEFAULT_PROGRAM.official),
       name: `Lista oficial · ${TIPOS[hit.tipo] ?? 'EESS colaboradora'}`,
       requirement: program.requirement ?? DEFAULT_PROGRAM.requirement,
       ventajas: hit.ventajas || '',
+      tipo: hit.tipo,
       source: 'official',
     };
     // Porcentaje indicado por el mapa oficial para esta estación:

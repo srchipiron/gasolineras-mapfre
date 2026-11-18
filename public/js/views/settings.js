@@ -21,9 +21,10 @@ function officialSection(ctx) {
   const ov = Object.values(state.settings.overrides);
   return html`
     <h3>Gasolineras adheridas a Club MAPFRE</h3>
-    <p class="small">Solo cuentan como adheridas las gasolineras de la <b>lista oficial del mapa de Club MAPFRE</b> (importada desde el HAR) y las que marques tú. Nada se deduce por la marca ni de otras webs.</p>
+    <p class="small">Solo cuentan como adheridas las gasolineras de la <b>lista oficial del mapa de Club MAPFRE</b> («Más EESS colaboradoras» y «Gasolinera Repsol», importadas desde el HAR) y las que marques tú. Nada se deduce por la marca ni de otras webs. En la lista puedes filtrar por tipo, como en el mapa oficial.</p>
     <div class="kpis">
-      <div class="kpi"><span class="label">Lista oficial</span><strong>${total}</strong><span class="small">${Object.entries(byTipo).map(([t, n]) => `${n} ${TIPOS[t] ?? t}`).join(' · ') || 'sin importar'}</span></div>
+      <div class="kpi"><span class="label">Más EESS colaboradoras</span><strong>${byTipo.colaboradora ?? 0}</strong><span class="small">${total ? `de ${total} en la lista oficial` : 'sin importar'}</span></div>
+      <div class="kpi"><span class="label">Gasolinera Repsol</span><strong>${byTipo.repsol ?? 0}</strong><span class="small">del mapa oficial</span></div>
       <div class="kpi"><span class="label">Marcadas a mano</span><strong>${ov.filter((v) => v === 'in').length} / ${ov.filter((v) => v === 'out').length}</strong><span class="small">adheridas / no adheridas</span></div>
     </div>
     ${server.updatedAt ? html`<p class="small muted">Lista compartida actualizada el ${date(server.updatedAt)} (${Object.keys(server.stations).length} gasolineras). Importadas en este dispositivo: ${Object.keys(local.stations).length}.</p>` : ''}
@@ -60,7 +61,8 @@ function officialSection(ctx) {
 
 function importResult(r) {
   return html`
-    <p><b>${r.matched.length}</b> gasolineras emparejadas de ${r.received} leídas${r.unmatched.length ? html`, <b>${r.unmatched.length}</b> sin emparejar` : ''}.</p>
+    <p><b>${r.matched.length}</b> gasolineras emparejadas de ${r.received} leídas${r.unmatched.length ? html`, <b>${r.unmatched.length}</b> sin emparejar` : ''}:
+      <b>${r.matched.filter((m) => m.tipo === 'colaboradora').length}</b> «Más EESS colaboradoras» y ${r.matched.filter((m) => m.tipo === 'repsol').length} «Gasolinera Repsol».</p>
     <table class="prices">
       <thead><tr><th>Provincia</th><th>Adheridas encontradas</th></tr></thead>
       <tbody>${r.provinces.map((p) => html`<tr><td>${provinciaName(p.idProvincia)}</td><td>${p.count} de ${p.total} gasolineras</td></tr>`)}</tbody>
@@ -220,6 +222,7 @@ export function renderSettings(ctx) {
 
   // ---- Lista oficial ----
   root.querySelector('#export-list').addEventListener('click', () => exportList(state));
+
   root.querySelector('#clear-local')?.addEventListener('click', () => {
     if (!confirm('¿Borrar la lista importada en este dispositivo? La lista compartida no se toca.')) return;
     state.localOfficial = emptyOfficial();

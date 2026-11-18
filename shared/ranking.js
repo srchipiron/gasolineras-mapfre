@@ -52,6 +52,7 @@ export function enrich(stations, opts) {
       rule,
       mapfre: !!rule && pct > 0,
       adherida: !!rule,
+      tipo: rule?.source === 'manual' ? 'manual' : rule?.tipo ?? null,
       approx: isApprox(rule),
       percent: pct,
       effective: eff,
@@ -67,9 +68,19 @@ export function enrich(stations, opts) {
   return out;
 }
 
-export function filterResults(list, { onlyMapfre = false, openNow = false, hideRestricted = true } = {}) {
+/** Tipos del mapa oficial, con los mismos nombres que su desplegable. */
+export const OFFICIAL_FILTERS = {
+  all: 'Todas las adheridas',
+  colaboradora: 'Más EESS colaboradoras',
+  repsol: 'Gasolinera Repsol',
+};
+
+export function filterResults(list, { onlyMapfre = false, openNow = false, hideRestricted = true, tipo = 'all' } = {}) {
   return list.filter((r) => {
     if (onlyMapfre && !r.mapfre) return false;
+    // Como en el mapa oficial: «Más EESS colaboradoras» o «Gasolinera Repsol».
+    // Las que marcas tú a mano se ven siempre.
+    if (tipo !== 'all' && r.tipo !== tipo && r.tipo !== 'manual') return false;
     if (openNow && r.open === false) return false;
     if (hideRestricted && r.station.saleType === 'R') return false;
     return true;
