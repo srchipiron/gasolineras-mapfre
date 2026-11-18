@@ -6,6 +6,7 @@ import { parseLocatorPayload } from '/shared/locator.js';
 import { provinciaName } from '/shared/provincias.js';
 import { resetSettings, saveLocalOfficial, KEYS } from '../store.js';
 import { cardSettingsHtml, bindCardSettings } from './card.js';
+import { installSectionHtml, promptInstall } from '../install.js';
 import { FUELS } from '/shared/fuels.js';
 import { VEHICLE_ICONS, addVehicle, updateVehicle, removeVehicle, selectVehicle } from '/shared/vehiculos.js';
 
@@ -130,6 +131,8 @@ export function renderSettings(ctx) {
 
     ${cardSettingsHtml()}
 
+    ${installSectionHtml()}
+
     ${officialSection(ctx)}
 
     <h3>Condiciones de Ahorro al Repostar</h3>
@@ -163,6 +166,10 @@ export function renderSettings(ctx) {
 
   root.querySelector('#settings-form').addEventListener('submit', (e) => e.preventDefault());
   bindCardSettings(root, ctx, () => renderSettings(ctx));
+  root.querySelector('#install-app')?.addEventListener('click', async () => {
+    if (await promptInstall()) ctx.toast('App instalada ✓');
+    renderSettings(ctx);
+  });
 
   const save = () => {
     ctx.persist();

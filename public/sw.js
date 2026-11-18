@@ -1,6 +1,6 @@
 // Service worker: la app funciona sin conexión con los últimos datos vistos.
 
-const VERSION = 'v11';
+const VERSION = 'v12';
 const SHELL_CACHE = `shell-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 const SHELL = [
@@ -17,6 +17,8 @@ const SHELL = [
   '/js/store.js',
   '/js/views/card.js',
   '/js/views/favorites.js',
+  '/js/views/trend.js',
+  '/js/install.js',
   '/js/views/log.js',
   '/js/views/refuel.js',
   '/js/views/settings.js',

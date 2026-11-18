@@ -6,19 +6,24 @@ import { createHttpServer } from '../server/app.js';
 import { StationStore } from '../server/store.js';
 import { createDemoGeocoder, createDemoRouter, createDemoHistory } from '../server/demo.js';
 import { parseLocatorPayload } from '../shared/locator.js';
+import { TrendStore } from '../server/tendencia.js';
+import { madridDate } from '../server/store.js';
 
 const raw = JSON.parse(readFileSync(new URL('./fixtures/minetur-sample.json', import.meta.url)));
 const quiet = { info() {}, warn() {}, error() {} };
-let server, base, port;
+let server, base, port, trend;
 
 before(async () => {
   const store = new StationStore({ load: async () => raw, refreshMs: 0, logger: quiet });
   await store.init();
+  trend = new TrendStore({ loadDay: async () => raw, delayMs: 0, logger: quiet });
+  trend.days.set(madridDate(new Date(), -7), { 28: { gasoleoA: 1.5 }, ES: { gasoleoA: 1.52 } });
   server = createHttpServer({
     store,
     geocoder: createDemoGeocoder(),
     router: createDemoRouter(),
     history: createDemoHistory(),
+    trend,
     official: { get: async () => ({ version: 1, updatedAt: '2026-11-18', source: 'test', provinces: ['28'], stations: { 1001: { tipo: 'colaboradora', nombre: 'GALP' } } }) },
     logger: quiet,
   });
@@ -45,6 +50,19 @@ test('estaciones cercanas', async () => {
   const { body } = await getJson('/api/stations?lat=40.4168&lon=-3.7038&radius=50&fuel=gasoleoA&public=1');
   assert.deepEqual(body.stations.map((s) => s.id).sort(), ['1001', '1002', '1003']);
   assert.ok(body.stations.every((s) => typeof s.distanceKm === 'number'));
+});
+
+test('tendencia de la provincia: hace una semana frente a hoy', async () => {
+  const { status, body } = await getJson('/api/trend?province=28&fuel=gasoleoA');
+  assert.equal(status, 200);
+  assert.equal(body.provinceName, 'Madrid');
+  assert.equal(body.series.length, 15);
+  assert.equal(body.days, 2);
+  assert.equal(body.summary.days, 7);
+  assert.equal(body.summary.ref, 1.5);
+  assert.ok(body.summary.last > 0 && body.summary.last !== 1.5);
+  assert.equal((await getJson('/api/trend?province=x1&fuel=gasoleoA')).status, 400);
+  assert.equal((await getJson('/api/trend?province=28&fuel=../x')).status, 400);
 });
 
 test('validación de parámetros', async () => {

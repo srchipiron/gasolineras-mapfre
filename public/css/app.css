@@ -381,3 +381,31 @@ details ol, details ul { padding-left: 18px; }
 @media (prefers-color-scheme: dark) {
   .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
 }
+
+/* Tendencia de la provincia */
+.trend-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin: 0 0 10px; font-size: 0.92rem; }
+.trend-card summary { cursor: pointer; list-style-position: inside; }
+.trend-card.trend-down { border-left: 4px solid var(--cheap); }
+.trend-card.trend-up { border-left: 4px solid var(--expensive); }
+.trend-card.trend-flat { border-left: 4px solid var(--mid); }
+.trend-body { margin-top: 8px; }
+.trend-body p { margin: 6px 0 0; }
+
+/* Favoritas en la pantalla principal */
+.fav-strip { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; margin: 0 0 10px; }
+.fav-strip-head { display: flex; align-items: baseline; gap: 8px; }
+.fav-strip-head .link { margin-left: auto; }
+.fav-strip ol { list-style: none; margin: 6px 0 0; padding: 0; }
+.fav-row { width: 100%; display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 7px 0; background: none; border: 0; border-top: 1px solid var(--border); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fav-strip li:first-child .fav-row { border-top: 0; }
+.fav-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.9rem; }
+.fav-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.fav-row.hit .fav-price { color: var(--cheap); }
+button.link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-size: 0.88rem; cursor: pointer; text-decoration: underline; }
+
+/* Coste del viaje */
+.trip-cost { background: var(--surface-2); border-radius: var(--radius); padding: 8px 12px; margin: 0 0 10px; }
+
+/* Instalar la app */
+.install-banner { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--text); padding: 6px 16px; font-size: 0.9rem; text-align: center; }
+.install-banner .btn { min-height: 30px; }

@@ -2,13 +2,15 @@
 
 import { api } from './api.js';
 import { createMap } from './map.js';
-import { html, eurL, km, duration, todayISO } from './format.js';
+import { html, eurL, eur, km, duration, todayISO } from './format.js';
 import { resultItem, summaryHtml, detailHtml, adviceHtml } from './render.js';
 import { lineChart } from './chart.js';
 import {
   loadSettings, saveSettings, loadFavorites, loadLog, isFavorite, toggleFavorite, loadLocalOfficial, loadNotes, saveNotes,
 } from './store.js';
-import { renderFavorites, checkAlerts } from './views/favorites.js';
+import { renderFavorites, renderFavStrip, checkAlerts } from './views/favorites.js';
+import { renderTrend } from './views/trend.js';
+import { setupInstallBanner, onInstallChange } from './install.js';
 import { renderLog, exportLogCsv } from './views/log.js';
 import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
@@ -166,6 +168,8 @@ function recompute({ fit = false } = {}) {
       onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(), comparison, tipo: s.officialFilter ?? 'all', radiusKm: state.nearby.radiusKm,
     });
     renderAdvice(summary);
+    renderTrend(ctx);
+    renderFavStrip(ctx);
     renderList($('#results'), results, 'nearby');
     bindOpeners($('#results'), results);
     bindSummaryLinks($('#summary'), results);
@@ -188,6 +192,19 @@ function renderAdvice(summary) {
   el.querySelector('[data-action=ics]')?.addEventListener('click', downloadReminder);
 }
 
+/** Gasto en carburante del viaje con el consumo del vehículo en uso. */
+function tripCostHtml(distanceKm, summary) {
+  const s = state.settings;
+  const best = summary.bestMapfre ?? summary.bestEffective;
+  if (!distanceKm || !s.consumption || !best) return '';
+  const litres = (distanceKm * s.consumption) / 100;
+  const v = s.vehicles?.find((x) => x.id === s.vehicleId);
+  const cost = litres * best.effective;
+  return html`<p class="trip-cost small">⛽ <b>Gasto del viaje</b>${v ? ` (${v.icon} ${v.name}, ${String(s.consumption).replace('.', ',')} L/100 km)` : ''}:
+    unos ${Math.round(litres)} L de ${fuelLabel(s.fuel)} ≈ <b>${eur(cost)}</b> al precio de ${best.station.brand}${summary.bestMapfre ? ' con tréboles' : ''}
+    · ${eur(litres * summary.avg)} a precio medio de la ruta · ida y vuelta ${eur(cost * 2)}.</p>`;
+}
+
 function renderRoute({ fit }) {
   const s = state.settings;
   const r = state.route;
@@ -196,6 +213,7 @@ function renderRoute({ fit }) {
   $('#route-summary').innerHTML = html`
     <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
+    ${tripCostHtml(r.route.distanceKm, summary)}
     ${summaryHtml(summary, {
       litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
       onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(), comparison, tipo: s.officialFilter ?? 'all',
@@ -569,7 +587,19 @@ const ctx = {
 };
 
 async function init() {
+  // Accesos directos del icono de la app (?accion=carnet|cerca|repostaje|ruta).
+  const accion = new URLSearchParams(location.search).get('accion');
+  if (accion) history.replaceState(null, '', location.pathname);
   bindControls();
+  // El carnet se abre al momento, sin esperar a los precios.
+  if (accion === 'carnet') openCard(ctx);
+  setupInstallBanner({
+    el: $('#install-banner'),
+    dismissed: () => !!state.settings.installDismissed,
+    onDismiss: () => { state.settings.installDismissed = true; persist(); },
+    toast,
+  });
+  onInstallChange(() => refreshTab('settings'));
   fillFuelSelect(FUELS);
   syncControls();
   renderBoost();
@@ -599,9 +629,6 @@ async function init() {
     toast('No se pudo conectar con el servidor');
   }
 
-  // Accesos directos del icono de la app (?accion=cerca|repostaje|ruta).
-  const accion = new URLSearchParams(location.search).get('accion');
-  if (accion) history.replaceState(null, '', location.pathname);
 
   const last = state.settings.lastLocation;
   if (accion === 'cerca' && (await locate())) {
@@ -613,7 +640,6 @@ async function init() {
   }
   if (accion === 'repostaje') openRefuel(ctx, null);
   if (accion === 'ruta') selectTab('route');
-  if (accion === 'carnet') openCard(ctx);
   checkAlerts(ctx);
 }
 
