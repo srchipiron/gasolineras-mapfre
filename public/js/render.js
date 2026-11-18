@@ -135,6 +135,28 @@ export function summaryHtml(s, {
       ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>`}`;
 }
 
+/** Tarjeta «La más barata de cada marca». */
+export function brandsHtml(groups, { open = false, max = 6 } = {}) {
+  if (groups.length < 2) return '';
+  const row = (g) => {
+    const r = g.best;
+    return html`<li><button type="button" class="brand-row ${r.mapfre ? 'is-mapfre' : ''}" data-open="${r.station.id}">
+      <span class="brand-name"><span class="brand-title">${r.mapfre ? '🍀 ' : ''}<b>${g.brand}</b></span>
+        <span class="brand-meta muted small">${g.count === 1 ? '1 gasolinera' : `${g.count} gasolineras · la más barata`} a ${km(r.station.offRouteKm ?? r.station.distanceKm)}${r.station.offRouteKm != null ? ' de la ruta' : ''}</span></span>
+      <span class="brand-price">${eurL(r.effective)}</span>
+    </button></li>`;
+  };
+  const first = groups.slice(0, max);
+  const rest = groups.slice(max);
+  return html`
+  <details class="brands" ${open ? 'open' : ''}>
+    <summary>🏷️ <b>La más barata de cada marca</b> <span class="muted small">(${groups.length} marcas)</span></summary>
+    <ol>${first.map(row)}</ol>
+    ${rest.length ? html`<details class="brands-more"><summary class="small">Ver ${rest.length} marcas más</summary><ol>${rest.map(row)}</ol></details>` : ''}
+    <p class="muted small">Precio con tréboles en las adheridas 🍀 y precio en surtidor en las demás.</p>
+  </details>`;
+}
+
 /** Tarjeta «¿reposto hoy o espero al 6 %?». */
 export function adviceHtml(a, { litres }) {
   if (!a || a.extra <= 0) return '';

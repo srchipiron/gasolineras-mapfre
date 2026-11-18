@@ -16,6 +16,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Cuatro órdenes: precio con tréboles, precio en surtidor, **coste real** (incluye la gasolina que gastas en ir y volver) y distancia.
 - **Tendencia**: ▲▼ con lo que ha subido o bajado cada gasolinera desde ayer, y la variación media de la zona. El servidor descarga una vez al día los precios de ayer del Ministerio.
 - **Precio medio de tu provincia (14 días)**: gráfico del precio medio del carburante en la provincia de la búsqueda y si está subiendo, bajando o estable en la última semana, comparado con toda España. Es lo que ha pasado, no una predicción. El servidor guarda solo la media de cada día de los datos diarios del Ministerio.
+- **La más barata de cada marca**: tarjeta con la gasolinera más barata de cada cadena de la zona (o de la ruta), cuántas hay y a qué distancia, para comparar de un vistazo Alcampo, Petroprix, Plenergy o las adheridas 🍀.
 - **Tus favoritas hoy**: en la pantalla principal, tus tres favoritas más baratas hoy, con 🔔 si alguna está por debajo de tu precio objetivo.
 - **Vehículos**: coche, moto…, cada uno con su carburante, litros por repostaje y consumo, y un selector junto a los filtros para cambiar de uno a otro.
 
@@ -51,7 +52,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 **Técnicas**
 - PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos. Al mantener pulsado el icono hay accesos directos («Carnet», «Cerca», «Repostaje», «Ruta»), y la app avisa cuando hay una versión nueva.
 - **Instalar la app**: botón «Instalar» en Android y aviso con los pasos en iPhone (Safari no deja instalar desde un botón). También en Ajustes.
-- Si el servidor está arrancando (Render gratuito se duerme), la app espera y reintenta sola.
+- **Al momento al abrir**: la app enseña la última lista guardada en el móvil para esa búsqueda, con la hora de esos precios, mientras el servidor responde. Si Render gratuito está dormido, se actualiza sola en cuanto despierta (sin esperar en blanco).
 - Leyenda del mapa: colores por precio y borde amarillo para las de la lista oficial. En modo oscuro el mapa se oscurece.
 - Modo oscuro automático.
 - Servidor sin dependencias (solo Node.js): descarga los precios del Ministerio cada 30 minutos y los guarda en caché.

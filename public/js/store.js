@@ -10,6 +10,7 @@ export const KEYS = {
   official: 'gm.official.v1',
   notes: 'gm.notes.v1',
   card: 'gm.card.v1',
+  lastNearby: 'gm.lastNearby.v1',
 };
 
 function read(key, fallback) {
@@ -50,6 +51,7 @@ export const DEFAULT_SETTINGS = {
   vehicleId: null,
   lastLocation: null, // { lat, lon, label }
   installDismissed: false, // aviso de «Instalar la app» cerrado
+  brandsOpen: true, // tarjeta «La más barata de cada marca» desplegada
 };
 
 export function loadSettings() {
@@ -101,6 +103,19 @@ export function saveCard(card) {
     return true;
   }
   return write(KEYS.card, card);
+}
+
+// ---- Última búsqueda (para enseñarla al momento al abrir la app) ----
+export const loadLastNearby = () => read(KEYS.lastNearby, null);
+export function saveLastNearby(entry) {
+  const text = JSON.stringify(entry);
+  if (text.length > 2_000_000) return false; // búsquedas enormes: no se guardan
+  try {
+    localStorage.setItem(KEYS.lastNearby, text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ---- Favoritas ----

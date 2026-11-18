@@ -3,10 +3,11 @@
 import { api } from './api.js';
 import { createMap } from './map.js';
 import { html, eurL, eur, km, duration, todayISO } from './format.js';
-import { resultItem, summaryHtml, detailHtml, adviceHtml } from './render.js';
+import { resultItem, summaryHtml, detailHtml, adviceHtml, brandsHtml } from './render.js';
 import { lineChart } from './chart.js';
 import {
   loadSettings, saveSettings, loadFavorites, loadLog, isFavorite, toggleFavorite, loadLocalOfficial, loadNotes, saveNotes,
+  loadLastNearby, saveLastNearby,
 } from './store.js';
 import { renderFavorites, renderFavStrip, checkAlerts } from './views/favorites.js';
 import { renderTrend } from './views/trend.js';
@@ -15,7 +16,7 @@ import { renderLog, exportLogCsv } from './views/log.js';
 import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
 import { openCard } from './views/card.js';
-import { enrich, filterResults, sortResults, summarize, compareFilter, SORTS, OFFICIAL_FILTERS } from '/shared/ranking.js';
+import { enrich, filterResults, sortResults, summarize, compareFilter, byBrand, SORTS, OFFICIAL_FILTERS } from '/shared/ranking.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
   isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, mergeOfficial, emptyOfficial, DEFAULT_PROGRAM,
@@ -39,6 +40,8 @@ const state = {
   pendingMarks: new Map(),
   center: null,
   nearby: null, // respuesta de /api/stations
+  nearbyKey: null, // búsqueda a la que corresponde nearby
+  staleSince: null, // si nearby es la lista guardada de otra vez, cuándo se guardó
   route: null, // respuesta de /api/route + etiquetas
   tab: 'results',
   computed: { nearby: [], route: [] },
@@ -173,6 +176,7 @@ function recompute({ fit = false } = {}) {
     renderList($('#results'), results, 'nearby');
     bindOpeners($('#results'), results);
     bindSummaryLinks($('#summary'), results);
+    renderBrands($('#brands'), results);
     if (state.tab !== 'route') {
       map.showResults(results, summary, { center: state.nearby.center, radiusKm: state.nearby.radiusKm, fit });
     }
@@ -190,6 +194,15 @@ function renderAdvice(summary) {
   }
   el.innerHTML = adviceHtml(waitAdvice({ price, litres: s.litres, program: s.program }), { litres: s.litres });
   el.querySelector('[data-action=ics]')?.addEventListener('click', downloadReminder);
+}
+
+/** Tarjeta «La más barata de cada marca» (recuerda si la dejaste plegada). */
+function renderBrands(el, results) {
+  el.innerHTML = brandsHtml(byBrand(results), { open: state.settings.brandsOpen !== false });
+  bindSummaryLinks(el, results);
+  el.querySelector('details.brands')?.addEventListener('toggle', (e) => {
+    if (e.target.classList.contains('brands')) { state.settings.brandsOpen = e.target.open; persist(); }
+  });
 }
 
 /** Gasto en carburante del viaje con el consumo del vehículo en uso. */
@@ -221,6 +234,8 @@ function renderRoute({ fit }) {
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
   bindSummaryLinks($('#route-summary'), results);
+  $('#route-summary').insertAdjacentHTML('beforeend', '<div class="route-brands"></div>');
+  renderBrands($('#route-summary .route-brands'), results);
   if (state.tab === 'route') {
     map.showResults(results, summary, { fit: false });
     if (fit) map.showRoute(r.route.polyline);
@@ -268,27 +283,85 @@ function setOfficial() {
 }
 
 // ---------------------------------------------------------------- carga de datos
+/** Identifica una búsqueda: lugar, radio, carburante y si se ocultan las restringidas. */
+function nearbyKey() {
+  const s = state.settings, c = state.center;
+  return `${c.lat.toFixed(4)},${c.lon.toFixed(4)}|${s.radiusKm}|${s.fuel}|${s.hideRestricted ? 1 : 0}`;
+}
+
+function agoText(d) {
+  const min = Math.round((Date.now() - d.getTime()) / 60000);
+  if (min < 1) return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  if (min < 24 * 60) return `hace ${Math.round(min / 60)} h`;
+  return `del ${d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}`;
+}
+
+/** Aviso de que se ven los precios guardados de la última vez. */
+function showStale(mode) {
+  const el = $('#stale-banner');
+  if (!mode || !state.staleSince) { el.hidden = true; return; }
+  const when = new Date(state.staleSince);
+  const hhmm = when.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const what = html`Precios guardados de las ${hhmm} (${agoText(when)})`;
+  el.innerHTML = mode === 'error'
+    ? html`⚠️ Sin conexión con el servidor. ${what}. <button type="button" class="link" data-retry>Reintentar</button>`
+    : html`🕒 ${what}. ${mode === 'waking' ? 'El servidor se está despertando, se actualizan solos en cuanto responda…' : 'Actualizando…'}`;
+  el.querySelector('[data-retry]')?.addEventListener('click', () => { retries = 0; loadNearby({ fit: false }); });
+  el.classList.toggle('error', mode === 'error');
+  el.hidden = false;
+}
+
 async function loadNearby({ fit = true } = {}) {
   if (!state.center) return;
   const s = state.settings;
-  $('#results').innerHTML = html`<li class="empty">Buscando gasolineras…</li>`;
+  const key = nearbyKey();
+  if (state.nearbyKey !== key) {
+    // Mientras llega la respuesta, se enseña la última lista guardada de esta misma búsqueda.
+    const saved = loadLastNearby();
+    if (saved?.key === key && saved.data?.stations?.length) {
+      state.nearby = saved.data;
+      state.nearbyKey = key;
+      state.staleSince = saved.savedAt;
+      recompute({ fit });
+      fit = false;
+      showStale('loading');
+    } else {
+      state.nearbyKey = null;
+      state.staleSince = null;
+      showStale(null);
+      $('#results').innerHTML = html`<li class="empty">Buscando gasolineras…</li>`;
+    }
+  }
   try {
-    state.nearby = await api.stations({
+    const data = await api.stations({
       lat: state.center.lat, lon: state.center.lon, radius: s.radiusKm, fuel: s.fuel, publicOnly: s.hideRestricted,
     });
+    if (nearbyKey() !== key) return; // mientras tanto se cambió la búsqueda
+    state.nearby = data;
+    state.nearbyKey = key;
+    state.staleSince = null;
+    showStale(null);
+    saveLastNearby({ key, savedAt: new Date().toISOString(), data });
     recompute({ fit });
     retries = 0;
     // Si al abrir la app el servidor aún estaba descargando, ahora ya tiene datos.
     if (!state.status?.ready || state.status.fecha !== state.nearby.fecha) refreshStatus();
   } catch (err) {
-    $('#summary').innerHTML = '';
+    if (nearbyKey() !== key) return;
     if (err.status === 503 && retries < 40) {
       // El servidor está descargando los precios del Ministerio (tarda ~20 s al arrancar).
       retries++;
-      $('#results').innerHTML = html`<li class="empty">⏳ Descargando los precios del Ministerio… (se reintenta solo)</li>`;
+      if (state.staleSince) showStale('waking');
+      else {
+        $('#summary').innerHTML = '';
+        $('#results').innerHTML = html`<li class="empty">⏳ Descargando los precios del Ministerio… (se reintenta solo)</li>`;
+      }
       setTimeout(() => loadNearby({ fit }), 5000);
       return;
     }
+    if (state.staleSince) { showStale('error'); return; }
+    $('#summary').innerHTML = '';
     $('#results').innerHTML = html`<li class="empty error">No se pudieron cargar los precios: ${err.message} <button type="button" class="btn small" id="retry">Reintentar</button></li>`;
     $('#retry')?.addEventListener('click', () => { retries = 0; loadNearby({ fit }); });
   }

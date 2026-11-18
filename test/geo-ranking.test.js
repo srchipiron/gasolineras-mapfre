@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { haversineKm, distanceToPolyline, simplifyPolyline, cumulativeKm } from '../shared/geo.js';
-import { enrich, filterResults, sortResults, summarize, priceLevel, compareFilter } from '../shared/ranking.js';
+import { enrich, filterResults, sortResults, summarize, priceLevel, compareFilter, byBrand } from '../shared/ranking.js';
 import { cloneProgram } from '../shared/treboles.js';
 import { parseResponse } from '../server/minetur.js';
 import { nearby, alongRoute } from '../server/search.js';
@@ -194,4 +194,18 @@ test('¿merecen la pena los tréboles? mejor del filtro frente a mejor de fuera,
   // Sin adheridas no hay mejor del filtro
   const none = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), now: new Date(2026, 11, 2) });
   assert.equal(compareFilter(none, { tipo: 'all' }).bestIn, null);
+});
+
+test('la más barata de cada marca', () => {
+  const near = nearby(stations, { ...MADRID, radiusKm: 50 });
+  const list = enrich([...near, { ...near[0], id: 'x', brand: 'galp ', prices: { gasoleoA: 1.6 }, distanceKm: 9 }], {
+    fuel: 'gasoleoA', program: cloneProgram(), official: { provinces: [], stations: { 1001: { tipo: 'colaboradora', nombre: 'GALP' } } }, now: new Date(2026, 11, 20, 12),
+  });
+  const groups = byBrand(list);
+  const galp = groups.find((g) => g.brand === 'GALP');
+  assert.equal(galp.count, 2, 'misma marca aunque cambien mayúsculas o espacios');
+  assert.equal(galp.mapfreCount, 1);
+  assert.equal(galp.best.station.id, '1001');
+  for (let i = 1; i < groups.length; i++) assert.ok(groups[i - 1].best.effective <= groups[i].best.effective, 'ordenadas de más barata a más cara');
+  assert.deepEqual(byBrand([]), []);
 });
