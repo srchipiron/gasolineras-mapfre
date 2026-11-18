@@ -278,6 +278,8 @@ async function loadNearby({ fit = true } = {}) {
     });
     recompute({ fit });
     retries = 0;
+    // Si al abrir la app el servidor aún estaba descargando, ahora ya tiene datos.
+    if (!state.status?.ready || state.status.fecha !== state.nearby.fecha) refreshStatus();
   } catch (err) {
     $('#summary').innerHTML = '';
     if (err.status === 503 && retries < 40) {
@@ -292,6 +294,25 @@ async function loadNearby({ fit = true } = {}) {
   }
 }
 let retries = 0;
+
+/** Vuelve a pedir el estado del servidor (nº de gasolineras, fecha, errores). */
+async function refreshStatus() {
+  const wasReady = !!state.status?.ready;
+  try {
+    state.status = await api.status();
+  } catch {
+    return;
+  }
+  $('#demo-banner').hidden = !state.status.demo;
+  if (state.status.ready && !wasReady) {
+    // Al arrancar el servidor la lista de carburantes llega vacía: se rellena ahora.
+    try {
+      const fuels = await api.fuels();
+      if (fuels.length) { fillFuelSelect(fuels); syncControls(); }
+    } catch { /* se queda la lista completa */ }
+  }
+  if (state.tab === 'settings') renderSettings(ctx);
+}
 
 function setCenter(lat, lon, label) {
   state.center = { lat, lon, label };
@@ -491,7 +512,10 @@ function refreshTab(tab) {
   if (tab !== state.tab) return;
   if (tab === 'favorites') renderFavorites(ctx);
   else if (tab === 'log') renderLog(ctx);
-  else if (tab === 'settings') renderSettings(ctx);
+  else if (tab === 'settings') {
+    renderSettings(ctx);
+    refreshStatus();
+  }
 }
 
 // ---------------------------------------------------------------- controles

@@ -44,6 +44,7 @@ test('estado', async () => {
   assert.equal(status, 200);
   assert.equal(body.count, 4);
   assert.equal(body.ready, true);
+  assert.equal(body.trendDays, 1, 'días de tendencia descargados');
 });
 
 test('estaciones cercanas', async () => {
