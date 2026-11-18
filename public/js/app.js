@@ -128,6 +128,15 @@ function bindOpeners(root, results) {
 }
 
 function bindSummaryLinks(root, results) {
+  root.querySelectorAll('[data-goto]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.goto)));
+  root.querySelectorAll('[data-show-all]').forEach((b) =>
+    b.addEventListener('click', () => {
+      state.settings.onlyMapfre = false;
+      $('#only-mapfre').checked = false;
+      persist();
+      recompute();
+    }),
+  );
   root.querySelectorAll('[data-open]').forEach((el) =>
     el.addEventListener('click', (e) => {
       e.preventDefault();
@@ -143,7 +152,10 @@ function recompute({ fit = false } = {}) {
   if (state.nearby) {
     const { results, summary } = computeList(state.nearby.stations, s.sort);
     state.computed.nearby = results;
-    $('#summary').innerHTML = summaryHtml(summary, { litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday() });
+    $('#summary').innerHTML = summaryHtml(summary, {
+      litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
+      onlyMapfre: s.onlyMapfre, officialCount: Object.keys(state.official?.stations ?? {}).length + Object.values(s.overrides).filter((v) => v === 'in').length,
+    });
     renderAdvice(summary);
     renderList($('#results'), results, 'nearby');
     bindOpeners($('#results'), results);
@@ -175,7 +187,10 @@ function renderRoute({ fit }) {
   $('#route-summary').innerHTML = html`
     <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
-    ${summaryHtml(summary, { litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday() })}`;
+    ${summaryHtml(summary, {
+      litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
+      onlyMapfre: s.onlyMapfre, officialCount: Object.keys(state.official?.stations ?? {}).length + Object.values(s.overrides).filter((v) => v === 'in').length,
+    })}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
   bindSummaryLinks($('#route-summary'), results);

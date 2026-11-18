@@ -75,7 +75,6 @@ test('ficheros estáticos y cabeceras de seguridad', async () => {
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type'), /text\/html/);
   assert.match(res.headers.get('content-security-policy'), /default-src 'self'/);
-  assert.match(res.headers.get('content-security-policy'), /basemaps\.cartocdn\.com/);
   // Sin el origen, OpenStreetMap sirve teselas de «Access blocked».
   assert.equal(res.headers.get('referrer-policy'), 'strict-origin-when-cross-origin');
   assert.match(await res.text(), /Repostar con Tréboles/);

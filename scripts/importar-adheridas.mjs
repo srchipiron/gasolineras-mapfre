@@ -72,7 +72,7 @@ for (const f of args) {
 const stations = await loadStations();
 const { matched, unmatched } = matchEntries(entries, stations);
 const next = normalizeOfficial(current);
-for (const m of matched) next.stations[m.id] = { tipo: m.tipo, nombre: m.nombre };
+for (const m of matched) next.stations[m.id] = { tipo: m.tipo, nombre: m.nombre, ...(m.ventajas ? { ventajas: m.ventajas } : {}) };
 const provinces = new Set(next.provinces);
 for (const e of exported) {
   Object.assign(next.stations, e.stations);

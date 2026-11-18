@@ -63,8 +63,17 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, ma
   </li>`;
 }
 
-export function summaryHtml(s, { litres, fuel, program, capLeft = Infinity }) {
+export function summaryHtml(s, { litres, fuel, program, capLeft = Infinity, onlyMapfre = false, officialCount = 0 }) {
   if (!s.count) {
+    if (onlyMapfre && !officialCount) {
+      return html`<div class="empty">Todavía no hay gasolineras adheridas cargadas: la app solo muestra las de la <b>lista oficial del mapa de Club MAPFRE</b>.<br>
+        <button type="button" class="btn primary small" data-goto="settings">Importar la lista oficial</button>
+        <button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button></div>`;
+    }
+    if (onlyMapfre) {
+      return html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)}. Amplía el radio o importa más zonas del mapa oficial.<br>
+        <button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button></div>`;
+    }
     return html`<div class="empty">No hay gasolineras con ${fuelLabel(fuel)} que cumplan los filtros. Prueba a ampliar el radio o quitar filtros.</div>`;
   }
   if (!fuelEligible(program, fuel)) {
@@ -95,11 +104,11 @@ export function summaryHtml(s, { litres, fuel, program, capLeft = Infinity }) {
       </button>`
     : html`<div class="best ${cls} none"><span class="label">${title}</span><span class="small">Ninguna en la zona</span></div>`;
   return html`
-    <div class="best-grid">
+    <div class="best-grid ${onlyMapfre ? 'single' : ''}">
       ${card(m, 'Mejor Club MAPFRE', 'mapfre')}
-      ${card(o, 'Más barata sin MAPFRE', 'other')}
+      ${onlyMapfre ? '' : card(o, 'Más barata sin MAPFRE', 'other')}
     </div>
-    ${verdict}
+    ${onlyMapfre ? '' : verdict}
     ${totalNote}
     ${Number.isFinite(capLeft) && m && capLeft < m.price * litres
       ? html`<p class="small warn">Hoy solo te quedan ${eur(capLeft)} con tréboles por el tope de 100 € al día y 300 € a la semana: los precios con tréboles ya lo tienen en cuenta.</p>`
@@ -132,7 +141,7 @@ function navLinks(st) {
 }
 
 const SOURCE_TEXT = {
-  official: 'Según la lista oficial de Club MAPFRE.',
+  official: 'Está en la lista oficial del mapa de Club MAPFRE.',
   brand: 'Por la marca, según las condiciones publicadas.',
   approx: 'Por la marca, sin confirmar: compruébalo en el mapa oficial o con «Tu experiencia».',
   manual: 'La has marcado tú como adherida.',
@@ -178,6 +187,7 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
       ${rule
         ? html`<p><b>🍀 Club MAPFRE: ${rule.name}</b></p>
                <p class="small">${isApprox(rule) ? SOURCE_TEXT.approx : SOURCE_TEXT[rule.source] ?? ''}</p>
+               ${rule.ventajas ? html`<p class="small">Ventaja según el mapa oficial: <b>${rule.ventajas}</b></p>` : ''}
                ${eligible && price != null
                  ? html`<p>Hoy te devuelve el <b>${pct(p)}</b> en tréboles: ${num2(treblesFor(capped, p))} tréboles por ${litres} L de ${fuelLabel(fuel)} (${eur(amount)})${capped < amount ? html` <span class="small">— solo cuentan ${eur(capped)} por el tope de 100 €/día y 300 €/semana</span>` : ''}.</p>`
                  : html`<p class="warn small">El ${fuelLabel(fuel)} no da tréboles (el GLP y el GNC están excluidos).</p>`}

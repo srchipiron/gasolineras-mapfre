@@ -9,20 +9,13 @@
 //   - Solo en estaciones adheridas con personal al que enseñar el carnet.
 //   - No acumulable con otros descuentos de la estación (MundoGalp, Waylet...).
 //   - Válida hasta el 31/12/2026.
-// Hay dos formas de ganar tréboles al repostar (preguntas frecuentes de Club
-// MAPFRE), que el mapa oficial separa en «Gasolinera Repsol» y «Más EESS
-// colaboradoras» (+3.800 estaciones en total):
-//  1. Tarjeta Repsol Carburante: se compra en Club MAPFRE (tréboles al
-//     comprarla) y es «canjeable en cualquiera de las Estaciones de Servicio
-//     Repsol de Península y Baleares» (condiciones de la tarjeta).
-//  2. Carnet de socio: 6 % del día 1 al 5 y 3 % el resto en las estaciones
-//     colaboradoras. Galp lo anuncia en su web para sus gasolineras, y las
-//     condiciones de MAPFRE citan MundoGalp. El resto de colaboradoras solo
-//     aparece en el mapa oficial (se importan o se marcan a mano).
-// El programa es para Península y Baleares (Moto Club MAPFRE).
+// Qué gasolineras dan tréboles: SOLO las de la lista oficial del mapa de
+// Club MAPFRE (importada desde un HAR o una respuesta del localizador) y las
+// que marca el propio usuario. No hay reglas por marca: nada se deduce de
+// fuentes externas.
 
 export const DEFAULT_PROGRAM = Object.freeze({
-  version: 3,
+  version: 4,
   trebolValue: 1, // € de descuento en el seguro por cada trébol
   validUntil: '2026-12-31',
   excludedFuels: ['glp', 'gnc'],
@@ -39,40 +32,7 @@ export const DEFAULT_PROGRAM = Object.freeze({
   officialMapUrl: 'https://www.mapfretecuidamos.com/gasolineras/',
   // Porcentajes de las estaciones de la lista oficial.
   official: { id: 'official', percent: 3, boostPercent: 6, boostFromDay: 1, boostToDay: 5 },
-  rules: [
-    {
-      id: 'repsol',
-      name: 'Repsol con Tarjeta Repsol Carburante',
-      via: 'tarjeta',
-      match: ['REPSOL', 'CAMPSA', 'PETRONOR'],
-      excludeProvinces: ['35', '38', '51', '52'], // Canarias, Ceuta y Melilla
-      percent: 6,
-      boostPercent: 6,
-      boostFromDay: 1,
-      boostToDay: 5,
-      promos: [{ from: '2026-11-01', to: '2026-11-30', percent: 10 }],
-      noCap: true, // el tope de 100 €/300 € es de la vía del carnet
-      confidence: 'alta',
-      enabled: true,
-      requirement:
-        'Compra la Tarjeta Repsol Carburante en Club MAPFRE (te da los tréboles al comprarla) y paga con su QR en caja por el terminal Solred. Vale en todas las Repsol de Península y Baleares. No acumulable con el carnet de socio.',
-    },
-    {
-      id: 'galp',
-      name: 'Galp con carnet de socio',
-      via: 'carnet',
-      match: ['GALP'],
-      excludeProvinces: ['35', '38', '51', '52'],
-      percent: 3,
-      boostPercent: 6,
-      boostFromDay: 1,
-      boostToDay: 5,
-      confidence: 'media',
-      enabled: true,
-      requirement:
-        'Galp anuncia en su web el 6 %/3 % enseñando el carnet de socio de Club MAPFRE. Si en alguna no te los dan, márcala con «✗ No me los dieron».',
-    },
-  ],
+  rules: [], // sin reglas por marca: solo la lista oficial y tus marcas
   // Regla que se aplica a las estaciones que marcas tú como adheridas.
   manual: {
     id: 'manual',
@@ -105,8 +65,9 @@ export function migrateProgram(saved) {
   const base = cloneProgram(DEFAULT_PROGRAM);
   if (!saved || typeof saved !== 'object') return base;
   const trebolValue = Number.isFinite(saved.trebolValue) ? saved.trebolValue : base.trebolValue;
+  // Al cambiar de versión se descartan todas las reglas por marca guardadas.
+  if (saved.version !== base.version) return { ...base, trebolValue, rules: [...base.rules] };
   const custom = (saved.rules ?? []).filter((r) => String(r.id).startsWith('custom-'));
-  if (saved.version !== base.version) return { ...base, trebolValue, rules: [...base.rules, ...custom] };
   const editable = ['enabled', 'match', 'percent', 'boostPercent', 'boostFromDay', 'boostToDay'];
   const rules = base.rules.map((r) => {
     const s = (saved.rules ?? []).find((x) => x.id === r.id);
@@ -172,12 +133,21 @@ export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, off
   if (ov === 'in') return { ...(program.manual ?? DEFAULT_PROGRAM.manual), source: 'manual' };
   const hit = official?.stations?.[station.id];
   if (hit) {
-    return {
+    const base = {
       ...(program.official ?? DEFAULT_PROGRAM.official),
       name: `Lista oficial · ${TIPOS[hit.tipo] ?? 'EESS colaboradora'}`,
       requirement: program.requirement ?? DEFAULT_PROGRAM.requirement,
+      ventajas: hit.ventajas || '',
       source: 'official',
     };
+    // Porcentaje indicado por el mapa oficial para esta estación:
+    //  - «Hasta un 6 %…»: es el máximo del carnet -> condiciones del carnet.
+    //  - un único porcentaje («6 % con la tarjeta…»): ese, todos los días.
+    //  - dos («6 % del 1 al 5 y 3 % el resto»): el mayor los días bonificados.
+    const pcts = /hasta/i.test(hit.ventajas ?? '') ? [] : percentsIn(hit.ventajas);
+    if (pcts.length === 1) return { ...base, percent: pcts[0], boostPercent: pcts[0], promos: [] };
+    if (pcts.length >= 2) return { ...base, percent: Math.min(...pcts), boostPercent: Math.max(...pcts), promos: [] };
+    return base;
   }
   if (officialCovers(official, station)) return null;
   for (const rule of program.rules ?? []) {
@@ -186,6 +156,13 @@ export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, off
     if ((rule.match ?? []).some((p) => brandMatches(station.brand, p))) return { ...rule, source: 'brand' };
   }
   return null;
+}
+
+/** Porcentajes que aparecen en un texto («6 % en Tréboles…» -> [6]). */
+export function percentsIn(text) {
+  return [...String(text ?? '').matchAll(/(\d{1,2}(?:[.,]\d+)?)\s*%/g)]
+    .map((m) => Number(m[1].replace(',', '.')))
+    .filter((n) => n > 0 && n <= 50);
 }
 
 /** ¿La regla es una aproximación (no confirmada por condiciones publicadas)? */
