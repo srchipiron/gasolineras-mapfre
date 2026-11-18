@@ -45,18 +45,14 @@ test('porcentaje del texto de ventajas del mapa oficial', () => {
   assert.equal(percentFor(d, new Date(2026, 11, 3)), 5);
 });
 
-test('solo cuentan las «Más EESS colaboradoras»; las «Gasolinera Repsol» solo si se activan', () => {
+test('cuentan las dos categorías del mapa oficial y se puede limitar por tipo', () => {
   const official = { provinces: [], stations: { 1: { tipo: 'colaboradora' }, 2: { tipo: 'repsol' }, 3: { tipo: 'manual' } } };
-  assert.equal(findRule(st('1', 'X'), DEFAULT_PROGRAM, {}, official)?.source, 'official');
-  assert.equal(findRule(st('2', 'REPSOL'), DEFAULT_PROGRAM, {}, official), null);
-  assert.equal(findRule(st('3', 'Y'), DEFAULT_PROGRAM, {}, official)?.source, 'official', 'añadida a mano');
-  const conRepsol = { ...cloneProgram(), officialTypes: ['colaboradora', 'repsol'] };
-  assert.equal(findRule(st('2', 'REPSOL'), conRepsol, {}, official)?.source, 'official');
-  // Tu marca manual manda
-  assert.equal(findRule(st('2', 'REPSOL'), DEFAULT_PROGRAM, { 2: 'in' }, official)?.source, 'manual');
-  // La preferencia se conserva al cargar ajustes de la misma versión
-  assert.deepEqual(migrateProgram(conRepsol).officialTypes, ['colaboradora', 'repsol']);
-  assert.deepEqual(migrateProgram({ ...conRepsol, version: 4 }).officialTypes, ['colaboradora']);
+  assert.equal(findRule(st('1', 'X'), DEFAULT_PROGRAM, {}, official)?.tipo, 'colaboradora');
+  assert.equal(findRule(st('2', 'REPSOL'), DEFAULT_PROGRAM, {}, official)?.tipo, 'repsol');
+  assert.equal(findRule(st('3', 'Y'), DEFAULT_PROGRAM, {}, official)?.source, 'official');
+  const soloColab = { ...cloneProgram(), officialTypes: ['colaboradora'] };
+  assert.equal(findRule(st('2', 'REPSOL'), soloColab, {}, official), null);
+  assert.deepEqual(migrateProgram(soloColab).officialTypes, ['colaboradora']);
 });
 
 test('solo cuentan las estaciones de la lista oficial', () => {

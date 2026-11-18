@@ -88,10 +88,13 @@ test('con la lista oficial: carnet 6 %/3 % y, si el mapa indica un porcentaje, e
   assert.equal(repsol.percent, 6, 'porcentaje del texto de ventajas');
   assert.equal(repsol.rule.ventajas, '6% en Tréboles con la Tarjeta Repsol Carburante');
   assert.equal(list.find((r) => r.station.id === '1002').mapfre, false);
-  // Una «Gasolinera Repsol» del mapa oficial no cuenta por defecto
-  const soloRepsol = { provinces: [], stations: { 1003: { tipo: 'repsol', nombre: 'REPSOL' } } };
-  const r2 = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), official: soloRepsol, now: new Date(2026, 11, 2) });
-  assert.equal(r2.find((r) => r.station.id === '1003').mapfre, false);
+  // Filtro por tipo, como el desplegable del mapa oficial
+  const mixto = { provinces: [], stations: { 1001: { tipo: 'colaboradora' }, 1003: { tipo: 'repsol' } } };
+  const r2 = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), official: mixto, overrides: { 1002: 'in' }, now: new Date(2026, 11, 2) });
+  const ids = (tipo) => filterResults(r2, { onlyMapfre: true, tipo }).map((r) => r.station.id).sort();
+  assert.deepEqual(ids('all'), ['1001', '1002', '1003']);
+  assert.deepEqual(ids('colaboradora'), ['1001', '1002'], 'la marcada a mano se ve siempre');
+  assert.deepEqual(ids('repsol'), ['1002', '1003']);
   const later = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), official, now: new Date(2026, 11, 20) });
   assert.equal(later.find((r) => r.station.id === '1001').percent, 3);
   assert.equal(later.find((r) => r.station.id === '1003').percent, 6, 'el porcentaje del mapa no depende del día');

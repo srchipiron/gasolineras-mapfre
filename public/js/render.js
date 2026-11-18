@@ -66,12 +66,12 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, ma
 export function summaryHtml(s, { litres, fuel, program, capLeft = Infinity, onlyMapfre = false, officialCount = 0 }) {
   if (!s.count) {
     if (onlyMapfre && !officialCount) {
-      return html`<div class="empty">Todavía no hay gasolineras adheridas cargadas: la app solo muestra las <b>«Más EESS colaboradoras»</b> del mapa oficial de Club MAPFRE.<br>
+      return html`<div class="empty">Todavía no hay gasolineras adheridas cargadas: la app solo muestra las de la <b>lista oficial del mapa de Club MAPFRE</b>.<br>
         <button type="button" class="btn primary small" data-goto="settings">Importar la lista oficial</button>
         <button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button></div>`;
     }
     if (onlyMapfre) {
-      return html`<div class="empty">Ninguna «Más EESS colaboradora» del mapa oficial en esta zona con ${fuelLabel(fuel)}. Amplía el radio o importa más zonas del mapa oficial.<br>
+      return html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)} (o con el tipo elegido). Amplía el radio o importa más zonas del mapa oficial.<br>
         <button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button></div>`;
     }
     return html`<div class="empty">No hay gasolineras con ${fuelLabel(fuel)} que cumplan los filtros. Prueba a ampliar el radio o quitar filtros.</div>`;

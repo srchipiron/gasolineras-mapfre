@@ -33,9 +33,9 @@ export const DEFAULT_PROGRAM = Object.freeze({
   // Porcentajes de las estaciones de la lista oficial.
   official: { id: 'official', percent: 3, boostPercent: 6, boostFromDay: 1, boostToDay: 5 },
   rules: [], // sin reglas por marca: solo la lista oficial y tus marcas
-  // Tipos del mapa oficial que cuentan: solo «Más EESS colaboradoras».
-  // («repsol» = «Gasolinera Repsol», que se puede activar en Ajustes.)
-  officialTypes: ['colaboradora'],
+  // Tipos del mapa oficial que cuentan: «Más EESS colaboradoras» y
+  // «Gasolinera Repsol» (en la lista se filtran como en el mapa oficial).
+  officialTypes: ['colaboradora', 'repsol'],
   // Regla que se aplica a las estaciones que marcas tú como adheridas.
   manual: {
     id: 'manual',
@@ -147,6 +147,7 @@ export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, off
       name: `Lista oficial · ${TIPOS[hit.tipo] ?? 'EESS colaboradora'}`,
       requirement: program.requirement ?? DEFAULT_PROGRAM.requirement,
       ventajas: hit.ventajas || '',
+      tipo: hit.tipo,
       source: 'official',
     };
     // Porcentaje indicado por el mapa oficial para esta estación:

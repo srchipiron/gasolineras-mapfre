@@ -19,18 +19,16 @@ function officialSection(ctx) {
   const byTipo = {};
   for (const v of Object.values(off.stations)) byTipo[v.tipo] = (byTipo[v.tipo] ?? 0) + 1;
   const ov = Object.values(state.settings.overrides);
-  const includeRepsol = (state.settings.program.officialTypes ?? []).includes('repsol');
   return html`
     <h3>Gasolineras adheridas a Club MAPFRE</h3>
-    <p class="small">Solo cuentan como adheridas las <b>«Más EESS colaboradoras»</b> de la lista oficial del mapa de Club MAPFRE (importada desde el HAR) y las que marques tú. Nada se deduce por la marca ni de otras webs.</p>
+    <p class="small">Solo cuentan como adheridas las gasolineras de la <b>lista oficial del mapa de Club MAPFRE</b> («Más EESS colaboradoras» y «Gasolinera Repsol», importadas desde el HAR) y las que marques tú. Nada se deduce por la marca ni de otras webs. En la lista puedes filtrar por tipo, como en el mapa oficial.</p>
     <div class="kpis">
-      <div class="kpi"><span class="label">Colaboradoras</span><strong>${byTipo.colaboradora ?? 0}</strong><span class="small">${total ? `de ${total} en la lista oficial` : 'sin importar'}</span></div>
-      <div class="kpi"><span class="label">«Gasolinera Repsol»</span><strong>${byTipo.repsol ?? 0}</strong><span class="small">${includeRepsol ? 'se muestran' : 'no se muestran'}</span></div>
+      <div class="kpi"><span class="label">Más EESS colaboradoras</span><strong>${byTipo.colaboradora ?? 0}</strong><span class="small">${total ? `de ${total} en la lista oficial` : 'sin importar'}</span></div>
+      <div class="kpi"><span class="label">Gasolinera Repsol</span><strong>${byTipo.repsol ?? 0}</strong><span class="small">del mapa oficial</span></div>
       <div class="kpi"><span class="label">Marcadas a mano</span><strong>${ov.filter((v) => v === 'in').length} / ${ov.filter((v) => v === 'out').length}</strong><span class="small">adheridas / no adheridas</span></div>
     </div>
     ${server.updatedAt ? html`<p class="small muted">Lista compartida actualizada el ${date(server.updatedAt)} (${Object.keys(server.stations).length} gasolineras). Importadas en este dispositivo: ${Object.keys(local.stations).length}.</p>` : ''}
 
-    <label class="chip"><input type="checkbox" id="include-repsol" ${includeRepsol ? 'checked' : ''}> Incluir también las «Gasolinera Repsol» del mapa oficial</label>
     <label class="chip"><input type="checkbox" data-k="markMode" ${state.settings.markMode ? 'checked' : ''}> Modo marcar: botón «＋ Adherida» / «✓ Adherida» en cada gasolinera de la lista</label>
 
     <fieldset class="rule on">
@@ -224,11 +222,7 @@ export function renderSettings(ctx) {
 
   // ---- Lista oficial ----
   root.querySelector('#export-list').addEventListener('click', () => exportList(state));
-  root.querySelector('#include-repsol').addEventListener('change', (e) => {
-    s.program.officialTypes = e.target.checked ? ['colaboradora', 'repsol'] : ['colaboradora'];
-    save();
-    renderSettings(ctx);
-  });
+
   root.querySelector('#clear-local')?.addEventListener('click', () => {
     if (!confirm('¿Borrar la lista importada en este dispositivo? La lista compartida no se toca.')) return;
     state.localOfficial = emptyOfficial();

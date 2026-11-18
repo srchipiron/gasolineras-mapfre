@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS = {
   radiusKm: 10,
   sort: 'effective',
   onlyMapfre: true, // por defecto solo se ven las adheridas de la lista oficial
+  officialFilter: 'all', // 'all' | 'colaboradora' | 'repsol', como el mapa oficial
   openNow: false,
   hideRestricted: true,
   litres: 40,

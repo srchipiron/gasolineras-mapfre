@@ -12,7 +12,7 @@ import { renderFavorites, checkAlerts } from './views/favorites.js';
 import { renderLog, exportLogCsv } from './views/log.js';
 import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
-import { enrich, filterResults, sortResults, summarize, SORTS } from '/shared/ranking.js';
+import { enrich, filterResults, sortResults, summarize, SORTS, OFFICIAL_FILTERS } from '/shared/ranking.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
   isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, mergeOfficial, emptyOfficial, DEFAULT_PROGRAM,
@@ -103,7 +103,7 @@ function computeList(stations, sort) {
     capLeft: capLeftToday(),
   });
   const filtered = filterResults(enriched, {
-    onlyMapfre: s.onlyMapfre, openNow: s.openNow, hideRestricted: s.hideRestricted,
+    onlyMapfre: s.onlyMapfre, openNow: s.openNow, hideRestricted: s.hideRestricted, tipo: s.officialFilter ?? 'all',
   });
   return { results: sortResults(filtered, sort), summary: summarize(filtered) };
 }
@@ -493,6 +493,7 @@ function syncControls() {
   $('#radius').value = String(s.radiusKm);
   $('#sort').value = s.sort;
   $('#only-mapfre').checked = s.onlyMapfre;
+  $('#official-filter').value = s.officialFilter ?? 'all';
   $('#open-now').checked = s.openNow;
   $('#route-corridor').value = String(s.corridorKm);
   $('#route-sort').value = s.routeSort;
@@ -500,6 +501,7 @@ function syncControls() {
 
 function bindControls() {
   $('#sort').innerHTML = html`${Object.entries(SORTS).map(([k, v]) => html`<option value="${k}">${v}</option>`)}`;
+  $('#official-filter').innerHTML = html`${Object.entries(OFFICIAL_FILTERS).map(([k, v]) => html`<option value="${k}">${v}</option>`)}`;
   $('#search-form').addEventListener('submit', onSearch);
   $('#locate').addEventListener('click', () => { selectTab('results'); locate(); });
   $('#route-form').addEventListener('submit', onRoute);
@@ -527,6 +529,7 @@ function bindControls() {
   $('#radius').addEventListener('change', (e) => { s().radiusKm = Number(e.target.value); persist(); loadNearby({ fit: true }); });
   $('#sort').addEventListener('change', (e) => { s().sort = e.target.value; persist(); recompute(); });
   $('#only-mapfre').addEventListener('change', (e) => { s().onlyMapfre = e.target.checked; persist(); recompute(); });
+  $('#official-filter').addEventListener('change', (e) => { s().officialFilter = e.target.value; persist(); recompute(); });
   $('#open-now').addEventListener('change', (e) => { s().openNow = e.target.checked; persist(); recompute(); });
   $('#route-corridor').addEventListener('change', (e) => { s().corridorKm = Number(e.target.value); persist(); });
   $('#route-sort').addEventListener('change', (e) => { s().routeSort = e.target.value; persist(); if (state.route) renderRoute({ fit: false }); });
