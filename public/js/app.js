@@ -12,6 +12,7 @@ import { renderFavorites, checkAlerts } from './views/favorites.js';
 import { renderLog, exportLogCsv } from './views/log.js';
 import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
+import { openCard } from './views/card.js';
 import { enrich, filterResults, sortResults, summarize, compareFilter, SORTS, OFFICIAL_FILTERS } from '/shared/ranking.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
@@ -414,6 +415,9 @@ function openDetail(st) {
     } else if (action === 'verdict-ok' || action === 'verdict-ko') {
       setVerdict(st, action === 'verdict-ok' ? 'ok' : 'ko');
       draw();
+    } else if (action === 'card') {
+      dlg.close();
+      openCard(ctx);
     } else if (action === 'refuel') {
       dlg.close();
       openRefuel(ctx, st);
@@ -536,6 +540,7 @@ function bindControls() {
   $('#route-sort').addEventListener('change', (e) => { s().routeSort = e.target.value; persist(); if (state.route) renderRoute({ fit: false }); });
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));
   $('#log-add').addEventListener('click', () => openRefuel(ctx, null));
+  $('#open-card').addEventListener('click', () => openCard(ctx));
   $('#log-export').addEventListener('click', () => {
     if (!state.log.length) return toast('No hay repostajes que exportar');
     exportLogCsv(state);
@@ -557,6 +562,7 @@ const ctx = {
   state, api, toast, persist, recompute, renderBoost, refreshTab, openDetailById, syncControls,
   setOfficial: () => { setOfficial(); recompute(); },
   setVerdict: (st, v) => setVerdict(st, v),
+  selectTab: (t) => selectTab(t),
   capLeftToday,
   reload: () => { persist(); loadNearby({ fit: false }); },
   refetch: () => { syncControls(); persist(); loadNearby({ fit: false }); },
@@ -607,6 +613,7 @@ async function init() {
   }
   if (accion === 'repostaje') openRefuel(ctx, null);
   if (accion === 'ruta') selectTab('route');
+  if (accion === 'carnet') openCard(ctx);
   checkAlerts(ctx);
 }
 

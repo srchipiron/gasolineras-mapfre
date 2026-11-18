@@ -39,13 +39,14 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Ordenadas por precio con tréboles, por coste real o por el orden en que te las encuentras.
 
 **Lo tuyo**
+- **Mi carnet**: guarda tu número de socio de Club MAPFRE y enséñalo en caja a pantalla completa con QR, código de barras (Code 128, o EAN-13 si tu número lo es) y el número en grande. La pantalla no se apaga mientras está abierto. Botón «🪪 Mi carnet» arriba, en la ficha de cada adherida y como acceso directo del icono.
 - Favoritas con **aviso de precio objetivo**: al abrir la app te avisa si alguna ha bajado de tu precio.
 - **Registro de repostajes** con los tréboles ganados este mes, este año y en total, gráfico por meses y exportación a CSV (Excel).
 - **¿Te llegaron los tréboles?**: a los 10 días de cada repostaje la app te pregunta. Si no llegaron, te dice hasta qué día puedes reclamarlos (30 días) y qué datos pide Club MAPFRE.
 - Todo se guarda en tu dispositivo; no hay cuentas ni se envía nada a terceros.
 
 **Técnicas**
-- PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos. Al mantener pulsado el icono hay accesos directos («Cerca», «Repostaje», «Ruta»), y la app avisa cuando hay una versión nueva.
+- PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos. Al mantener pulsado el icono hay accesos directos («Carnet», «Cerca», «Repostaje», «Ruta»), y la app avisa cuando hay una versión nueva.
 - Si el servidor está arrancando (Render gratuito se duerme), la app espera y reintenta sola.
 - Leyenda del mapa: colores por precio y borde amarillo para las de la lista oficial. En modo oscuro el mapa se oscurece.
 - Modo oscuro automático.
@@ -169,7 +170,7 @@ gasolineras-mapfre/
 │   └── adheridas.json lista compartida de gasolineras adheridas
 ├── scripts/
 │   └── importar-adheridas.mjs  actualiza config/adheridas.json
-├── public/            PWA (HTML, CSS y JS sin compilar; Leaflet incluido)
+├── public/            PWA (HTML, CSS y JS sin compilar; Leaflet, qrcode-generator y JsBarcode incluidos)
 └── test/              tests con node:test
 ```
 
@@ -200,4 +201,5 @@ gasolineras-mapfre/
 
 - Precios: [Geoportal de Hidrocarburos — Ministerio para la Transición Ecológica y el Reto Demográfico](https://sedeaplicaciones.minetur.gob.es/ServiciosRESTCarburantes/PreciosCarburantes/help).
 - Mapa: © colaboradores de [OpenStreetMap](https://www.openstreetmap.org/copyright), con [Leaflet](https://leafletjs.com) (BSD-2).
+- Carnet: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) (MIT) y [JsBarcode](https://github.com/lindell/JsBarcode) (MIT), incluidos en `public/vendor/`.
 - Direcciones: Nominatim (OpenStreetMap). Rutas: OSRM.

@@ -76,6 +76,19 @@ p { margin: 6px 0; }
   font-size: 0.85rem; padding: 5px 10px; border-radius: 999px;
   background: var(--surface-2); color: var(--text);
 }
+.top-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.card-btn { min-height: 32px; }
+.card-dialog { padding: 0; border: 0; width: 100vw; max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; background: #fff; color: #111; }
+.card-dialog::backdrop { background: #fff; }
+.card-sheet { min-height: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: calc(14px + env(safe-area-inset-top)) 20px calc(20px + env(safe-area-inset-bottom)); text-align: center; }
+.card-head { width: 100%; max-width: 520px; display: flex; justify-content: space-between; align-items: center; font-size: 1.05rem; }
+.card-head .btn { background: #fff; color: #111; border-color: #ccc; }
+.card-name { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.card-qr { width: min(72vw, 320px); background: #fff; }
+.card-qr svg { width: 100%; height: auto; display: block; }
+.card-barcode { width: min(92vw, 520px); height: auto; background: #fff; }
+.card-number { margin: 0; font: 700 1.6rem/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.08em; }
+.card-help { max-width: 420px; margin: 0; font-size: 0.85rem; color: #555; }
 .boost.on { background: var(--accent); color: var(--accent-text); font-weight: 600; }
 .boost.warn { background: var(--warn-bg); color: var(--warn-text); }
 .promo-banner {

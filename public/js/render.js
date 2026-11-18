@@ -204,6 +204,7 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
         ${ov !== 'in' && !rule ? html`<button class="btn small" data-action="mark-in">Marcar como adherida</button>` : ''}
         ${ov !== 'out' && rule ? html`<button class="btn small" data-action="mark-out">Marcar como NO adherida</button>` : ''}
         ${ov ? html`<button class="btn small" data-action="mark-clear">Quitar mi marca</button>` : ''}
+        ${rule ? html`<button class="btn small primary" data-action="card">🪪 Enseñar carnet</button>` : ''}
         <a class="btn small" target="_blank" rel="noopener" href="${program.officialMapUrl ?? DEFAULT_PROGRAM.officialMapUrl}">Ver mapa oficial ↗</a>
       </div>
     </div>

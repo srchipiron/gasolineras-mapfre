@@ -1,6 +1,6 @@
 // Service worker: la app funciona sin conexión con los últimos datos vistos.
 
-const VERSION = 'v10';
+const VERSION = 'v11';
 const SHELL_CACHE = `shell-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 const SHELL = [
@@ -15,10 +15,12 @@ const SHELL = [
   '/js/map.js',
   '/js/render.js',
   '/js/store.js',
+  '/js/views/card.js',
   '/js/views/favorites.js',
   '/js/views/log.js',
   '/js/views/refuel.js',
   '/js/views/settings.js',
+  '/shared/carnet.js',
   '/shared/fuels.js',
   '/shared/geo.js',
   '/shared/horario.js',
@@ -30,6 +32,8 @@ const SHELL = [
   '/shared/vehiculos.js',
   '/vendor/leaflet/leaflet.js',
   '/vendor/leaflet/leaflet.css',
+  '/vendor/qrcode/qrcode.js',
+  '/vendor/jsbarcode/JsBarcode.all.min.js',
   '/icons/icon.svg',
   '/icons/icon-192.png',
 ];

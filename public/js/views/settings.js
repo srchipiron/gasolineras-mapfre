@@ -5,6 +5,7 @@ import { DEFAULT_PROGRAM, mergeOfficial, emptyOfficial, TIPOS } from '/shared/tr
 import { parseLocatorPayload } from '/shared/locator.js';
 import { provinciaName } from '/shared/provincias.js';
 import { resetSettings, saveLocalOfficial, KEYS } from '../store.js';
+import { cardSettingsHtml, bindCardSettings } from './card.js';
 import { FUELS } from '/shared/fuels.js';
 import { VEHICLE_ICONS, addVehicle, updateVehicle, removeVehicle, selectVehicle } from '/shared/vehiculos.js';
 
@@ -127,6 +128,8 @@ export function renderSettings(ctx) {
       </fieldset>`)}
     <button type="button" class="btn" id="add-vehicle">+ Añadir vehículo</button>
 
+    ${cardSettingsHtml()}
+
     ${officialSection(ctx)}
 
     <h3>Condiciones de Ahorro al Repostar</h3>
@@ -159,6 +162,7 @@ export function renderSettings(ctx) {
   </form>`;
 
   root.querySelector('#settings-form').addEventListener('submit', (e) => e.preventDefault());
+  bindCardSettings(root, ctx, () => renderSettings(ctx));
 
   const save = () => {
     ctx.persist();

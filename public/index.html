@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/app.css">
   <script src="vendor/leaflet/leaflet.js" defer></script>
+  <script src="vendor/qrcode/qrcode.js" defer></script>
+  <script src="vendor/jsbarcode/JsBarcode.all.min.js" defer></script>
   <script src="js/app.js" type="module"></script>
 </head>
 <body>
@@ -23,7 +25,10 @@
         <p class="subtitle">Gasolineras más baratas para socios de Club MAPFRE</p>
       </div>
     </div>
-    <div id="boost-banner" class="boost" role="status"></div>
+    <div class="top-actions">
+      <div id="boost-banner" class="boost" role="status"></div>
+      <button type="button" id="open-card" class="btn small card-btn">🪪 Mi carnet</button>
+    </div>
   </header>
 
   <div id="demo-banner" class="demo-banner" hidden>Modo demostración: los precios son inventados.</div>
@@ -121,6 +126,7 @@
 
   <dialog id="detail" class="sheet" aria-label="Detalle de la gasolinera"></dialog>
   <dialog id="refuel" class="sheet" aria-label="Registrar repostaje"></dialog>
+  <dialog id="card" class="card-dialog" aria-label="Carnet de socio de Club MAPFRE"></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
