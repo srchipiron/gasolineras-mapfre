@@ -409,3 +409,20 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 /* Instalar la app */
 .install-banner { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--text); padding: 6px 16px; font-size: 0.9rem; text-align: center; }
 .install-banner .btn { min-height: 30px; }
+
+/* Precios guardados mientras se actualizan */
+.stale-banner { background: var(--warn-bg); color: var(--warn-text); border-radius: var(--radius); padding: 8px 12px; margin: 0 0 10px; }
+.stale-banner.error { border: 1px solid var(--danger); }
+
+/* La más barata de cada marca */
+.brands { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; margin: 0 0 10px; font-size: 0.92rem; }
+.brands > summary { cursor: pointer; list-style-position: inside; }
+.brands ol { list-style: none; margin: 6px 0 0; padding: 0; }
+.brand-row { width: 100%; display: flex; justify-content: space-between; gap: 10px; align-items: center; padding: 7px 0; background: none; border: 0; border-top: 1px solid var(--border); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.brands ol li:first-child .brand-row { border-top: 0; }
+.brand-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.brand-title, .brand-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brand-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+.brand-row.is-mapfre .brand-price { color: var(--accent); }
+.brands-more > summary { cursor: pointer; color: var(--accent); margin-top: 4px; }
+.brands p { margin: 6px 0 0; }

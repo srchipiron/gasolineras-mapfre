@@ -1,7 +1,7 @@
 // Cálculo de resultados: precio efectivo con tréboles, coste real del
 // repostaje (incluido el desvío), filtros, orden y estadísticas.
 
-import { findRule, percentFor, treblesFor, fuelEligible, eligibleAmount, isApprox } from './treboles.js';
+import { findRule, percentFor, treblesFor, fuelEligible, eligibleAmount, isApprox, normalizeBrand } from './treboles.js';
 import { isOpenAt, parseSchedule } from './horario.js';
 
 // Los km por carretera suelen ser ~30 % más que en línea recta.
@@ -132,6 +132,23 @@ export function summarize(list) {
     changedUp: changes.filter((c) => c > 0).length,
     changedDown: changes.filter((c) => c < 0).length,
   };
+}
+
+/**
+ * La más barata de cada marca (por precio con tréboles), de más barata a más cara.
+ * Las gasolineras sin rótulo o con nombres propios cuentan cada una como su marca.
+ */
+export function byBrand(list) {
+  const groups = new Map();
+  for (const r of list) {
+    const key = normalizeBrand(r.station.brand) || 'SIN ROTULO';
+    const g = groups.get(key) ?? { brand: r.station.brand, count: 0, best: null, mapfreCount: 0 };
+    g.count++;
+    if (r.mapfre) g.mapfreCount++;
+    if (!g.best || r.effective < g.best.effective || (r.effective === g.best.effective && (r.station.distanceKm ?? 0) < (g.best.station.distanceKm ?? 0))) g.best = r;
+    groups.set(key, g);
+  }
+  return [...groups.values()].sort((a, b) => a.best.effective - b.best.effective || b.count - a.count);
 }
 
 /** ¿La gasolinera entra en el filtro de tipo del mapa oficial? */
