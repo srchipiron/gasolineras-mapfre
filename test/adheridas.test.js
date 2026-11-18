@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseLocatorPayload } from '../shared/locator.js';
-import { matchEntries, provinceSummary, normalizeOfficial, createOfficialSource } from '../server/adheridas.js';
+import { matchEntries, provinceSummary, normalizeOfficial, createOfficialSource, similarity } from '../server/adheridas.js';
 import { parseResponse } from '../server/minetur.js';
 
 const read = (f) => JSON.parse(readFileSync(new URL(`./fixtures/${f}`, import.meta.url)));
@@ -85,4 +85,34 @@ test('la lista compartida se relee cuando cambia el fichero', async () => {
   assert.deepEqual((await src.get()).stations, {}, 'sin fichero, lista vacía');
   writeFileSync(file, JSON.stringify({ provinces: ['41'], stations: { 1: { tipo: 'repsol' } } }));
   assert.deepEqual((await src.get()).provinces, ['41']);
+});
+
+test('no atribuye una estación oficial a la gasolinera de al lado (caso Plenergy)', () => {
+  // A ~120 m de la Plenoil 1002 (Avenida del Arco de la Victoria), pero con otro nombre y otra calle.
+  const vecina = [{ nombre: 'E.S. SAN ROQUE', tipo: 'colaboradora', direccion: 'Calle Mayor 5', localidad: 'MADRID', lat: 40.4361, lon: -3.7203 }];
+  const { matched, unmatched } = matchEntries(vecina, stations);
+  assert.equal(matched.length, 0);
+  assert.equal(unmatched.length, 1);
+});
+
+test('empareja por calle y número aunque las coordenadas del mapa oficial estén algo desplazadas', () => {
+  const desplazada = [{ nombre: 'ESTACION X', tipo: 'colaboradora', direccion: 'AVDA. DE LA PRINCESA, 3', localidad: 'MADRID', lat: 40.4270, lon: -3.7140 }]; // ~400 m
+  const { matched } = matchEntries(desplazada, stations);
+  assert.deepEqual(matched.map((m) => [m.id, m.por]), [['1001', 'dirección']]);
+});
+
+test('similitud entre una estación oficial y una del Ministerio', () => {
+  const s = stations.find((x) => x.id === '1001'); // GALP · Calle de la Princesa, 3
+  assert.deepEqual(similarity({ nombre: 'E.S. GALP', direccion: 'C/ Princesa 3' }, s), { street: 1, number: true, name: true });
+  assert.deepEqual(similarity({ nombre: 'E.S. SAN ROQUE', direccion: 'Calle Mayor 5' }, s), { street: 0, number: false, name: false });
+});
+
+test('si dos estaciones oficiales caen en la misma gasolinera, la peor queda para revisar', () => {
+  const dos = [
+    { nombre: 'OTRA', tipo: 'colaboradora', direccion: '', localidad: '', lat: 40.42362, lon: -3.71195 }, // ~1 m, solo posición
+    { nombre: 'E.S. GALP', tipo: 'colaboradora', direccion: 'Calle Princesa 3', localidad: 'MADRID', lat: 40.4239, lon: -3.7119 },
+  ];
+  const { matched, unmatched } = matchEntries(dos, stations);
+  assert.deepEqual(matched.map((m) => m.nombre), ['E.S. GALP']);
+  assert.deepEqual(unmatched.map((u) => u.nombre), ['OTRA']);
 });

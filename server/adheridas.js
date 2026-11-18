@@ -24,16 +24,57 @@ function nearbyCandidates({ g, cell }, lat, lon) {
   return out;
 }
 
-function sharesWord(a, b) {
-  const wa = new Set(normalizeBrand(a).split(' ').filter((w) => w.length >= 3));
-  return normalizeBrand(b).split(' ').some((w) => w.length >= 3 && wa.has(w));
+// Palabras que no ayudan a identificar una gasolinera.
+const STOP = new Set([
+  'CALLE', 'CL', 'C', 'AVENIDA', 'AVDA', 'AVD', 'AV', 'CARRETERA', 'CTRA', 'CR', 'CRTA', 'PASEO', 'PS', 'PLAZA',
+  'PZA', 'CAMINO', 'CMNO', 'RONDA', 'TRAVESIA', 'AUTOVIA', 'AUTOPISTA', 'POLIGONO', 'POL', 'PG', 'URB',
+  'URBANIZACION', 'KM', 'SN', 'S', 'N', 'NUM', 'NO', 'DE', 'DEL', 'LA', 'LAS', 'LOS', 'EL', 'Y', 'A', 'AL',
+  'ESTACION', 'SERVICIO', 'SERVICIOS', 'ES', 'E', 'GASOLINERA', 'AREA', 'CARBURANTES', 'SL', 'SA', 'SLU',
+  'SOCIEDAD', 'COOPERATIVA', 'INDUSTRIAL', 'PARCELA', 'NAVE', 'LOCAL',
+]);
+
+function words(text) {
+  return normalizeBrand(text).split(' ').filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d+$/.test(w));
+}
+
+function numbers(text) {
+  return new Set((normalizeBrand(text).match(/\b\d+\b/g) ?? []).filter((n) => n !== '0'));
 }
 
 /**
- * Empareja cada estación del localizador con la del Ministerio más cercana.
- * Acepta hasta `maxM` metros, o hasta `maxM * 2` si el nombre coincide.
+ * Cuánto se parecen una estación del mapa oficial y una del Ministerio:
+ *  - street: palabras de la calle en común
+ *  - number: comparten número de portal o punto kilométrico
+ *  - name:   el nombre oficial comparte alguna palabra con el rótulo o la dirección
  */
-export function matchEntries(entries, stations, { maxM = 250 } = {}) {
+export function similarity(e, s) {
+  const officialStreet = new Set(words(e.direccion));
+  const ministryStreet = words(s.address);
+  const street = ministryStreet.filter((w) => officialStreet.has(w)).length;
+  const officialNums = numbers(e.direccion);
+  const number = [...numbers(s.address)].some((n) => officialNums.has(n));
+  const officialName = new Set(words(e.nombre));
+  const name = [...words(s.brand), ...ministryStreet].some((w) => officialName.has(w));
+  return { street, number, name };
+}
+
+// Solo se acepta un emparejado si es seguro.
+function acceptable(sim, d) {
+  if (d <= 30) return 'posición'; // mismas coordenadas
+  if (d <= 600 && sim.street >= 1 && sim.number) return 'dirección';
+  if (d <= 250 && sim.street >= 1) return 'calle';
+  if (d <= 400 && sim.name) return 'nombre';
+  return null;
+}
+
+/**
+ * Empareja cada estación del mapa oficial con la del Ministerio que le
+ * corresponde. Solo se acepta si coinciden la calle y el número, la calle (a
+ * menos de 250 m), el nombre (a menos de 400 m) o la posición (menos de 30 m).
+ * Lo demás queda sin emparejar para revisarlo a mano: nunca se atribuye una
+ * estación oficial a la gasolinera de al lado.
+ */
+export function matchEntries(entries, stations) {
   const index = grid(stations);
   const matched = [];
   const unmatched = [];
@@ -42,35 +83,46 @@ export function matchEntries(entries, stations, { maxM = 250 } = {}) {
     let best = null;
     for (const s of nearbyCandidates(index, e.lat, e.lon)) {
       const d = haversineKm(e.lat, e.lon, s.lat, s.lon) * 1000;
-      const nameOk = sharesWord(e.nombre, s.brand) || sharesWord(e.direccion, s.address);
-      const limit = nameOk ? maxM * 2 : maxM;
-      if (d > limit) continue;
-      const score = d - (nameOk ? 150 : 0);
-      if (!best || score < best.score) best = { s, d, score, nameOk };
+      if (d > 600) continue;
+      const sim = similarity(e, s);
+      const how = acceptable(sim, d);
+      if (!how) continue;
+      // Más peso a la dirección que a la distancia.
+      const score = (sim.number ? 1000 : 0) + sim.street * 200 + (sim.name ? 150 : 0) - d;
+      if (!best || score > best.score) best = { s, d, score, how };
     }
     if (!best) {
       unmatched.push(e);
       continue;
     }
     const prev = used.get(best.s.id);
-    if (prev && prev.distanceM <= best.d) continue; // ya emparejada con otra más cercana
+    if (prev && prev.score >= best.score) {
+      unmatched.push(e); // otra estación oficial encaja mejor con esa gasolinera
+      continue;
+    }
     const m = {
       id: best.s.id,
       tipo: e.tipo,
       nombre: e.nombre,
+      direccionOficial: e.direccion,
       ventajas: e.ventajas || '',
       distanceM: Math.round(best.d),
+      por: best.how,
+      score: best.score,
       brand: best.s.brand,
       address: best.s.address,
       locality: best.s.locality,
       province: best.s.province,
       idProvincia: best.s.idProvincia,
     };
-    if (prev) matched.splice(matched.indexOf(prev), 1);
-    used.set(best.s.id, m);
-    matched.push(m);
+    if (prev) {
+      matched.splice(matched.indexOf(prev), 1);
+      unmatched.push(prev.entry);
+    }
+    used.set(best.s.id, { ...m, entry: e });
+    matched.push(used.get(best.s.id));
   }
-  return { matched, unmatched };
+  return { matched: matched.map(({ entry, score, ...m }) => m), unmatched };
 }
 
 /** Resumen por provincia de un emparejado. */
