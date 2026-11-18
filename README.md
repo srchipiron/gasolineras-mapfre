@@ -19,8 +19,10 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Precio efectivo por litro con el porcentaje de tréboles del día: **6 % del día 1 al 5** de cada mes y **3 % el resto**.
 - Comparativa directa entre la mejor de Club MAPFRE y la más barata sin tréboles, con la diferencia en €/L y en € por depósito.
 - Aviso de cuándo es día de 6 % y cuántos días faltan para el siguiente.
-- Reglas configurables: marcas que cuentan, porcentajes, días bonificados y valor del trébol.
-- Puedes marcar cualquier gasolinera a mano como adherida o no adherida.
+- **Lista de gasolineras adheridas**: se importa desde el mapa oficial de Club MAPFRE o se marca a mano, y se comparte entre dispositivos a través del repositorio (`config/adheridas.json`).
+- **Modo marcar**: botón «＋ Adherida» / «✓ Adherida» en cada gasolinera de la lista para revisarlas rápido.
+- Condiciones reales del programa: GLP y GNC no dan tréboles, y hay un tope de 100 € al día y 300 € a la semana.
+- Aviso de cuándo es día de 6 %, de las promociones del mes y de cuándo caduca la oferta.
 
 **Mapa y ficha**
 - Mapa con precios de colores (verde barata, ámbar media, rojo cara) y la mejor opción destacada.
@@ -56,7 +58,7 @@ npm run demo       # datos inventados, para probar sin conexión
 Abre <http://localhost:3000>. La primera descarga de precios tarda unos segundos, porque son unas 12.000 gasolineras. Después se guarda en `data/` y se refresca sola cada 30 minutos.
 
 ```bash
-npm test           # 37 tests
+npm test           # 57 tests
 ```
 
 ## Usarla en el móvil
@@ -87,25 +89,46 @@ El navegador **solo da tu ubicación GPS en webs con HTTPS** (o en `localhost`).
 
 ## Cómo se calculan los tréboles
 
-Condiciones publicadas por Club MAPFRE para *Ahorro al Repostar* (consultadas en noviembre de 2026, válidas hasta el 31/12/2026):
+Condiciones publicadas por Club MAPFRE para *Ahorro al Repostar* (consultadas el 18/11/2026, válidas hasta el 31/12/2026):
 
-- **6 %** del importe en tréboles del día 1 al 5 de cada mes y **3 %** el resto.
-- **1 trébol = 1 €** de descuento en tu seguro MAPFRE.
-- No es acumulable con otros descuentos de la estación (MundoGalp, Waylet…).
+- **6 %** del repostaje en tréboles del día 1 al 5 de cada mes y **3 %** el resto. **1 trébol = 1 €** de descuento en tu seguro MAPFRE.
+- **Tope**: compra máxima de 100 € al día o 300 € en la misma semana.
+- **Excluidos**: GLP y GNC, y vehículos de más de 3.500 kg de uso no particular.
+- Hay que **enseñar el carnet de socio al pagar en caja**: solo vale en estaciones adheridas con personal de atención.
+- No acumulable con otros descuentos de la estación (MundoGalp, Waylet, Club Moeve gow…).
 
-`precio efectivo = precio surtidor × (1 − % tréboles × valor del trébol)`
+`precio efectivo = precio surtidor × (1 − % tréboles × valor del trébol)`, aplicando el tope de 100 € si el repostaje es mayor.
 
-Por ejemplo, el día 2 un diésel a 1,489 € en una Galp sale a 1,489 × 0,94 = **1,400 €/L**.
+Por ejemplo, el día 2 un diésel a 1,489 € sale a 1,489 × 0,94 = **1,400 €/L**. El registro de repostajes aplica también el tope diario y semanal.
 
-**Qué gasolineras cuentan.** La lista exacta de estaciones adheridas solo está en el localizador de Club MAPFRE (unas 1.500), así que la app trabaja por marcas:
+## Qué gasolineras cuentan como adheridas
 
-| Regla | Por defecto | Notas |
-|---|---|---|
-| Galp | activada | Identifícate con el carnet o la app de Club MAPFRE |
-| Repsol | desactivada | Solo si pagas con la Tarjeta Repsol Carburante |
-| Moeve / Cepsa | desactivada | Solo algunas estaciones: márcalas a mano |
+El mapa oficial de Club MAPFRE (<https://www.mapfretecuidamos.com/gasolineras/>) distingue dos tipos: **«Gasolinera Repsol»** y **«Más EESS colaboradoras»**. Galp ya no aparece. La lista no se publica en ningún formato abierto, así que la app decide así, de más a menos prioridad:
 
-Todo se cambia en **Ajustes**: porcentajes, días, marcas o reglas nuevas. Si una gasolinera concreta está o no adherida, ábrela y pulsa «Marcar como adherida» o «Marcar como NO adherida». Si no vas a poder gastar los tréboles (por ejemplo, porque tus seguros ya están pagados), baja el valor del trébol.
+1. **Tus marcas manuales** («Marcar como adherida» / «NO adherida», o el modo marcar).
+2. **La lista oficial importada**: si una gasolinera está en ella, cuenta. En las provincias marcadas como *revisadas por completo*, solo cuentan las de la lista.
+3. **Por marca (aproximado)**: en el resto, las de la red Repsol (Repsol, Campsa, Petronor) cuentan, con la etiqueta «aprox.».
+
+### Importar la lista del mapa oficial
+
+Desde un ordenador con Chrome o Edge:
+
+1. Abre el mapa oficial y pulsa **F12** → pestaña **Red** (Network).
+2. Busca en el mapa las ciudades de la zona, una a una. Cada búsqueda descarga las gasolineras de alrededor.
+3. En la pestaña Red, clic derecho sobre cualquier petición → **Guardar todo como HAR**.
+4. En la app: **Ajustes → Importar del mapa oficial**, elige el fichero y pulsa «Leer y emparejar».
+5. Revisa el resultado por provincia, marca las que estén completas y pulsa «Guardar».
+
+El HAR se lee en el navegador. Al servidor solo llegan los nombres y las posiciones de las gasolineras, nunca las cookies ni las cabeceras. Cada gasolinera del mapa oficial se empareja con la del Ministerio más cercana (máximo 250 m, o 500 m si coincide el nombre).
+
+Lo importado se guarda en ese navegador. Para verlo en todos tus dispositivos, pulsa **Descargar lista (adheridas.json)** y súbela al repositorio:
+
+```bash
+node scripts/importar-adheridas.mjs adheridas.json          # lista exportada desde la app
+node scripts/importar-adheridas.mjs --provincias 41,29 mapa.har   # o directamente un HAR
+```
+
+El script actualiza `config/adheridas.json`. El servidor lo relee solo, sin reiniciar, y se publica con el siguiente despliegue.
 
 ## Estructura
 
@@ -118,13 +141,20 @@ gasolineras-mapfre/
 │   ├── store.js       caché en memoria y en disco con refresco periódico
 │   ├── search.js      búsqueda por radio y por corredor de ruta
 │   ├── services.js    direcciones (Nominatim), rutas (OSRM) e histórico
+│   ├── adheridas.js   lista compartida y emparejado con el mapa oficial
 │   └── demo.js        datos de demostración con el formato real de la API
 ├── shared/            lógica común a servidor y navegador
 │   ├── treboles.js    reglas de Club MAPFRE y cálculo de tréboles
 │   ├── ranking.js     precio efectivo, coste real, filtros y estadísticas
 │   ├── horario.js     interpreta horarios ("L-V: 06:00-22:00; S: ...")
 │   ├── geo.js         distancias, rutas y simplificación de polilíneas
+│   ├── locator.js     lee los datos del mapa oficial (JSON o HAR)
+│   ├── provincias.js  códigos de provincia del INE
 │   └── fuels.js       carburantes del Ministerio
+├── config/
+│   └── adheridas.json lista compartida de gasolineras adheridas
+├── scripts/
+│   └── importar-adheridas.mjs  actualiza config/adheridas.json
 ├── public/            PWA (HTML, CSS y JS sin compilar; Leaflet incluido)
 └── test/              tests con node:test
 ```
@@ -141,10 +171,14 @@ gasolineras-mapfre/
 | GET | `/api/route?from=lat,lon&to=lat,lon&corridor=2&fuel` | Ruta y gasolineras del trayecto |
 | GET | `/api/geocode?q=` | Buscar una dirección (solo España) |
 | GET | `/api/history/:id?days=30` | Histórico de precios |
+| GET | `/api/adheridas` | Lista compartida de gasolineras adheridas |
+| POST | `/api/adheridas/match` | Empareja gasolineras del mapa oficial (`{ entries: [...] }`) con las del Ministerio |
 
 ## Problemas conocidos
 
-- **Error de certificado al descargar del Ministerio** (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`): el servidor del Ministerio a veces no envía el certificado intermedio. Arranca con `NODE_OPTIONS=--use-system-ca npm start` (Node 22.15 o superior) o define `NODE_EXTRA_CA_CERTS` con ese certificado.
+- **Error de certificado al descargar del Ministerio** (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`): si aparece, define `NODE_EXTRA_CA_CERTS` con el certificado intermedio del Ministerio y vuelve a arrancar.
+- **Detrás de un proxy** (oficinas, algunos servidores): el `fetch` de Node no usa `HTTPS_PROXY` salvo que arranques con `NODE_USE_ENV_PROXY=1` (Node 22.21 o superior).
+- **Datos del Ministerio con errores**: algunas gasolineras publican las coordenadas intercambiadas (se corrigen) o en (0, 0) (se descartan). Unas 500 publican solo «L: …» de horario; como no se sabe si es solo el lunes o toda la semana, se muestra como horario desconocido.
 - **Histórico**: se construye con los datos diarios por municipio del Ministerio (`EstacionesTerrestresHist/FiltroMunicipio`). La primera vez tarda unos segundos; después se guarda en `data/historico/`.
 - **Nominatim y OSRM** son servicios públicos gratuitos con uso razonable (la app limita a 1 búsqueda por segundo y guarda caché). Para mucho tráfico, configura servidores propios con `NOMINATIM_URL` y `OSRM_URL`.
 

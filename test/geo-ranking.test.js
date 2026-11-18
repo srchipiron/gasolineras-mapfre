@@ -50,21 +50,53 @@ test('búsqueda en ruta: solo las que quedan cerca del trazado', () => {
 test('ranking: el precio con tréboles puede cambiar el orden', () => {
   const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true });
   const program = cloneProgram();
-  const opts = { fuel: 'gasoleoA', program, litres: 40, consumption: 6, now: new Date(2026, 11, 2) }; // día 2: 6 %
+  // Lista oficial de Madrid con la Galp 1001 como colaboradora.
+  const official = { provinces: ['28'], stations: { 1001: { tipo: 'colaboradora', nombre: 'E.S. GALP' } } };
+  const opts = { fuel: 'gasoleoA', program, official, litres: 40, consumption: 6, now: new Date(2026, 11, 2) }; // día 2: 6 %
   const list = enrich(near, opts);
   const galp = list.find((r) => r.station.id === '1001');
   assert.equal(galp.mapfre, true);
+  assert.equal(galp.approx, false);
   assert.equal(galp.percent, 6);
   assert.equal(galp.effective.toFixed(4), (1.489 * 0.94).toFixed(4));
   assert.equal(galp.treboles, Math.round(1.489 * 40 * 6) / 100);
-  const sorted = sortResults(list, 'effective');
-  // Con 6 %: Galp 1,3997 € vs Plenoil 1,429 € -> Galp primero
-  assert.equal(sorted[0].station.id, '1001');
+  // La Repsol de Madrid no está en la lista oficial de Madrid: no cuenta
+  assert.equal(list.find((r) => r.station.id === '1003').mapfre, false);
+  // Con 6 %: Galp 1,3997 € frente a Plenoil 1,429 € -> Galp primero
+  assert.equal(sortResults(list, 'effective')[0].station.id, '1001');
   // El día 20 (3 %): Galp 1,4443 € -> Plenoil primero
-  const later = sortResults(enrich(near, { ...opts, now: new Date(2026, 11, 20) }), 'effective');
-  assert.equal(later[0].station.id, '1002');
+  assert.equal(sortResults(enrich(near, { ...opts, now: new Date(2026, 11, 20) }), 'effective')[0].station.id, '1002');
   // Por precio de surtidor siempre gana Plenoil
   assert.equal(sortResults(list, 'price')[0].station.id, '1002');
+});
+
+test('sin lista oficial, la Repsol cuenta por marca (aproximado)', () => {
+  const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true });
+  const list = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), now: new Date(2026, 11, 2) });
+  const repsol = list.find((r) => r.station.id === '1003');
+  assert.equal(repsol.mapfre, true);
+  assert.equal(repsol.approx, true);
+  assert.equal(list.find((r) => r.station.id === '1001').mapfre, false, 'Galp ya no cuenta por defecto');
+  // 1,519 × 0,94 = 1,4279 € < Plenoil 1,429 €
+  assert.equal(sortResults(list, 'effective')[0].station.id, '1003');
+});
+
+test('GLP: la estación está adherida pero no da tréboles', () => {
+  const near = nearby(stations, { ...MADRID, radiusKm: 50, fuel: 'glp' });
+  const official = { provinces: [], stations: { 1002: { tipo: 'colaboradora' } } };
+  const [r] = enrich(near, { fuel: 'glp', program: cloneProgram(), official, now: new Date(2026, 11, 2) });
+  assert.equal(r.adherida, true);
+  assert.equal(r.mapfre, false);
+  assert.equal(r.percent, 0);
+  assert.equal(r.effective, r.price);
+});
+
+test('tope de 100 € al día en el precio efectivo', () => {
+  const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true });
+  const [r] = enrich(near.filter((s) => s.id === '1003'), { fuel: 'gasoleoA', program: cloneProgram(), litres: 80, now: new Date(2026, 11, 2) });
+  const amount = 1.519 * 80;
+  assert.equal(r.treboles, 6); // 6 % de 100 €
+  assert.equal(r.effective.toFixed(5), (1.519 * (1 - 0.06 * (100 / amount))).toFixed(5));
 });
 
 test('resumen y filtros', () => {
@@ -78,7 +110,7 @@ test('resumen y filtros', () => {
   assert.equal(s.mapfreCount, 1);
   assert.equal(s.min, 1.429);
   assert.equal(s.max, 1.519);
-  assert.equal(s.bestMapfre.station.id, '1001');
+  assert.equal(s.bestMapfre.station.id, '1003');
   assert.equal(s.bestNonMapfre.station.id, '1002');
   assert.equal(priceLevel(1.429, s), 'cheap');
   assert.equal(priceLevel(1.519, s), 'expensive');

@@ -54,6 +54,10 @@ export function parseSchedule(text) {
   if (!text || typeof text !== 'string') return null;
   const week = [[], [], [], [], [], [], []];
   let any = false;
+  // Unas 500 estaciones publican solo "L: 06:00-22:00" o "L: 24H". No se sabe
+  // si se refieren solo al lunes o a toda la semana, así que es desconocido.
+  const daySpecs = text.split(';').map((c) => c.trim()).filter(Boolean).map((c) => c.split(':')[0].trim().toUpperCase());
+  if (daySpecs.length && daySpecs.every((d) => d === 'L')) return null;
   for (const chunk of text.split(';')) {
     const c = chunk.trim();
     if (!c) continue;

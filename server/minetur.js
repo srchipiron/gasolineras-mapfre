@@ -31,12 +31,21 @@ function titleCase(s) {
     .join(' ');
 }
 
+// España (península, Baleares, Canarias, Ceuta y Melilla).
+const inSpain = (lat, lon) => lat >= 27.4 && lat <= 44 && lon >= -18.5 && lon <= 4.6;
+
 /** Convierte una estación en bruto de la API en el formato interno. */
 export function parseStation(raw) {
-  const lat = parseNumber(raw['Latitud']);
-  const lon = parseNumber(raw['Longitud (WGS84)'] ?? raw['Longitud']);
+  let lat = parseNumber(raw['Latitud']);
+  let lon = parseNumber(raw['Longitud (WGS84)'] ?? raw['Longitud']);
   const id = clean(raw['IDEESS']);
   if (lat == null || lon == null || !id) return null;
+  if (!inSpain(lat, lon)) {
+    // Algunas estaciones publican la latitud y la longitud intercambiadas
+    // y otras (0, 0): las primeras se corrigen y las segundas se descartan.
+    if (inSpain(lon, lat)) [lat, lon] = [lon, lat];
+    else return null;
+  }
   const prices = {};
   for (const [field, value] of Object.entries(raw)) {
     const key = fuelKeyForField(field);

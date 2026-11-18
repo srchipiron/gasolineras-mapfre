@@ -18,7 +18,7 @@ async function currentResults(ctx) {
     distanceKm: c ? haversineKm(c.lat, c.lon, st.lat, st.lon) : undefined,
   }));
   const results = enrich(withDist, {
-    fuel: s.fuel, program: s.program, overrides: s.overrides, litres: s.litres, consumption: s.consumption,
+    fuel: s.fuel, program: s.program, overrides: s.overrides, official: state.official, litres: s.litres, consumption: s.consumption,
   });
   return new Map(results.map((r) => [r.station.id, r]));
 }

@@ -9,6 +9,7 @@ import { StationStore } from './store.js';
 import { createMineturClient, DEFAULT_BASE_URL } from './minetur.js';
 import { createGeocoder, createRouter, createHistory } from './services.js';
 import { generateDemoResponse, createDemoGeocoder, createDemoRouter, createDemoHistory } from './demo.js';
+import { createOfficialSource } from './adheridas.js';
 
 const env = process.env;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -39,6 +40,8 @@ const deps = {
   geocoder: demo ? createDemoGeocoder() : createGeocoder({ baseUrl: env.NOMINATIM_URL }),
   router: demo ? createDemoRouter() : createRouter({ baseUrl: env.OSRM_URL }),
   history: demo ? createDemoHistory() : createHistory({ client, cacheDir: join(DATA_DIR, 'historico'), logger }),
+  // Lista compartida de gasolineras adheridas (se versiona en el repositorio).
+  official: createOfficialSource(env.ADHERIDAS_FILE ?? join(ROOT, 'config', 'adheridas.json')),
 };
 
 const server = createHttpServer(deps);

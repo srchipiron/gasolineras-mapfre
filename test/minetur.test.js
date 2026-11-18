@@ -20,6 +20,8 @@ test('claves de carburante, incluidos campos nuevos', () => {
   assert.equal(fuelKeyForField('Precio Gases licuados del petróleo'), 'glp');
   assert.equal(fuelKeyForField('Precio Adblue'), 'adblue');
   assert.equal(fuelKeyForField('Precio Amoniaco'), 'amoniaco');
+  assert.equal(fuelKeyForField('Precio Biogas Natural Comprimido'), 'biogasNaturalComprimido');
+  assert.equal(fuelKeyForField('Precio Gasolina 95 E85'), 'gasolina95E85');
   assert.equal(fuelKeyForField('Rótulo'), null);
 });
 
@@ -39,6 +41,17 @@ test('parsea la respuesta del Ministerio', () => {
   assert.equal(plenoil.prices.glp, 0.959);
   assert.equal(stations.find((s) => s.id === '1004').saleType, 'R');
   assert.equal(stations.find((s) => s.id === '1004').municipality, 'Arganda del Rey');
+});
+
+test('corrige coordenadas intercambiadas y descarta las que valen (0, 0)', () => {
+  const base = { 'IDEESS': '7', 'Rótulo': 'X', 'IDProvincia': '36' };
+  const swapped = parseResponse({ ListaEESSPrecio: [{ ...base, 'Latitud': '-8,659472', 'Longitud (WGS84)': '42,037472' }] });
+  assert.equal(swapped.stations[0].lat, 42.037472);
+  assert.equal(swapped.stations[0].lon, -8.659472);
+  const zero = parseResponse({ ListaEESSPrecio: [{ ...base, 'Latitud': '0,000000', 'Longitud (WGS84)': '0,000000' }] });
+  assert.equal(zero.stations.length, 0);
+  const canarias = parseResponse({ ListaEESSPrecio: [{ ...base, 'Latitud': '28,123', 'Longitud (WGS84)': '-15,43' }] });
+  assert.equal(canarias.stations.length, 1);
 });
 
 test('rechaza respuestas con error', () => {

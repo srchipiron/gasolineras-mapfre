@@ -1,7 +1,7 @@
 // Cálculo de resultados: precio efectivo con tréboles, coste real del
 // repostaje (incluido el desvío), filtros, orden y estadísticas.
 
-import { findRule, percentFor, effectivePrice, treblesFor } from './treboles.js';
+import { findRule, percentFor, effectivePrice, treblesFor, fuelEligible, eligibleAmount } from './treboles.js';
 import { isOpenAt, parseSchedule } from './horario.js';
 
 // Los km por carretera suelen ser ~30 % más que en línea recta.
@@ -17,18 +17,21 @@ export const SORTS = {
 /**
  * Enriquece cada estación con los datos del carburante elegido.
  * @param {object[]} stations estaciones con `prices` y `distanceKm` (o `offRouteKm`)
- * @param {object} opts { fuel, program, overrides, litres, consumption, now }
+ * @param {object} opts { fuel, program, overrides, official, litres, consumption, now }
  */
 export function enrich(stations, opts) {
-  const { fuel, program, overrides = {}, litres = 40, consumption = 6.5, now = new Date() } = opts;
+  const { fuel, program, overrides = {}, official = null, litres = 40, consumption = 6.5, now = new Date() } = opts;
   const trebolValue = program?.trebolValue ?? 1;
+  const eligibleFuel = fuelEligible(program, fuel);
   const out = [];
   for (const st of stations) {
     const price = st.prices?.[fuel];
     if (price == null) continue;
-    const rule = findRule(st, program, overrides);
-    const pct = percentFor(rule, now);
-    const eff = effectivePrice(price, pct, trebolValue);
+    const rule = findRule(st, program, overrides, official);
+    // El GLP y el GNC no dan tréboles aunque la estación esté adherida.
+    const pct = eligibleFuel ? percentFor(rule, now) : 0;
+    const amount = litres * price;
+    const eff = effectivePrice(price, pct, trebolValue, { amountEur: amount, program });
     const detourKm = (st.offRouteKm ?? st.distanceKm ?? 0) * 2 * ROAD_FACTOR;
     const detourCost = (detourKm * consumption / 100) * price;
     const fillCost = litres * eff;
@@ -37,10 +40,12 @@ export function enrich(stations, opts) {
       station: st,
       price,
       rule,
-      mapfre: !!rule,
+      mapfre: !!rule && pct > 0,
+      adherida: !!rule,
+      approx: rule?.source === 'brand',
       percent: pct,
       effective: eff,
-      treboles: rule ? treblesFor(litres * price, pct) : 0,
+      treboles: rule ? treblesFor(eligibleAmount(amount, program), pct) : 0,
       detourKm,
       detourCost,
       totalCost: fillCost + detourCost,
