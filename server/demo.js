@@ -165,6 +165,19 @@ export function generateDemoPrevResponse(now = new Date()) {
   return res;
 }
 
+/** Precios de un día pasado para la demostración: los de hoy, algo más caros cuanto más atrás. */
+export function generateDemoDayResponse(date, now = new Date()) {
+  const res = generateDemoResponse(now);
+  const daysAgo = Math.max(0, Math.round((now - date) / 86400000));
+  const shift = 0.0015 * daysAgo + 0.003 * Math.sin(daysAgo * 1.3);
+  for (const st of res.ListaEESSPrecio) {
+    for (const k of Object.keys(st)) {
+      if (k.startsWith('Precio ') && st[k]) st[k] = fmt(Number(st[k].replace(',', '.')) + shift);
+    }
+  }
+  return res;
+}
+
 export function createDemoGeocoder() {
   return {
     async search(q) {

@@ -9,6 +9,8 @@ import { nearby, alongRoute } from './search.js';
 import { matchEntries, provinceSummary } from './adheridas.js';
 import { DEFAULT_PROGRAM, emptyOfficial } from '../shared/treboles.js';
 import { FUELS } from '../shared/fuels.js';
+import { provinciaName } from '../shared/provincias.js';
+import { dayAverages, trendSummary } from './tendencia.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const STATIC_DIRS = [
@@ -115,8 +117,15 @@ function send(req, res, status, body, headers = {}) {
  * @param {{forStation(st:object, days:number):Promise<object>}} deps.history
  */
 export function createApp({
-  store, geocoder, router, history, official = { get: async () => emptyOfficial() }, demo = false, logger = console,
+  store, geocoder, router, history, trend = null, official = { get: async () => emptyOfficial() }, demo = false, logger = console,
 }) {
+  // Medias de hoy (precios actuales), recalculadas solo cuando cambian los datos.
+  let todayAvg = { key: null, data: null };
+  const todayAverages = () => {
+    if (todayAvg.key !== store.fetchedAt) todayAvg = { key: store.fetchedAt, data: dayAverages(store.stations) };
+    return todayAvg.data;
+  };
+
   function requireData() {
     if (!store.ready) {
       throw new HttpError(503, store.lastError ? `Sin datos de precios: ${store.lastError.message}` : 'Cargando precios, inténtalo en unos segundos');
@@ -133,6 +142,23 @@ export function createApp({
     'GET /api/status': () => ({ ...store.status(), demo }),
 
     'GET /api/program': () => DEFAULT_PROGRAM,
+
+    'GET /api/trend': (q) => {
+      requireData();
+      const province = q.get('province') ?? '';
+      if (!/^(\d{2}|ES)$/.test(province)) throw new HttpError(400, 'Provincia no válida');
+      const fuel = fuelParam(q.get('fuel')) ?? 'gasoleoA';
+      const series = trend ? trend.series({ province, fuel, today: todayAverages() }) : [];
+      return {
+        province,
+        provinceName: province === 'ES' ? 'España' : provinciaName(province),
+        fuel,
+        series,
+        summary: trendSummary(series, 'avg'),
+        national: trendSummary(series, 'es'),
+        days: series.filter((p) => p.avg != null).length,
+      };
+    },
 
     'GET /api/fuels': () => {
       const counts = store.fuelCounts();

@@ -19,8 +19,9 @@ export class StationStore {
    * @param {number} [o.refreshMs] cada cuánto refrescar (0 = nunca)
    * @param {string} [o.source] 'minetur' | 'demo'
    */
-  constructor({ load, loadPrev = null, cacheFile, prevCacheFile = null, refreshMs = 30 * 60 * 1000, source = 'minetur', logger = console }) {
+  constructor({ load, loadPrev = null, onPrev = null, cacheFile, prevCacheFile = null, refreshMs = 30 * 60 * 1000, source = 'minetur', logger = console }) {
     this.load = load;
+    this.onPrev = onPrev; // (fecha, estaciones) cuando se descargan los precios de ayer
     this.loadPrev = loadPrev; // (Date) => respuesta en bruto de los precios de ese día
     this.prevCacheFile = prevCacheFile;
     this.prev = null; // { date, byId: Map(id -> prices) } con los precios de ayer
@@ -147,6 +148,7 @@ export class StationStore {
         const [y, m, dd] = date.split('-').map(Number);
         const parsed = parseResponse(await this.loadPrev(new Date(y, m - 1, dd, 12)));
         this.prev = { date, byId: new Map(parsed.stations.map((s) => [s.id, s.prices])) };
+        try { this.onPrev?.(date, parsed.stations); } catch { /* no debe romper la descarga */ }
         this.log.info?.(`Precios de ayer (${date}): ${parsed.stations.length} estaciones en ${Date.now() - t0} ms`);
         if (file) {
           await mkdir(dirname(file), { recursive: true });

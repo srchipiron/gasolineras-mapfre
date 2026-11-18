@@ -15,6 +15,8 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Filtros: solo Club MAPFRE, abiertas ahora y ocultar las de venta restringida (cooperativas y flotas).
 - Cuatro órdenes: precio con tréboles, precio en surtidor, **coste real** (incluye la gasolina que gastas en ir y volver) y distancia.
 - **Tendencia**: ▲▼ con lo que ha subido o bajado cada gasolinera desde ayer, y la variación media de la zona. El servidor descarga una vez al día los precios de ayer del Ministerio.
+- **Precio medio de tu provincia (14 días)**: gráfico del precio medio del carburante en la provincia de la búsqueda y si está subiendo, bajando o estable en la última semana, comparado con toda España. Es lo que ha pasado, no una predicción. El servidor guarda solo la media de cada día de los datos diarios del Ministerio.
+- **Tus favoritas hoy**: en la pantalla principal, tus tres favoritas más baratas hoy, con 🔔 si alguna está por debajo de tu precio objetivo.
 - **Vehículos**: coche, moto…, cada uno con su carburante, litros por repostaje y consumo, y un selector junto a los filtros para cambiar de uno a otro.
 
 **Club MAPFRE**
@@ -39,6 +41,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Ordenadas por precio con tréboles, por coste real o por el orden en que te las encuentras.
 
 **Lo tuyo**
+- **Gasto del viaje** en el modo ruta: litros y euros del trayecto con el consumo de tu vehículo, al precio de la mejor gasolinera de la ruta y a precio medio, e ida y vuelta.
 - **Mi carnet**: guarda tu número de socio de Club MAPFRE y enséñalo en caja a pantalla completa con QR, código de barras (Code 128, o EAN-13 si tu número lo es) y el número en grande. La pantalla no se apaga mientras está abierto. Botón «🪪 Mi carnet» arriba, en la ficha de cada adherida y como acceso directo del icono.
 - Favoritas con **aviso de precio objetivo**: al abrir la app te avisa si alguna ha bajado de tu precio.
 - **Registro de repostajes** con los tréboles ganados este mes, este año y en total, gráfico por meses y exportación a CSV (Excel).
@@ -47,6 +50,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 
 **Técnicas**
 - PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos. Al mantener pulsado el icono hay accesos directos («Carnet», «Cerca», «Repostaje», «Ruta»), y la app avisa cuando hay una versión nueva.
+- **Instalar la app**: botón «Instalar» en Android y aviso con los pasos en iPhone (Safari no deja instalar desde un botón). También en Ajustes.
 - Si el servidor está arrancando (Render gratuito se duerme), la app espera y reintenta sola.
 - Leyenda del mapa: colores por precio y borde amarillo para las de la lista oficial. En modo oscuro el mapa se oscurece.
 - Modo oscuro automático.
@@ -155,6 +159,7 @@ gasolineras-mapfre/
 │   ├── search.js      búsqueda por radio y por corredor de ruta
 │   ├── services.js    direcciones (Nominatim), rutas (OSRM) e histórico
 │   ├── adheridas.js   lista compartida y emparejado con el mapa oficial
+│   ├── tendencia.js   precio medio diario por provincia (últimos 14 días)
 │   └── demo.js        datos de demostración con el formato real de la API
 ├── shared/            lógica común a servidor y navegador
 │   ├── treboles.js    reglas de Club MAPFRE y cálculo de tréboles
@@ -186,6 +191,7 @@ gasolineras-mapfre/
 | GET | `/api/route?from=lat,lon&to=lat,lon&corridor=2&fuel` | Ruta y gasolineras del trayecto |
 | GET | `/api/geocode?q=` | Buscar una dirección (solo España) |
 | GET | `/api/history/:id?days=30` | Histórico de precios |
+| GET | `/api/trend?province=41&fuel=gasoleoA` | Precio medio de la provincia (o `ES`) en los últimos 14 días y su tendencia |
 | GET | `/api/adheridas` | Lista compartida de gasolineras adheridas |
 | POST | `/api/adheridas/match` | Empareja gasolineras del mapa oficial (`{ entries: [...] }`) con las del Ministerio |
 
@@ -194,6 +200,7 @@ gasolineras-mapfre/
 - **Error de certificado al descargar del Ministerio** (`UNABLE_TO_VERIFY_LEAF_SIGNATURE`): si aparece, define `NODE_EXTRA_CA_CERTS` con el certificado intermedio del Ministerio y vuelve a arrancar.
 - **Detrás de un proxy** (oficinas, algunos servidores): el `fetch` de Node no usa `HTTPS_PROXY` salvo que arranques con `NODE_USE_ENV_PROXY=1` (Node 22.21 o superior).
 - **Datos del Ministerio con errores**: algunas gasolineras publican las coordenadas intercambiadas (se corrigen) o en (0, 0) (se descartan). Unas 500 publican solo «L: …» de horario; como no se sabe si es solo el lunes o toda la semana, se muestra como horario desconocido.
+- **Precio medio de la provincia**: al arrancar, el servidor descarga uno a uno los 14 días anteriores (unos 12 MB y 20 s cada uno, con pausas) y guarda solo las medias en `data/tendencia.json`. En Render gratuito el disco se borra al dormirse, así que tras un arranque en frío el gráfico tarda unos minutos en completarse.
 - **Histórico**: se construye con los datos diarios por municipio del Ministerio (`EstacionesTerrestresHist/FiltroMunicipio`). La primera vez tarda unos segundos; después se guarda en `data/historico/`.
 - **Nominatim y OSRM** son servicios públicos gratuitos con uso razonable (la app limita a 1 búsqueda por segundo y guarda caché). Para mucho tráfico, configura servidores propios con `NOMINATIM_URL` y `OSRM_URL`.
 

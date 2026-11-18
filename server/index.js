@@ -8,8 +8,9 @@ import { createHttpServer } from './app.js';
 import { StationStore } from './store.js';
 import { createMineturClient, DEFAULT_BASE_URL } from './minetur.js';
 import { createGeocoder, createRouter, createHistory } from './services.js';
-import { generateDemoResponse, generateDemoPrevResponse, createDemoGeocoder, createDemoRouter, createDemoHistory } from './demo.js';
+import { generateDemoResponse, generateDemoPrevResponse, generateDemoDayResponse, createDemoGeocoder, createDemoRouter, createDemoHistory } from './demo.js';
 import { createOfficialSource } from './adheridas.js';
+import { TrendStore } from './tendencia.js';
 
 const env = process.env;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -25,7 +26,16 @@ const logger = {
 
 const client = createMineturClient({ baseUrl: env.MINETUR_BASE_URL ?? DEFAULT_BASE_URL });
 
+// Precio medio por provincia de los últimos 14 días (tendencia).
+const trend = new TrendStore({
+  loadDay: demo ? async (date) => generateDemoDayResponse(date) : (date) => client.fetchHistAll(date),
+  cacheFile: demo ? null : join(DATA_DIR, 'tendencia.json'),
+  delayMs: demo ? 0 : 20_000,
+  logger,
+});
+
 const store = new StationStore({
+  onPrev: demo ? null : (date, stations) => trend.addDay(date, stations),
   load: demo ? async () => generateDemoResponse() : () => client.fetchAll(),
   loadPrev: demo ? async () => generateDemoPrevResponse() : (date) => client.fetchHistAll(date),
   cacheFile: demo ? null : join(DATA_DIR, 'estaciones.json'),
@@ -37,6 +47,7 @@ const store = new StationStore({
 
 const deps = {
   store,
+  trend,
   demo,
   logger,
   geocoder: demo ? createDemoGeocoder() : createGeocoder({ baseUrl: env.NOMINATIM_URL }),
@@ -59,10 +70,12 @@ server.listen(port, host, () => {
 });
 
 store.init().catch((err) => logger.error(err.message));
+trend.init({ startDelayMs: demo ? 1000 : 90_000 }).catch((err) => logger.error(err.message));
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => {
     store.stop();
+    trend.stop();
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(0), 2000).unref();
   });

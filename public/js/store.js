@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS = {
   vehicles: [], // perfiles de vehículo (ver shared/vehiculos.js)
   vehicleId: null,
   lastLocation: null, // { lat, lon, label }
+  installDismissed: false, // aviso de «Instalar la app» cerrado
 };
 
 export function loadSettings() {

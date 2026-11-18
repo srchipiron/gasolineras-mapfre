@@ -41,5 +41,6 @@ export const api = {
     if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
     return body;
   },
+  trend: ({ province, fuel }) => get('/api/trend', { province, fuel }),
   history: (id, days = 30) => get(`/api/history/${encodeURIComponent(id)}`, { days }),
 };

@@ -6,12 +6,24 @@ import { haversineKm } from '/shared/geo.js';
 import { fuelLabel } from '/shared/fuels.js';
 import { saveFavorites } from '../store.js';
 
+// Precios de las favoritas: se reutilizan unos minutos para no pedirlos en cada repintado.
+let cache = { key: null, stations: null, at: 0 };
+
+async function favoriteStations(ctx) {
+  const ids = ctx.state.favorites.map((f) => f.id);
+  const key = `${ids.join(',')}|${ctx.state.status?.fetchedAt ?? ''}`;
+  if (cache.key !== key || Date.now() - cache.at > 5 * 60 * 1000) {
+    const { stations } = await ctx.api.byIds(ids);
+    cache = { key, stations, at: Date.now() };
+  }
+  return cache.stations;
+}
+
 async function currentResults(ctx) {
-  const { state, api } = ctx;
+  const { state } = ctx;
   const s = state.settings;
-  const ids = state.favorites.map((f) => f.id);
-  if (!ids.length) return new Map();
-  const { stations } = await api.byIds(ids);
+  if (!state.favorites.length) return new Map();
+  const stations = await favoriteStations(ctx);
   const c = state.center;
   const withDist = stations.map((st) => ({
     ...st,
@@ -21,6 +33,47 @@ async function currentResults(ctx) {
     fuel: s.fuel, program: s.program, overrides: s.overrides, official: state.official, litres: s.litres, consumption: s.consumption,
   });
   return new Map(results.map((r) => [r.station.id, r]));
+}
+
+/** Franja «Tus favoritas hoy» de la pantalla principal: las 3 más baratas. */
+export async function renderFavStrip(ctx) {
+  const el = document.getElementById('fav-strip');
+  if (!el) return;
+  const { state } = ctx;
+  if (!state.favorites.length) {
+    el.innerHTML = '';
+    return;
+  }
+  let byId;
+  try {
+    byId = await currentResults(ctx);
+  } catch {
+    el.innerHTML = '';
+    return;
+  }
+  const targets = new Map(state.favorites.map((f) => [f.id, f.target]));
+  const top = [...byId.values()].sort((a, b) => a.effective - b.effective).slice(0, 3);
+  if (!top.length) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = html`
+  <div class="fav-strip">
+    <div class="fav-strip-head"><b>⭐ Tus favoritas hoy</b> <span class="muted small">${fuelLabel(state.settings.fuel)}</span><button type="button" class="link" data-goto-favs>Ver todas →</button></div>
+    <ol>
+      ${top.map((r) => {
+        const t = targets.get(r.station.id);
+        const hit = t != null && r.effective <= t;
+        return html`
+      <li><button type="button" class="fav-row ${hit ? 'hit' : ''}" data-open="${r.station.id}">
+        <span class="fav-name">${r.mapfre ? '🍀 ' : ''}<b>${r.station.brand}</b> · ${r.station.locality}${r.station.distanceKm != null ? ` · ${km(r.station.distanceKm)}` : ''}${hit ? ' 🔔' : ''}</span>
+        <span class="fav-price">${eurL(r.effective)}</span>
+      </button></li>`;
+      })}
+    </ol>
+  </div>`;
+  el.querySelectorAll('[data-open]').forEach((b) => b.addEventListener('click', () => ctx.openDetailById(b.dataset.open)));
+  el.querySelector('[data-goto-favs]')?.addEventListener('click', () => ctx.selectTab('favorites'));
 }
 
 export async function renderFavorites(ctx) {
