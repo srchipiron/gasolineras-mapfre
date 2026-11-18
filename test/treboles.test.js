@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_PROGRAM, cloneProgram, brandMatches, findRule, percentFor, effectivePrice, treblesFor, daysUntilBoost,
   programExpired, fuelEligible, eligibleAmount, cappedAmount, weekStart, activePromos, mergeOfficial, migrateProgram,
+  capStatus, waitAdvice, trebolStatus,
 } from '../shared/treboles.js';
 
 const st = (id, brand, idProvincia = '41') => ({ id, brand, idProvincia });
@@ -123,4 +124,40 @@ test('migración de ajustes guardados con las reglas antiguas (Galp activada)', 
   same.rules[0].enabled = false;
   assert.equal(migrateProgram(same).rules[0].enabled, false);
   assert.deepEqual(migrateProgram(undefined).rules.map((r) => r.id), ['repsol']);
+});
+
+test('estado del tope según los repostajes', () => {
+  const log = [
+    { date: '2026-11-16', mapfre: true, amount: 120, eligibleAmount: 100 },
+    { date: '2026-11-18', mapfre: true, amount: 40, eligibleAmount: 40 },
+    { date: '2026-11-18', mapfre: false, amount: 90 },
+  ];
+  const c = capStatus('2026-11-18', log);
+  assert.deepEqual(c.day, { used: 40, cap: 100, left: 60 });
+  assert.deepEqual(c.week, { used: 140, cap: 300, left: 160 });
+  assert.equal(c.left, 60);
+  assert.equal(capStatus('2026-11-23', log).left, 100, 'semana nueva');
+});
+
+test('asesor: ¿esperar al 6 %?', () => {
+  const a = waitAdvice({ price: 1.5, litres: 40, now: new Date(2026, 10, 18) });
+  assert.equal(a.boostNow, false);
+  assert.equal(a.days, 13);
+  assert.equal(a.nextBoost, '2026-12-01');
+  assert.equal(a.extra, 1.8); // 3 % más de 60 €
+  const b = waitAdvice({ price: 1.5, litres: 40, now: new Date(2026, 11, 3) });
+  assert.equal(b.boostNow, true);
+  assert.equal(b.daysLeft, 3);
+  // Con 100 L a 1,50 € solo cuentan 100 € por el tope: 3 € extra
+  assert.equal(waitAdvice({ price: 1.5, litres: 100, now: new Date(2026, 10, 18) }).extra, 3);
+});
+
+test('estado de los tréboles de un repostaje', () => {
+  const e = { date: '2026-11-01', mapfre: true, treboles: 2 };
+  assert.deepEqual(trebolStatus(e, '2026-11-05'), { kind: 'waiting', until: '2026-11-11' });
+  assert.deepEqual(trebolStatus(e, '2026-11-12'), { kind: 'ask', left: 19 });
+  assert.deepEqual(trebolStatus({ ...e, confirmed: true }, '2026-11-12'), { kind: 'ok' });
+  assert.deepEqual(trebolStatus({ ...e, confirmed: false }, '2026-11-12'), { kind: 'claim', claimUntil: '2026-12-01', left: 19 });
+  assert.equal(trebolStatus({ ...e, mapfre: false }, '2026-11-12'), null);
+  assert.equal(trebolStatus({ ...e, treboles: 0 }, '2026-11-12'), null);
 });

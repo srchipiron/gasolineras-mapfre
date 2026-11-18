@@ -1,6 +1,6 @@
 // Plantillas HTML de resultados, resumen y ficha de la gasolinera.
 
-import { html, raw, eurL, eur, km, num2, pct } from './format.js';
+import { html, raw, eurL, eur, km, num2, pct, date } from './format.js';
 import { openStatus } from '/shared/horario.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
@@ -21,7 +21,14 @@ function mapfreBadge(r) {
     r.approx ? html`<span class="badge approx" title="Solo por la marca: compruébalo en el mapa oficial">aprox.</span>` : ''}`;
 }
 
-export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, markMode = false }) {
+function noteBadges(note) {
+  if (!note) return '';
+  return html`${note.verdict === 'ok' ? html`<span class="badge ok" title="Te dieron tréboles aquí">✓ tréboles</span>` : ''}${
+    note.verdict === 'ko' ? html`<span class="badge off" title="No te dieron tréboles aquí">✗ sin tréboles</span>` : ''}${
+    note.note ? html`<span class="note-icon" title="${note.note}">📝</span>` : ''}`;
+}
+
+export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, markMode = false, note = null }) {
   const st = r.station;
   const where = mode === 'route'
     ? `km ${Math.round(st.alongKm)} de la ruta · desvío ${km(st.offRouteKm)}`
@@ -36,6 +43,7 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, ma
         ${openBadge(r)}
         ${st.saleType === 'R' ? html`<span class="badge off">Venta restringida</span>` : ''}
         ${favorite ? html`<span class="star" aria-label="Favorita">★</span>` : ''}
+        ${noteBadges(note)}
       </div>
       <div class="addr">${st.address} · ${st.locality}</div>
       <div class="meta">${where} · ${litres} L: ${eur(r.totalCost)}${r.detourCost > 0.005 ? html` <span class="muted">(desvío ${eur(r.detourCost)})</span>` : ''}</div>
@@ -48,7 +56,7 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, ma
   </li>`;
 }
 
-export function summaryHtml(s, { litres, fuel, program }) {
+export function summaryHtml(s, { litres, fuel, program, capLeft = Infinity }) {
   if (!s.count) {
     return html`<div class="empty">No hay gasolineras con ${fuelLabel(fuel)} que cumplan los filtros. Prueba a ampliar el radio o quitar filtros.</div>`;
   }
@@ -86,12 +94,25 @@ export function summaryHtml(s, { litres, fuel, program }) {
     </div>
     ${verdict}
     ${totalNote}
+    ${Number.isFinite(capLeft) && m && capLeft < m.price * litres
+      ? html`<p class="small warn">Hoy solo te quedan ${eur(capLeft)} con tréboles por el tope de 100 € al día y 300 € a la semana: los precios con tréboles ya lo tienen en cuenta.</p>`
+      : ''}
     <div class="stats">
       <span><b>${s.count}</b> gasolineras (${s.mapfreCount} Club MAPFRE)</span>
       <span>Mín. <b>${eurL(s.min)}</b></span>
       <span>Media <b>${eurL(s.avg)}</b></span>
       <span>Máx. <b>${eurL(s.max)}</b></span>
     </div>`;
+}
+
+/** Tarjeta «¿reposto hoy o espero al 6 %?». */
+export function adviceHtml(a, { litres }) {
+  if (!a || a.extra <= 0) return '';
+  if (a.boostNow) {
+    return html`<div class="advice on">🍀 <b>Hoy es día de ${a.percent} %</b>${a.daysLeft > 1 ? html` (quedan ${a.daysLeft} días)` : ' (último día)'}: si te toca repostar este mes, hazlo ahora. Con ${litres} L ganas ${eur(a.extra)} más en tréboles que el resto del mes.</div>`;
+  }
+  return html`<div class="advice">📅 <b>¿Puedes esperar ${a.days} ${a.days === 1 ? 'día' : 'días'}?</b> El ${date(a.nextBoost)} vuelve el ${a.percent} %: con ${litres} L ganarías ${eur(a.extra)} más en tréboles, si los precios no cambian.
+    <button type="button" class="btn small" data-action="ics">Recordármelo en el calendario</button></div>`;
 }
 
 function navLinks(st) {
@@ -108,7 +129,7 @@ const SOURCE_TEXT = {
   manual: 'La has marcado tú como adherida.',
 };
 
-export function detailHtml(st, { settings, official, favorite, fecha, now = new Date() }) {
+export function detailHtml(st, { settings, official, favorite, fecha, note = null, capLeft = Infinity, now = new Date() }) {
   const { program, overrides, fuel, litres } = settings;
   const rule = findRule(st, program, overrides, official);
   const p = percentFor(rule, now);
@@ -129,7 +150,7 @@ export function detailHtml(st, { settings, official, favorite, fecha, now = new 
   }
   const covered = official?.provinces?.includes(st.idProvincia);
   const amount = price != null ? price * litres : 0;
-  const capped = eligibleAmount(amount, program);
+  const capped = Math.max(0, Math.min(eligibleAmount(amount, program), capLeft));
   return html`
   <form method="dialog" class="sheet-head">
     <div>
@@ -148,7 +169,7 @@ export function detailHtml(st, { settings, official, favorite, fecha, now = new 
         ? html`<p><b>🍀 Club MAPFRE: ${rule.name}</b></p>
                <p class="small">${SOURCE_TEXT[rule.source] ?? ''}</p>
                ${eligible && price != null
-                 ? html`<p>Hoy te devuelve el <b>${pct(p)}</b> en tréboles: ${num2(treblesFor(capped, p))} tréboles por ${litres} L de ${fuelLabel(fuel)} (${eur(amount)})${capped < amount ? html` <span class="small">— tope de ${eur(capped)} al día</span>` : ''}.</p>`
+                 ? html`<p>Hoy te devuelve el <b>${pct(p)}</b> en tréboles: ${num2(treblesFor(capped, p))} tréboles por ${litres} L de ${fuelLabel(fuel)} (${eur(amount)})${capped < amount ? html` <span class="small">— solo cuentan ${eur(capped)} por el tope de 100 €/día y 300 €/semana</span>` : ''}.</p>`
                  : html`<p class="warn small">El ${fuelLabel(fuel)} no da tréboles (el GLP y el GNC están excluidos).</p>`}
                <p class="small muted">${program.requirement ?? DEFAULT_PROGRAM.requirement}</p>`
         : html`<p><b>No consta como adherida a Club MAPFRE</b>${covered ? html` en la lista oficial de ${provinciaName(st.idProvincia)}` : ' con tus reglas actuales'}.</p>`}
@@ -158,6 +179,16 @@ export function detailHtml(st, { settings, official, favorite, fecha, now = new 
         ${ov ? html`<button class="btn small" data-action="mark-clear">Quitar mi marca</button>` : ''}
         <a class="btn small" target="_blank" rel="noopener" href="${program.officialMapUrl ?? DEFAULT_PROGRAM.officialMapUrl}">Ver mapa oficial ↗</a>
       </div>
+    </div>
+
+    <div class="experience">
+      <p><b>Tu experiencia aquí</b>${note?.date ? html` <span class="small muted">(${date(note.date)})</span>` : ''}</p>
+      <div class="row wrap">
+        <button class="btn small ${note?.verdict === 'ok' ? 'sel-ok' : ''}" data-action="verdict-ok" aria-pressed="${note?.verdict === 'ok'}">✓ Me dieron tréboles</button>
+        <button class="btn small ${note?.verdict === 'ko' ? 'sel-ko' : ''}" data-action="verdict-ko" aria-pressed="${note?.verdict === 'ko'}">✗ No me los dieron</button>
+      </div>
+      <label class="field"><span>Nota (solo la ves tú)</span>
+        <textarea id="station-note" rows="2" maxlength="500" placeholder="Ej.: piden el carnet físico, el QR no funciona…">${note?.note ?? ''}</textarea></label>
     </div>
 
     <table class="prices">

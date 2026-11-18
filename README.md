@@ -23,6 +23,9 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - **Modo marcar**: botón «＋ Adherida» / «✓ Adherida» en cada gasolinera de la lista para revisarlas rápido.
 - Condiciones reales del programa: GLP y GNC no dan tréboles, y hay un tope de 100 € al día y 300 € a la semana.
 - Aviso de cuándo es día de 6 %, de las promociones del mes y de cuándo caduca la oferta.
+- **Asesor «¿reposto hoy o espero?»**: cuántos tréboles más ganarías esperando al día 1, y recordatorio mensual para tu calendario (.ics).
+- **Tope restante**: cuánto te queda hoy y esta semana de los 100 € / 300 € que dan tréboles. Los precios con tréboles lo tienen en cuenta.
+- **Tu experiencia en cada gasolinera**: «✓ Me dieron tréboles» / «✗ No me los dieron» y notas privadas. El veredicto cuenta como marca de adherida o no adherida.
 
 **Mapa y ficha**
 - Mapa con precios de colores (verde barata, ámbar media, rojo cara) y la mejor opción destacada.
@@ -35,11 +38,14 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 
 **Lo tuyo**
 - Favoritas con **aviso de precio objetivo**: al abrir la app te avisa si alguna ha bajado de tu precio.
-- **Registro de repostajes** con los tréboles ganados este mes, este año y en total, y exportación a CSV (Excel).
+- **Registro de repostajes** con los tréboles ganados este mes, este año y en total, gráfico por meses y exportación a CSV (Excel).
+- **¿Te llegaron los tréboles?**: a los 10 días de cada repostaje la app te pregunta. Si no llegaron, te dice hasta qué día puedes reclamarlos (30 días) y qué datos pide Club MAPFRE.
 - Todo se guarda en tu dispositivo; no hay cuentas ni se envía nada a terceros.
 
 **Técnicas**
-- PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos.
+- PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos. Al mantener pulsado el icono hay accesos directos («Cerca», «Repostaje», «Ruta»), y la app avisa cuando hay una versión nueva.
+- Si el servidor está arrancando (Render gratuito se duerme), la app espera y reintenta sola.
+- Leyenda del mapa: colores por precio, borde amarillo para Club MAPFRE y discontinuo para «aprox.».
 - Modo oscuro automático.
 - Servidor sin dependencias (solo Node.js): descarga los precios del Ministerio cada 30 minutos y los guarda en caché.
 
@@ -58,7 +64,7 @@ npm run demo       # datos inventados, para probar sin conexión
 Abre <http://localhost:3000>. La primera descarga de precios tarda unos segundos, porque son unas 12.000 gasolineras. Después se guarda en `data/` y se refresca sola cada 30 minutos.
 
 ```bash
-npm test           # 57 tests
+npm test           # 64 tests
 ```
 
 ## Usarla en el móvil

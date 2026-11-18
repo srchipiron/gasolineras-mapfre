@@ -15,6 +15,23 @@ export function createMap(el, { onSelect }) {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(map);
 
+  // Leyenda plegable.
+  const legend = L.control({ position: 'bottomleft' });
+  legend.onAdd = () => {
+    const div = L.DomUtil.create('div', 'map-legend');
+    div.innerHTML = `<details>
+      <summary>Leyenda</summary>
+      <ul>
+        <li><span class="sw cheap"></span> Barata · <span class="sw mid"></span> Media · <span class="sw expensive"></span> Cara</li>
+        <li><span class="sw mapfre"></span> 🍀 Club MAPFRE (precio ya con tréboles)</li>
+        <li><span class="sw mapfre approx"></span> Club MAPFRE solo por la marca (aprox.)</li>
+        <li><span class="sw dot"></span> Más gasolineras: acerca el mapa para ver su precio</li>
+      </ul></details>`;
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+  };
+  legend.addTo(map);
+
   const markerLayer = L.layerGroup().addTo(map);
   const areaLayer = L.layerGroup().addTo(map);
   const routeLayer = L.layerGroup().addTo(map);
@@ -29,7 +46,7 @@ export function createMap(el, { onSelect }) {
 
   function icon(r, summary, { best, labelled }) {
     const level = priceLevel(r.price, summary);
-    const flags = [level, r.mapfre ? 'mapfre' : '', best ? 'top' : '', r.open === false ? 'closed' : ''];
+    const flags = [level, r.mapfre ? 'mapfre' : '', r.mapfre && r.approx ? 'approx' : '', best ? 'top' : '', r.open === false ? 'closed' : ''];
     if (!labelled) {
       return L.divIcon({
         className: 'pin-wrap',

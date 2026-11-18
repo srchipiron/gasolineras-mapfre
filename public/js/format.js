@@ -5,6 +5,7 @@ const NF3 = nf(3), NF2 = nf(2), NF1 = nf(1), NF0 = nf(0);
 
 export const eurL = (n) => (n == null ? '—' : `${NF3.format(n)} €`);
 export const eur = (n) => (n == null ? '—' : `${NF2.format(n)} €`);
+export const eur0 = (n) => (n == null ? '—' : `${NF0.format(n)} €`);
 export const num2 = (n) => (n == null ? '—' : NF2.format(n));
 export const num3 = (n) => (n == null ? '—' : NF3.format(n));
 export const pct = (n) => `${NF0.format(n)} %`;

@@ -199,7 +199,7 @@ export function treblesFor(amountEur, percent) {
   return Math.round(amountEur * percent) / 100;
 }
 
-function isoDay(d) {
+export function isoDay(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
@@ -211,23 +211,48 @@ export function weekStart(dateISO) {
 }
 
 /**
- * Importe que da tréboles en un repostaje nuevo, teniendo en cuenta los ya
- * registrados ese día (máx. 100 €) y esa semana de lunes a domingo (máx. 300 €).
+ * Uso del tope de tréboles en una fecha según el registro de repostajes:
+ * cuánto se ha repostado con tréboles ese día (máx. 100 €) y esa semana de
+ * lunes a domingo (máx. 300 €), y cuánto queda.
  */
-export function cappedAmount(amountEur, dateISO, log = [], program = DEFAULT_PROGRAM) {
+export function capStatus(dateISO, log = [], program = DEFAULT_PROGRAM) {
   const cap = program?.cap ?? {};
   const week = weekStart(dateISO);
   let day = 0, wk = 0;
   for (const e of log) {
-    if (!e.mapfre) continue;
+    if (!e?.mapfre || !e.date) continue;
     const a = e.eligibleAmount ?? e.amount ?? 0;
     if (e.date === dateISO) day += a;
     if (weekStart(e.date) === week) wk += a;
   }
-  let out = amountEur;
-  if (cap.perDay) out = Math.min(out, Math.max(0, cap.perDay - day));
-  if (cap.perWeek) out = Math.min(out, Math.max(0, cap.perWeek - wk));
-  return Math.max(0, out);
+  const dayLeft = cap.perDay ? Math.max(0, cap.perDay - day) : Infinity;
+  const weekLeft = cap.perWeek ? Math.max(0, cap.perWeek - wk) : Infinity;
+  return {
+    day: { used: day, cap: cap.perDay ?? null, left: dayLeft },
+    week: { used: wk, cap: cap.perWeek ?? null, left: weekLeft },
+    left: Math.min(dayLeft, weekLeft),
+  };
+}
+
+/** Importe de un repostaje nuevo que da tréboles, con el tope diario y semanal. */
+export function cappedAmount(amountEur, dateISO, log = [], program = DEFAULT_PROGRAM) {
+  return Math.max(0, Math.min(amountEur, capStatus(dateISO, log, program).left));
+}
+
+/**
+ * ¿Compensa esperar al periodo del 6 %? Devuelve, para un repostaje de
+ * `litres` a `price`, cuántos tréboles más se ganan en los días bonificados.
+ */
+export function waitAdvice({ price, litres, program = DEFAULT_PROGRAM, now = new Date() }) {
+  const rule = program?.official ?? DEFAULT_PROGRAM.official;
+  const extraPct = (rule.boostPercent ?? rule.percent) - rule.percent;
+  const extra = treblesFor(eligibleAmount(price * litres, program), extraPct);
+  if (isBoostDay(rule, now)) {
+    return { boostNow: true, daysLeft: rule.boostToDay - now.getDate() + 1, extra, percent: rule.boostPercent };
+  }
+  const days = daysUntilBoost(rule, now);
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + days);
+  return { boostNow: false, days, extra, percent: rule.boostPercent, nextBoost: isoDay(next) };
 }
 
 /** Días que faltan para el próximo periodo de bonificación (0 si es hoy). */
@@ -249,4 +274,31 @@ export function programExpired(program = DEFAULT_PROGRAM, date = new Date()) {
 export function activePromos(program = DEFAULT_PROGRAM, date = new Date()) {
   const today = isoDay(date);
   return (program.promos ?? DEFAULT_PROGRAM.promos ?? []).filter((p) => p.from <= today && today <= p.to);
+}
+
+export const DAYS_TO_ARRIVE = 10; // «Recibirás los Tréboles antes de 10 días naturales»
+export const DAYS_TO_CLAIM = 30; // No se admiten tickets de más de 30 días
+
+function addDaysISO(iso, n) {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + n);
+  return isoDay(d);
+}
+
+/**
+ * Estado de los tréboles de un repostaje registrado:
+ *  - waiting: aún no han pasado 10 días (until = fecha límite de llegada)
+ *  - ask: han pasado 10 días y no has dicho si llegaron
+ *  - ok: llegaron
+ *  - claim: no llegaron; se pueden reclamar hasta 30 días después
+ */
+export function trebolStatus(entry, todayISO) {
+  if (!entry?.mapfre || !(entry.treboles > 0)) return null;
+  if (entry.confirmed === true) return { kind: 'ok' };
+  const age = Math.round((new Date(`${todayISO}T12:00:00`) - new Date(`${entry.date}T12:00:00`)) / 86400000);
+  if (entry.confirmed === false) {
+    return { kind: 'claim', claimUntil: addDaysISO(entry.date, DAYS_TO_CLAIM), left: DAYS_TO_CLAIM - age };
+  }
+  if (age < DAYS_TO_ARRIVE) return { kind: 'waiting', until: addDaysISO(entry.date, DAYS_TO_ARRIVE) };
+  return { kind: 'ask', left: DAYS_TO_CLAIM - age };
 }

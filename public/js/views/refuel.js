@@ -113,6 +113,7 @@ export function openRefuel(ctx, station = null) {
     dlg.close();
     ctx.toast(entry.mapfre ? `Repostaje guardado: +${num2(entry.treboles)} tréboles 🍀` : 'Repostaje guardado');
     ctx.refreshTab('log');
+    ctx.recompute(); // el tope diario/semanal cambia los precios con tréboles
   });
 
   if (!dlg.open) dlg.showModal();

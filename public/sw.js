@@ -1,6 +1,6 @@
 // Service worker: la app funciona sin conexión con los últimos datos vistos.
 
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL_CACHE = `shell-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 const SHELL = [
@@ -22,6 +22,7 @@ const SHELL = [
   '/shared/fuels.js',
   '/shared/geo.js',
   '/shared/horario.js',
+  '/shared/ics.js',
   '/shared/locator.js',
   '/shared/provincias.js',
   '/shared/ranking.js',
@@ -33,7 +34,12 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' evita copiar ficheros viejos de la caché HTTP del navegador.
+  event.waitUntil(
+    caches.open(SHELL_CACHE)
+      .then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' }))))
+      .then(() => self.skipWaiting()),
+  );
 });
 
 self.addEventListener('activate', (event) => {
