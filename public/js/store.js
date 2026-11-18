@@ -7,6 +7,7 @@ export const KEYS = {
   favorites: 'gm.favorites.v1',
   log: 'gm.log.v1',
   official: 'gm.official.v1',
+  notes: 'gm.notes.v1',
 };
 
 function read(key, fallback) {
@@ -66,6 +67,11 @@ export function resetSettings(current) {
 // ---- Lista oficial importada en este dispositivo ----
 export const loadLocalOfficial = () => read(KEYS.official, emptyOfficial());
 export const saveLocalOfficial = (o) => write(KEYS.official, o);
+
+// ---- Tu experiencia en cada gasolinera ----
+// { idEstacion: { verdict: 'ok' | 'ko' | null, note: '', date: 'aaaa-mm-dd' } }
+export const loadNotes = () => read(KEYS.notes, {});
+export const saveNotes = (n) => write(KEYS.notes, n);
 
 // ---- Favoritas ----
 export const loadFavorites = () => read(KEYS.favorites, []);

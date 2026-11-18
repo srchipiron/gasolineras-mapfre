@@ -2,11 +2,11 @@
 
 import { api } from './api.js';
 import { createMap } from './map.js';
-import { html, eurL, km, duration } from './format.js';
-import { resultItem, summaryHtml, detailHtml } from './render.js';
+import { html, eurL, km, duration, todayISO } from './format.js';
+import { resultItem, summaryHtml, detailHtml, adviceHtml } from './render.js';
 import { lineChart } from './chart.js';
 import {
-  loadSettings, saveSettings, loadFavorites, loadLog, isFavorite, toggleFavorite, loadLocalOfficial,
+  loadSettings, saveSettings, loadFavorites, loadLog, isFavorite, toggleFavorite, loadLocalOfficial, loadNotes, saveNotes,
 } from './store.js';
 import { renderFavorites, checkAlerts } from './views/favorites.js';
 import { renderLog, exportLogCsv } from './views/log.js';
@@ -16,7 +16,9 @@ import { enrich, filterResults, sortResults, summarize, SORTS } from '/shared/ra
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
   isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, mergeOfficial, emptyOfficial, DEFAULT_PROGRAM,
+  capStatus, waitAdvice, fuelEligible,
 } from '/shared/treboles.js';
+import { boostReminderIcs } from '/shared/ics.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const DEFAULT_CENTER = { lat: 40.4168, lon: -3.7038, label: 'Madrid (ubicación por defecto)' };
@@ -25,6 +27,7 @@ const state = {
   settings: loadSettings(),
   favorites: loadFavorites(),
   log: loadLog(),
+  notes: loadNotes(),
   status: null,
   serverOfficial: emptyOfficial(), // config/adheridas.json del servidor
   localOfficial: loadLocalOfficial(), // importada en este dispositivo
@@ -49,10 +52,47 @@ function toast(msg, ms = 3500) {
 
 const persist = () => saveSettings(state.settings);
 
+/** Euros que aún dan tréboles hoy según tus repostajes registrados. */
+const capLeftToday = () => capStatus(todayISO(), state.log, state.settings.program).left;
+
+function download(name, content, type) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function downloadReminder() {
+  const p = state.settings.program;
+  const rule = p.official ?? DEFAULT_PROGRAM.official;
+  const a = waitAdvice({ price: 1, litres: 1, program: p });
+  const startISO = a.boostNow ? todayISO(new Date(new Date().getFullYear(), new Date().getMonth(), rule.boostFromDay)) : a.nextBoost;
+  download('dias-6-por-ciento-treboles.ics', boostReminderIcs({
+    startISO, fromDay: rule.boostFromDay, toDay: rule.boostToDay, percent: rule.boostPercent,
+  }), 'text/calendar;charset=utf-8');
+  toast('Abre el fichero para añadir el recordatorio a tu calendario 📅');
+}
+
+/** Guarda tu experiencia en una gasolinera y la usa como marca de adherida. */
+function setVerdict(st, verdict) {
+  const prev = state.notes[st.id] ?? {};
+  const next = { ...prev, verdict: prev.verdict === verdict ? null : verdict, date: todayISO() };
+  state.notes = { ...state.notes, [st.id]: next };
+  saveNotes(state.notes);
+  const s = state.settings;
+  if (next.verdict === 'ok') s.overrides[st.id] = 'in';
+  else if (next.verdict === 'ko') s.overrides[st.id] = 'out';
+  persist();
+  recompute();
+}
+
 function computeList(stations, sort) {
   const s = state.settings;
   const enriched = enrich(stations, {
     fuel: s.fuel, program: s.program, overrides: s.overrides, official: state.official, litres: s.litres, consumption: s.consumption,
+    capLeft: capLeftToday(),
   });
   const filtered = filterResults(enriched, {
     onlyMapfre: s.onlyMapfre, openNow: s.openNow, hideRestricted: s.hideRestricted,
@@ -63,7 +103,7 @@ function computeList(stations, sort) {
 function renderList(el, results, mode) {
   const s = state.settings;
   const shown = results.slice(0, 150);
-  el.innerHTML = html`${shown.map((r, i) => resultItem(r, i, { litres: s.litres, mode, markMode: s.markMode, favorite: isFavorite(state.favorites, r.station.id) }))}${
+  el.innerHTML = html`${shown.map((r, i) => resultItem(r, i, { litres: s.litres, mode, markMode: s.markMode, favorite: isFavorite(state.favorites, r.station.id), note: state.notes[r.station.id] }))}${
     results.length > shown.length ? html`<li class="muted small more">Y ${results.length - shown.length} más… acerca el mapa o reduce el radio.</li>` : ''}`;
 }
 
@@ -102,7 +142,8 @@ function recompute({ fit = false } = {}) {
   if (state.nearby) {
     const { results, summary } = computeList(state.nearby.stations, s.sort);
     state.computed.nearby = results;
-    $('#summary').innerHTML = summaryHtml(summary, { litres: s.litres, fuel: s.fuel, program: s.program });
+    $('#summary').innerHTML = summaryHtml(summary, { litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday() });
+    renderAdvice(summary);
     renderList($('#results'), results, 'nearby');
     bindOpeners($('#results'), results);
     bindSummaryLinks($('#summary'), results);
@@ -113,6 +154,18 @@ function recompute({ fit = false } = {}) {
   if (state.route) renderRoute({ fit: false });
 }
 
+function renderAdvice(summary) {
+  const s = state.settings;
+  const el = $('#advice');
+  const price = summary.bestMapfre?.price ?? summary.median;
+  if (!summary.count || !price || !fuelEligible(s.program, s.fuel)) {
+    el.innerHTML = '';
+    return;
+  }
+  el.innerHTML = adviceHtml(waitAdvice({ price, litres: s.litres, program: s.program }), { litres: s.litres });
+  el.querySelector('[data-action=ics]')?.addEventListener('click', downloadReminder);
+}
+
 function renderRoute({ fit }) {
   const s = state.settings;
   const r = state.route;
@@ -121,7 +174,7 @@ function renderRoute({ fit }) {
   $('#route-summary').innerHTML = html`
     <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
-    ${summaryHtml(summary, { litres: s.litres, fuel: s.fuel, program: s.program })}`;
+    ${summaryHtml(summary, { litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday() })}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
   bindSummaryLinks($('#route-summary'), results);
@@ -181,11 +234,21 @@ async function loadNearby({ fit = true } = {}) {
       lat: state.center.lat, lon: state.center.lon, radius: s.radiusKm, fuel: s.fuel, publicOnly: s.hideRestricted,
     });
     recompute({ fit });
+    retries = 0;
   } catch (err) {
     $('#summary').innerHTML = '';
-    $('#results').innerHTML = html`<li class="empty error">No se pudieron cargar los precios: ${err.message}</li>`;
+    if (err.status === 503 && retries < 40) {
+      // El servidor está descargando los precios del Ministerio (tarda ~20 s al arrancar).
+      retries++;
+      $('#results').innerHTML = html`<li class="empty">⏳ Descargando los precios del Ministerio… (se reintenta solo)</li>`;
+      setTimeout(() => loadNearby({ fit }), 5000);
+      return;
+    }
+    $('#results').innerHTML = html`<li class="empty error">No se pudieron cargar los precios: ${err.message} <button type="button" class="btn small" id="retry">Reintentar</button></li>`;
+    $('#retry')?.addEventListener('click', () => { retries = 0; loadNearby({ fit }); });
   }
 }
+let retries = 0;
 
 function setCenter(lat, lon, label) {
   state.center = { lat, lon, label };
@@ -299,8 +362,16 @@ function openDetail(st) {
   const draw = () => {
     dlg.innerHTML = detailHtml(st, {
       settings: s, official: state.official, favorite: isFavorite(state.favorites, st.id), fecha: state.nearby?.fecha ?? state.status?.fecha,
+      note: state.notes[st.id], capLeft: capLeftToday(),
     });
     dlg.querySelectorAll('[data-action]').forEach((b) => b.addEventListener('click', () => onAction(b.dataset.action)));
+    dlg.querySelector('#station-note')?.addEventListener('change', (e) => {
+      const text = e.target.value.trim();
+      state.notes = { ...state.notes, [st.id]: { ...(state.notes[st.id] ?? {}), note: text, date: todayISO() } };
+      saveNotes(state.notes);
+      toast('Nota guardada');
+      recompute();
+    });
     loadHistory();
   };
   const onAction = async (action) => {
@@ -316,6 +387,9 @@ function openDetail(st) {
       persist();
       draw();
       recompute();
+    } else if (action === 'verdict-ok' || action === 'verdict-ko') {
+      setVerdict(st, action === 'verdict-ok' ? 'ok' : 'ko');
+      draw();
     } else if (action === 'refuel') {
       dlg.close();
       openRefuel(ctx, st);
@@ -439,6 +513,8 @@ const map = createMap($('#map'), { onSelect: (r) => openDetail(r.station) });
 const ctx = {
   state, api, toast, persist, recompute, renderBoost, refreshTab, openDetailById, syncControls,
   setOfficial: () => { setOfficial(); recompute(); },
+  setVerdict: (st, v) => setVerdict(st, v),
+  capLeftToday,
   reload: () => { persist(); loadNearby({ fit: false }); },
 };
 
@@ -455,26 +531,51 @@ async function init() {
   } catch {
     /* sin lista compartida: se usan las reglas por marca */
   }
+  // Render gratuito se duerme: el primer arranque puede tardar casi un minuto.
+  let slowShown = false;
+  const slow = setTimeout(() => {
+    slowShown = true;
+    toast('Conectando con el servidor… la primera vez puede tardar hasta 1 minuto', 60000);
+  }, 2500);
   try {
     state.status = await api.status();
+    clearTimeout(slow);
+    if (slowShown) toast('Conectado ✓', 1500);
     $('#demo-banner').hidden = !state.status.demo;
     const fuels = await api.fuels();
     if (fuels.length) { fillFuelSelect(fuels); syncControls(); }
   } catch {
+    clearTimeout(slow);
     toast('No se pudo conectar con el servidor');
   }
 
+  // Accesos directos del icono de la app (?accion=cerca|repostaje|ruta).
+  const accion = new URLSearchParams(location.search).get('accion');
+  if (accion) history.replaceState(null, '', location.pathname);
+
   const last = state.settings.lastLocation;
-  if (last) await setCenter(last.lat, last.lon, last.label);
+  if (accion === 'cerca' && (await locate())) {
+    /* ya buscado alrededor de tu posición */
+  } else if (last) await setCenter(last.lat, last.lon, last.label);
   else if (!(await locate({ silent: true }))) {
     await setCenter(DEFAULT_CENTER.lat, DEFAULT_CENTER.lon, DEFAULT_CENTER.label);
     toast('Escribe una dirección o pulsa 📍 para buscar cerca de ti', 5000);
   }
+  if (accion === 'repostaje') openRefuel(ctx, null);
+  if (accion === 'ruta') selectTab('route');
   checkAlerts(ctx);
 }
 
 init();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  const hadController = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.register('/sw.js').catch(() => {});
+  // Cuando se publica una versión nueva, se avisa para recargar.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    const b = $('#update-banner');
+    b.hidden = false;
+    b.querySelector('button').addEventListener('click', () => location.reload(), { once: true });
+  });
 }

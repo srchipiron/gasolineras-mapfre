@@ -9,7 +9,7 @@ async function get(path, params = {}) {
   } catch {
     /* respuesta vacía */
   }
-  if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(body.error || `Error ${res.status}`), { status: res.status });
   return body;
 }
 

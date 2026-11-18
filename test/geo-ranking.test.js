@@ -99,6 +99,20 @@ test('tope de 100 € al día en el precio efectivo', () => {
   assert.equal(r.effective.toFixed(5), (1.519 * (1 - 0.06 * (100 / amount))).toFixed(5));
 });
 
+test('el tope restante de hoy reduce los tréboles', () => {
+  const near = nearby(stations, { ...MADRID, radiusKm: 50, publicOnly: true }).filter((s) => s.id === '1003');
+  const opts = { fuel: 'gasoleoA', program: cloneProgram(), litres: 40, now: new Date(2026, 11, 2) };
+  const [full] = enrich(near, opts);
+  const [half] = enrich(near, { ...opts, capLeft: 30 });
+  const [none] = enrich(near, { ...opts, capLeft: 0 });
+  assert.equal(full.treboles, Math.round(1.519 * 40 * 6) / 100);
+  assert.equal(half.treboles, 1.8);
+  assert.ok(half.cappedBy > 0);
+  assert.equal(none.treboles, 0);
+  assert.equal(none.effective, none.price);
+  assert.ok(full.effective < half.effective && half.effective < none.effective);
+});
+
 test('resumen y filtros', () => {
   const near = nearby(stations, { ...MADRID, radiusKm: 50 });
   const list = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), now: new Date(2026, 11, 20, 12) });
