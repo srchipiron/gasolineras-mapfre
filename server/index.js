@@ -16,6 +16,7 @@ const env = process.env;
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const DATA_DIR = env.DATA_DIR ?? join(ROOT, 'data');
 const demo = env.DEMO === '1' || process.argv.includes('--demo');
+const OFFICIAL_FILE = env.ADHERIDAS_FILE ?? join(ROOT, 'config', 'adheridas.json');
 const port = Number(env.PORT ?? 3000);
 const host = env.HOST ?? '0.0.0.0';
 const logger = {
@@ -54,7 +55,15 @@ const deps = {
   router: demo ? createDemoRouter() : createRouter({ baseUrl: env.OSRM_URL }),
   history: demo ? createDemoHistory() : createHistory({ client, cacheDir: join(DATA_DIR, 'historico'), logger }),
   // Lista compartida de gasolineras adheridas (se versiona en el repositorio).
-  official: createOfficialSource(env.ADHERIDAS_FILE ?? join(ROOT, 'config', 'adheridas.json')),
+  official: createOfficialSource(OFFICIAL_FILE),
+  // Publicar la lista para todos desde la app (Ajustes). Sin ADMIN_KEY no se puede.
+  publish: env.ADMIN_KEY
+    ? {
+      adminKey: env.ADMIN_KEY,
+      officialFile: OFFICIAL_FILE,
+      github: env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN, repo: env.GITHUB_REPO ?? 'srchipiron/gasolineras-mapfre', branch: env.GITHUB_BRANCH ?? 'main' } : null,
+    }
+    : null,
 };
 
 const server = createHttpServer(deps);

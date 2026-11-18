@@ -30,7 +30,9 @@ function officialSection(ctx) {
       <div class="kpi"><span class="label">Gasolinera Repsol</span><strong>${byTipo.repsol ?? 0}</strong><span class="small">del mapa oficial</span></div>
       <div class="kpi"><span class="label">Marcadas a mano</span><strong>${ov.filter((v) => v === 'in').length} / ${ov.filter((v) => v === 'out').length}</strong><span class="small">adheridas / no adheridas</span></div>
     </div>
-    ${server.updatedAt ? html`<p class="small muted">Lista compartida actualizada el ${date(server.updatedAt)} (${Object.keys(server.stations).length} gasolineras). Importadas en este dispositivo: ${Object.keys(local.stations).length}.</p>` : ''}
+    <p class="small ${Object.keys(server.stations).length ? '' : 'warn'}">${Object.keys(server.stations).length
+      ? html`🌐 <b>Lista para todos</b> (en el servidor): ${Object.keys(server.stations).length} gasolineras, actualizada el ${date(server.updatedAt)}. Importadas solo en este dispositivo: ${Object.keys(local.stations).length}.`
+      : html`🌐 La lista para todos (en el servidor) está <b>vacía</b>: las adheridas solo se ven en el dispositivo donde se importaron (aquí: ${Object.keys(local.stations).length}). Usa «Publicar para todos» para que cualquiera las vea.`}</p>
 
     <label class="chip"><input type="checkbox" data-k="markMode" ${state.settings.markMode ? 'checked' : ''}> Modo marcar: botón «＋ Adherida» / «✓ Adherida» en cada gasolinera de la lista</label>
 
@@ -55,11 +57,31 @@ function officialSection(ctx) {
       </details>
     </fieldset>
 
+    ${publishHtml(ctx, mergedList(state))}
+
     <div class="row wrap">
       <button type="button" class="btn" id="export-list">Descargar lista (adheridas.json)</button>
       ${Object.keys(local.stations).length || local.provinces.length ? html`<button type="button" class="btn danger" id="clear-local">Borrar lo importado aquí</button>` : ''}
     </div>
     <p class="small muted">«Descargar lista» une la lista compartida, lo importado aquí y tus marcas. Pásame ese fichero y lo subo al repositorio para que lo veas en todos tus dispositivos.</p>`;
+}
+
+function publishHtml(ctx, merged) {
+  const n = Object.keys(merged.stations).length;
+  const st = ctx.state.status;
+  if (!n) return '';
+  return html`
+    <fieldset class="rule on">
+      <legend><b>🌐 Publicar para todos</b></legend>
+      <p class="small">Sube la lista que ves en este dispositivo (${n} gasolineras: la compartida, lo importado aquí y tus marcas) al servidor, para que la app la use en todos los móviles sin importar nada.
+        ${st && !st.canPublish ? html`<br><span class="warn">El servidor aún no lo permite: hay que poner la variable <b>ADMIN_KEY</b> en Render (ver README).</span>` : ''}
+        ${st?.canPublish && !st.publishPersists ? html`<br><span class="warn">Sin <b>GITHUB_TOKEN</b> en Render, la lista se perderá cuando el servidor se reinicie.</span>` : ''}</p>
+      <div class="row">
+        <label class="field"><span>Clave de administrador (ADMIN_KEY)</span><input type="password" id="publish-key" autocomplete="current-password"></label>
+      </div>
+      <button type="button" class="btn primary" id="publish-run">📤 Publicar ${n} gasolineras para todos</button>
+      <div id="publish-result"></div>
+    </fieldset>`;
 }
 
 function importResult(r) {
@@ -76,7 +98,8 @@ function importResult(r) {
     <div class="row wrap"><button type="button" class="btn primary" id="import-save">Guardar</button><button type="button" class="btn" id="import-cancel">Descartar</button></div>`;
 }
 
-function exportList(state) {
+/** La lista que ves en este dispositivo: la compartida + lo importado aquí + tus marcas. */
+function mergedList(state) {
   const merged = mergeOfficial(state.serverOfficial, state.localOfficial);
   for (const [id, v] of Object.entries(state.settings.overrides)) {
     if (v === 'in' && !merged.stations[id]) merged.stations[id] = { tipo: 'manual', nombre: '' };
@@ -84,6 +107,11 @@ function exportList(state) {
   }
   merged.updatedAt = new Date().toISOString().slice(0, 10);
   merged.source = 'Localizador de Club MAPFRE (mapfretecuidamos.com/gasolineras)';
+  return merged;
+}
+
+function exportList(state) {
+  const merged = mergedList(state);
   const url = URL.createObjectURL(new Blob([JSON.stringify(merged, null, 2)], { type: 'application/json' }));
   const a = Object.assign(document.createElement('a'), { href: url, download: 'adheridas.json' });
   document.body.append(a);
@@ -254,6 +282,32 @@ export function renderSettings(ctx) {
 
   // ---- Lista oficial ----
   root.querySelector('#export-list').addEventListener('click', () => exportList(state));
+  root.querySelector('#publish-run')?.addEventListener('click', async (e) => {
+    const out = root.querySelector('#publish-result');
+    const key = root.querySelector('#publish-key').value;
+    if (!key) {
+      out.innerHTML = html`<p class="error">Escribe la clave de administrador.</p>`;
+      return;
+    }
+    const list = mergedList(state);
+    if (!confirm(`¿Publicar ${Object.keys(list.stations).length} gasolineras como lista para todos? Sustituye la lista compartida actual (${Object.keys(state.serverOfficial?.stations ?? {}).length}).`)) return;
+    e.target.disabled = true;
+    out.innerHTML = html`<p class="muted">Publicando…</p>`;
+    try {
+      const r = await ctx.api.publishOfficial({ key, list });
+      state.serverOfficial = await ctx.api.adheridas();
+      ctx.setOfficial();
+      ctx.toast(`🌐 Lista publicada: ${r.stations} gasolineras para todos`, 5000);
+      renderSettings(ctx);
+      const res = document.getElementById('publish-result');
+      if (res) res.innerHTML = html`<p class="small ${r.warning ? 'warn' : ''}">✓ Publicadas ${r.stations} gasolineras.
+        ${r.github?.url ? html`Guardada en el repositorio (<a href="${r.github.url}" target="_blank" rel="noopener">ver cambio</a>); Render desplegará la versión nueva en unos minutos.` : ''}
+        ${r.warning ?? ''}</p>`;
+    } catch (err) {
+      out.innerHTML = html`<p class="error">${err.message}</p>`;
+      e.target.disabled = false;
+    }
+  });
 
   root.querySelector('#clear-local')?.addEventListener('click', () => {
     if (!confirm('¿Borrar la lista importada en este dispositivo? La lista compartida no se toca.')) return;
