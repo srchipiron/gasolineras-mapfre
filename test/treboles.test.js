@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_PROGRAM, cloneProgram, brandMatches, findRule, percentFor, effectivePrice, treblesFor, daysUntilBoost,
   programExpired, fuelEligible, eligibleAmount, cappedAmount, weekStart, activePromos, mergeOfficial, migrateProgram,
-  capStatus, waitAdvice, trebolStatus, isApprox,
+  capStatus, waitAdvice, trebolStatus, percentsIn,
 } from '../shared/treboles.js';
 
 const st = (id, brand, idProvincia = '41') => ({ id, brand, idProvincia });
@@ -16,41 +16,41 @@ test('las marcas se comparan por palabras completas, sin tildes ni mayúsculas',
   assert.ok(!brandMatches('GALP', ''));
 });
 
-test('sin lista oficial: Repsol (tarjeta) y Galp (carnet) en Península y Baleares', () => {
-  const r = findRule(st('1', 'REPSOL'));
-  assert.equal(r?.id, 'repsol');
-  assert.equal(isApprox(r), false);
-  assert.equal(findRule(st('2', 'PETRONOR'))?.id, 'repsol');
-  const g = findRule(st('3', 'GALP'));
-  assert.equal(g?.id, 'galp');
-  assert.equal(isApprox(g), true);
-  assert.equal(findRule(st('4', 'MOEVE')), null);
-  // Canarias, Ceuta y Melilla no entran
-  assert.equal(findRule(st('5', 'REPSOL', '35')), null);
-  assert.equal(findRule(st('6', 'GALP', '52')), null);
-  assert.equal(findRule(st('7', 'REPSOL', '07'))?.id, 'repsol', 'Baleares sí');
+test('no hay reglas por marca: sin lista oficial ninguna estación cuenta', () => {
+  assert.deepEqual(DEFAULT_PROGRAM.rules, []);
+  for (const b of ['REPSOL', 'GALP', 'MOEVE', 'PETRONOR']) assert.equal(findRule(st('1', b)), null, b);
 });
 
-test('Tarjeta Repsol: 10 % en la promoción de noviembre y 6 % el resto, sin días bonificados', () => {
-  const repsol = DEFAULT_PROGRAM.rules.find((r) => r.id === 'repsol');
-  assert.equal(percentFor(repsol, new Date(2026, 10, 18)), 10);
-  assert.equal(percentFor(repsol, new Date(2026, 11, 2)), 6);
-  assert.equal(percentFor(repsol, new Date(2026, 11, 20)), 6);
-  assert.equal(repsol.noCap, true);
-  const galp = DEFAULT_PROGRAM.rules.find((r) => r.id === 'galp');
-  assert.equal(percentFor(galp, new Date(2026, 10, 18)), 3);
-  assert.equal(percentFor(galp, new Date(2026, 11, 2)), 6);
+test('porcentaje del texto de ventajas del mapa oficial', () => {
+  assert.deepEqual(percentsIn('6% en Tréboles con la tarjeta REPSOL Carburante'), [6]);
+  assert.deepEqual(percentsIn('Hasta un 6 % del 1 al 5 y un 3,5 % el resto'), [6, 3.5]);
+  assert.deepEqual(percentsIn(''), []);
+  assert.deepEqual(percentsIn(undefined), []);
+  const official = { provinces: [], stations: { 9: { tipo: 'repsol', ventajas: '10% en Tréboles' }, 8: { tipo: 'colaboradora' } } };
+  const r = findRule(st('9', 'REPSOL'), DEFAULT_PROGRAM, {}, official);
+  assert.equal(percentFor(r, new Date(2026, 10, 18)), 10);
+  assert.equal(percentFor(r, new Date(2026, 11, 2)), 10);
+  const c = findRule(st('8', 'X'), DEFAULT_PROGRAM, {}, official);
+  assert.equal(percentFor(c, new Date(2026, 10, 18)), 3);
+  assert.equal(percentFor(c, new Date(2026, 11, 2)), 6);
+  // «Hasta un 6 %» es el máximo del carnet: 3 % fuera de los días 1 a 5
+  const hasta = { provinces: [], stations: { 7: { tipo: 'colaboradora', ventajas: 'Hasta un 6 % en Tréboles con tu carnet de socio' } } };
+  const h = findRule(st('7', 'X'), DEFAULT_PROGRAM, {}, hasta);
+  assert.equal(percentFor(h, new Date(2026, 10, 18)), 3);
+  assert.equal(percentFor(h, new Date(2026, 11, 2)), 6);
+  // Dos porcentajes: el mayor los días bonificados
+  const dos = { provinces: [], stations: { 6: { tipo: 'colaboradora', ventajas: '5 % del 1 al 5 y 2 % el resto del mes' } } };
+  const d = findRule(st('6', 'X'), DEFAULT_PROGRAM, {}, dos);
+  assert.equal(percentFor(d, new Date(2026, 10, 18)), 2);
+  assert.equal(percentFor(d, new Date(2026, 11, 3)), 5);
 });
 
-test('la lista oficial manda en las provincias que cubre', () => {
+test('solo cuentan las estaciones de la lista oficial', () => {
   const official = { provinces: ['41'], stations: { 10: { tipo: 'colaboradora', nombre: 'X' }, 11: { tipo: 'repsol' } } };
   assert.equal(findRule(st('10', 'BALLENOIL'), DEFAULT_PROGRAM, {}, official)?.source, 'official');
   assert.match(findRule(st('11', 'REPSOL'), DEFAULT_PROGRAM, {}, official).name, /Repsol/);
-  // Repsol de Sevilla que no está en la lista: no cuenta
   assert.equal(findRule(st('12', 'REPSOL'), DEFAULT_PROGRAM, {}, official), null);
-  // Repsol de Málaga (provincia no cubierta): aproximado por marca
-  assert.equal(findRule(st('13', 'REPSOL', '29'), DEFAULT_PROGRAM, {}, official)?.source, 'brand');
-  // Estación de la lista en una provincia no cubierta: cuenta igual
+  assert.equal(findRule(st('13', 'REPSOL', '29'), DEFAULT_PROGRAM, {}, official), null);
   assert.equal(findRule(st('10', 'BALLENOIL', '29'), DEFAULT_PROGRAM, {}, official)?.source, 'official');
 });
 
@@ -124,11 +124,12 @@ test('unión de listas oficiales', () => {
   assert.equal(m.updatedAt, '2026-11-18');
 });
 
-test('migración de ajustes guardados con las reglas antiguas (Galp activada)', () => {
+test('migración: se descartan todas las reglas por marca guardadas', () => {
   const old = {
-    version: 1,
+    version: 3,
     trebolValue: 0.5,
     rules: [
+      { id: 'repsol', match: ['REPSOL'], enabled: true },
       { id: 'galp', match: ['GALP'], enabled: true },
       { id: 'custom-1', name: 'Mi gasolinera', match: ['PEPE'], enabled: true, percent: 3 },
     ],
@@ -136,13 +137,9 @@ test('migración de ajustes guardados con las reglas antiguas (Galp activada)', 
   const p = migrateProgram(old);
   assert.equal(p.version, DEFAULT_PROGRAM.version);
   assert.equal(p.trebolValue, 0.5);
-  assert.deepEqual(p.rules.map((r) => r.id), ['repsol', 'galp', 'custom-1']);
-  assert.equal(findRule(st('1', 'GALP'), p)?.id, 'galp');
-  // Misma versión: se respetan los cambios del usuario en las reglas de fábrica
-  const same = cloneProgram();
-  same.rules[0].enabled = false;
-  assert.equal(migrateProgram(same).rules[0].enabled, false);
-  assert.deepEqual(migrateProgram(undefined).rules.map((r) => r.id), ['repsol', 'galp']);
+  assert.deepEqual(p.rules, []);
+  for (const b of ['REPSOL', 'GALP', 'PEPE']) assert.equal(findRule(st('1', b), p), null, b);
+  assert.deepEqual(migrateProgram(undefined).rules, []);
 });
 
 test('estado del tope según los repostajes', () => {

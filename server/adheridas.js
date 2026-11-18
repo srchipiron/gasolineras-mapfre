@@ -58,6 +58,7 @@ export function matchEntries(entries, stations, { maxM = 250 } = {}) {
       id: best.s.id,
       tipo: e.tipo,
       nombre: e.nombre,
+      ventajas: e.ventajas || '',
       distanceM: Math.round(best.d),
       brand: best.s.brand,
       address: best.s.address,
@@ -91,7 +92,11 @@ export function normalizeOfficial(data) {
   out.provinces = Array.isArray(data.provinces) ? data.provinces.filter((p) => /^\d{2}$/.test(p)) : [];
   for (const [id, v] of Object.entries(data.stations ?? {})) {
     if (!/^[A-Za-z0-9]{1,20}$/.test(id)) continue;
-    out.stations[id] = { tipo: ['repsol', 'colaboradora', 'manual'].includes(v?.tipo) ? v.tipo : 'colaboradora', nombre: String(v?.nombre ?? '').slice(0, 120) };
+    out.stations[id] = {
+      tipo: ['repsol', 'colaboradora', 'manual'].includes(v?.tipo) ? v.tipo : 'colaboradora',
+      nombre: String(v?.nombre ?? '').slice(0, 120),
+      ...(v?.ventajas ? { ventajas: String(v.ventajas).slice(0, 300) } : {}),
+    };
   }
   return out;
 }

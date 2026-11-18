@@ -21,7 +21,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Precio efectivo por litro con el porcentaje de tréboles del día: **6 % del día 1 al 5** de cada mes y **3 % el resto**.
 - Comparativa directa entre la mejor de Club MAPFRE y la más barata sin tréboles, con la diferencia en €/L y en € por depósito.
 - Aviso de cuándo es día de 6 % y cuántos días faltan para el siguiente.
-- **Lista de gasolineras adheridas**: se importa desde el mapa oficial de Club MAPFRE o se marca a mano, y se comparte entre dispositivos a través del repositorio (`config/adheridas.json`).
+- **Solo gasolineras adheridas de verdad**: las de la lista oficial del mapa de Club MAPFRE (importada desde un HAR) y las que marques tú; nada por la marca.
 - **Modo marcar**: botón «＋ Adherida» / «✓ Adherida» en cada gasolinera de la lista para revisarlas rápido.
 - Condiciones reales del programa: GLP y GNC no dan tréboles, y hay un tope de 100 € al día y 300 € a la semana.
 - Aviso de cuándo es día de 6 %, de las promociones del mes y de cuándo caduca la oferta.
@@ -47,7 +47,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 **Técnicas**
 - PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos. Al mantener pulsado el icono hay accesos directos («Cerca», «Repostaje», «Ruta»), y la app avisa cuando hay una versión nueva.
 - Si el servidor está arrancando (Render gratuito se duerme), la app espera y reintenta sola.
-- Leyenda del mapa: colores por precio, borde amarillo para Club MAPFRE y discontinuo para «aprox.».
+- Leyenda del mapa: colores por precio y borde amarillo para las de la lista oficial. En modo oscuro el mapa se oscurece.
 - Modo oscuro automático.
 - Servidor sin dependencias (solo Node.js): descarga los precios del Ministerio cada 30 minutos y los guarda en caché.
 
@@ -66,7 +66,7 @@ npm run demo       # datos inventados, para probar sin conexión
 Abre <http://localhost:3000>. La primera descarga de precios tarda unos segundos, porque son unas 12.000 gasolineras. Después se guarda en `data/` y se refresca sola cada 30 minutos.
 
 ```bash
-npm test           # 72 tests
+npm test           # 73 tests
 ```
 
 ## Usarla en el móvil
@@ -111,21 +111,11 @@ Por ejemplo, el día 2 un diésel a 1,489 € sale a 1,489 × 0,94 = **1,400 €
 
 ## Qué gasolineras cuentan como adheridas
 
-Club MAPFRE anuncia «+3.800 estaciones adheridas» y dos formas de ganar tréboles al repostar. Su mapa oficial (<https://www.mapfretecuidamos.com/gasolineras/>) las separa en «Gasolinera Repsol» y «Más EESS colaboradoras», pero no publica la lista en ningún formato abierto. Esto es lo que se puede sacar de fuentes públicas (consultadas el 18/11/2026):
+**Solo las de la lista oficial del mapa de Club MAPFRE** (<https://www.mapfretecuidamos.com/gasolineras/>), importada desde un HAR o una respuesta del localizador, **y las que marques tú** (con «Marcar como adherida», el modo marcar o «✓ Me dieron tréboles»). Nada se deduce por la marca ni de otras webs.
 
-| Red | Cómo se ganan tréboles | Fuente | En la app |
-|---|---|---|---|
-| Repsol, Campsa y Petronor (Península y Baleares) | Pagando con la **Tarjeta Repsol Carburante** comprada en Club MAPFRE: tréboles al comprarla (10 % en noviembre de 2026), sin días bonificados ni tope | Condiciones de la tarjeta: «canjeable en cualquiera de las Estaciones de Servicio Repsol de Península y Baleares» | Por marca, confirmada |
-| Galp (Península y Baleares) | **Carnet de socio**: 6 % del día 1 al 5 y 3 % el resto, con tope de 100 €/día y 300 €/semana | Web de Galp («6 % con Mapfre») y condiciones de MAPFRE (citan MundoGalp) | Por marca, «aprox.» |
-| Otras colaboradoras (~300) | Carnet de socio | Solo el mapa oficial | Importar o marcar a mano |
+Por defecto la app muestra solo esas gasolineras («Solo Club MAPFRE» activado). Mientras no importes la lista, te lo indica y te ofrece importarla o ver todas las gasolineras.
 
-Con los datos del Ministerio salen 3.002 gasolineras de la red Repsol y 482 Galp en Península y Baleares (622 y 65 en Andalucía y Murcia).
-
-Prioridad al decidir si una gasolinera da tréboles:
-
-1. **Tus marcas manuales** («Marcar como adherida» / «NO adherida», el modo marcar o «Tu experiencia»).
-2. **La lista oficial importada**: si una gasolinera está en ella, cuenta. En las provincias marcadas como *revisadas por completo*, solo cuentan las de la lista.
-3. **Las reglas por marca** de la tabla, editables en Ajustes.
+Si el mapa oficial indica un porcentaje para una estación (campo «ventajas»), la app usa ese porcentaje y muestra el texto en la ficha. Si no, aplica las condiciones del carnet: 6 % del día 1 al 5 y 3 % el resto, con el tope de 100 €/día y 300 €/semana.
 
 ### Importar la lista del mapa oficial
 

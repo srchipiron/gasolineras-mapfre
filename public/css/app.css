@@ -171,6 +171,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, .result:focus-v
 
 /* ---------- resumen ---------- */
 .best-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.best-grid.single { grid-template-columns: 1fr; }
+.empty .btn { margin: 8px 4px 0; }
 .best {
   font: inherit; text-align: left; color: var(--text); cursor: pointer;
   display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius);
@@ -359,3 +361,7 @@ details ol, details ul { padding-left: 18px; }
 .toast.show { transform: translate(-50%, 0); }
 
 .leaflet-container { font: inherit; background: var(--surface-2); }
+/* Mapa oscuro sin otro proveedor: se invierten los colores de las teselas. */
+@media (prefers-color-scheme: dark) {
+  .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
+}

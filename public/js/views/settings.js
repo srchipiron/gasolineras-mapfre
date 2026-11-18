@@ -3,7 +3,7 @@
 import { html, date } from '../format.js';
 import { DEFAULT_PROGRAM, mergeOfficial, emptyOfficial, TIPOS } from '/shared/treboles.js';
 import { parseLocatorPayload } from '/shared/locator.js';
-import { REGIONES, provinciaName } from '/shared/provincias.js';
+import { provinciaName } from '/shared/provincias.js';
 import { resetSettings, saveLocalOfficial, KEYS } from '../store.js';
 import { FUELS } from '/shared/fuels.js';
 import { VEHICLE_ICONS, addVehicle, updateVehicle, removeVehicle, selectVehicle } from '/shared/vehiculos.js';
@@ -18,15 +18,12 @@ function officialSection(ctx) {
   const total = Object.keys(off.stations).length;
   const byTipo = {};
   for (const v of Object.values(off.stations)) byTipo[v.tipo] = (byTipo[v.tipo] ?? 0) + 1;
-  const regionCodes = Object.values(REGIONES).flat();
-  const codes = [...new Set([...regionCodes, ...off.provinces])];
   const ov = Object.values(state.settings.overrides);
   return html`
     <h3>Gasolineras adheridas a Club MAPFRE</h3>
-    <p class="small">El mapa oficial de Club MAPFRE es la única fuente fiable. Donde importes su lista (o marques una provincia como revisada), solo cuentan las gasolineras de la lista; en el resto de España se usa la marca Repsol como aproximación.</p>
+    <p class="small">Solo cuentan como adheridas las gasolineras de la <b>lista oficial del mapa de Club MAPFRE</b> (importada desde el HAR) y las que marques tú. Nada se deduce por la marca ni de otras webs.</p>
     <div class="kpis">
       <div class="kpi"><span class="label">Lista oficial</span><strong>${total}</strong><span class="small">${Object.entries(byTipo).map(([t, n]) => `${n} ${TIPOS[t] ?? t}`).join(' · ') || 'sin importar'}</span></div>
-      <div class="kpi"><span class="label">Provincias completas</span><strong>${off.provinces.length}</strong><span class="small">${off.provinces.map(provinciaName).join(', ') || '—'}</span></div>
       <div class="kpi"><span class="label">Marcadas a mano</span><strong>${ov.filter((v) => v === 'in').length} / ${ov.filter((v) => v === 'out').length}</strong><span class="small">adheridas / no adheridas</span></div>
     </div>
     ${server.updatedAt ? html`<p class="small muted">Lista compartida actualizada el ${date(server.updatedAt)} (${Object.keys(server.stations).length} gasolineras). Importadas en este dispositivo: ${Object.keys(local.stations).length}.</p>` : ''}
@@ -54,21 +51,6 @@ function officialSection(ctx) {
       </details>
     </fieldset>
 
-    <fieldset class="rule">
-      <legend><b>Provincias revisadas por completo</b></legend>
-      <p class="small muted">Marca una provincia cuando tengas todas sus gasolineras adheridas (importadas o marcadas a mano). En ella dejarán de contar las Repsol que no estén en la lista.</p>
-      ${Object.entries(REGIONES).map(([region, list]) => html`
-        <div class="row wrap"><b class="small">${region}</b>
-          <button type="button" class="btn small" data-region="${region}">Marcar todas</button></div>`)}
-      <div class="prov-grid">
-        ${codes.sort().map((c) => {
-          const fromServer = server.provinces.includes(c);
-          const checked = fromServer || local.provinces.includes(c);
-          return html`<label class="chip small"><input type="checkbox" data-prov="${c}" ${checked ? 'checked' : ''} ${fromServer ? 'disabled' : ''}> ${provinciaName(c)}</label>`;
-        })}
-      </div>
-    </fieldset>
-
     <div class="row wrap">
       <button type="button" class="btn" id="export-list">Descargar lista (adheridas.json)</button>
       ${Object.keys(local.stations).length || local.provinces.length ? html`<button type="button" class="btn danger" id="clear-local">Borrar lo importado aquí</button>` : ''}
@@ -80,9 +62,8 @@ function importResult(r) {
   return html`
     <p><b>${r.matched.length}</b> gasolineras emparejadas de ${r.received} leídas${r.unmatched.length ? html`, <b>${r.unmatched.length}</b> sin emparejar` : ''}.</p>
     <table class="prices">
-      <thead><tr><th>Provincia</th><th>Adheridas</th><th>Completa</th></tr></thead>
-      <tbody>${r.provinces.map((p) => html`<tr><td>${provinciaName(p.idProvincia)}</td><td>${p.count} de ${p.total}</td>
-        <td><input type="checkbox" data-import-prov="${p.idProvincia}" ${p.complete ? 'checked' : ''} aria-label="Lista completa de ${provinciaName(p.idProvincia)}"></td></tr>`)}</tbody>
+      <thead><tr><th>Provincia</th><th>Adheridas encontradas</th></tr></thead>
+      <tbody>${r.provinces.map((p) => html`<tr><td>${provinciaName(p.idProvincia)}</td><td>${p.count} de ${p.total} gasolineras</td></tr>`)}</tbody>
     </table>
     ${r.unmatched.length ? html`<details class="small"><summary>Ver las ${r.unmatched.length} sin emparejar</summary><ul>${r.unmatched.slice(0, 100).map((u) => html`<li>${u.nombre} · ${u.direccion}, ${u.localidad}</li>`)}</ul></details>` : ''}
     <div class="row wrap"><button type="button" class="btn primary" id="import-save">Guardar</button><button type="button" class="btn" id="import-cancel">Descartar</button></div>`;
@@ -120,7 +101,6 @@ export function renderSettings(ctx) {
   const { state } = ctx;
   const s = state.settings;
   const st = state.status;
-  const isDefault = (id) => DEFAULT_PROGRAM.rules.some((r) => r.id === id);
   const root = document.getElementById('settings');
 
   root.innerHTML = html`
@@ -147,10 +127,9 @@ export function renderSettings(ctx) {
 
     <h3>Condiciones de Ahorro al Repostar</h3>
     <ul class="small conditions">
-      <li><b>Con el carnet de socio</b> (Galp y otras colaboradoras): <b>6 %</b> en tréboles del día 1 al 5 de cada mes y <b>3 %</b> el resto. 1 trébol = 1 € de descuento en tu seguro.</li>
-      <li><b>En Repsol, con la Tarjeta Repsol Carburante</b> comprada en Club MAPFRE: los tréboles te los dan al comprarla (10 % en noviembre de 2026). Vale en todas las Repsol de Península y Baleares, sin días bonificados ni tope, y no se acumula con el carnet.</li>
-      <li>Solo Península y Baleares. Para canjear los tréboles necesitas al menos 5 y una póliza MAPFRE (coche, moto, hogar, salud…).</li>
-      <li>Tope del carnet: compra máxima de <b>${s.program.cap?.perDay ?? 100} € al día</b> o <b>${s.program.cap?.perWeek ?? 300} € a la semana</b>.</li>
+      <li><b>Con el carnet de socio</b>: <b>6 %</b> en tréboles del día 1 al 5 de cada mes y <b>3 %</b> el resto. 1 trébol = 1 € de descuento en tu seguro.</li>
+      <li>Para canjear los tréboles necesitas al menos 5 y una póliza MAPFRE (coche, moto, hogar, salud…).</li>
+      <li>Tope: compra máxima de <b>${s.program.cap?.perDay ?? 100} € al día</b> o <b>${s.program.cap?.perWeek ?? 300} € a la semana</b>.</li>
       <li>No dan tréboles el <b>GLP</b> ni el <b>GNC</b>, ni los vehículos de más de 3.500 kg de uso no particular.</li>
       <li>${s.program.requirement}</li>
       <li>No acumulable con otros descuentos de la estación (MundoGalp, Waylet, Club Moeve gow…).</li>
@@ -159,25 +138,6 @@ export function renderSettings(ctx) {
     <label class="field"><span>Valor de 1 trébol (€)</span><input type="number" min="0" max="5" step="0.05" data-k="trebolValue" value="${s.program.trebolValue}"></label>
     <p class="small muted">Si no vas a poder gastar los tréboles en tus seguros, pon un valor menor.</p>
 
-    <h3>Reglas por marca (donde no hay lista oficial)</h3>
-    <p class="small muted">Sacadas de fuentes públicas: la red Repsol por las condiciones de la Tarjeta Repsol Carburante y Galp por su propia web. Las demás colaboradoras solo están en el mapa oficial: impórtalas o márcalas a mano.</p>
-    ${s.program.rules.map((r, i) => html`
-      <fieldset class="rule ${r.enabled ? 'on' : ''}">
-        <legend><label><input type="checkbox" data-rule="${i}" data-rk="enabled" ${r.enabled ? 'checked' : ''}> <b>${r.name}</b></label></legend>
-        ${r.requirement ? html`<p class="small muted">${r.requirement}</p>` : ''}
-        ${!isDefault(r.id) ? html`<label class="field"><span>Nombre</span><input data-rule="${i}" data-rk="name" value="${r.name}"></label>` : ''}
-        <label class="field"><span>Rótulos que cuentan (separados por comas)</span><input data-rule="${i}" data-rk="match" value="${(r.match ?? []).join(', ')}"></label>
-        <div class="row">
-          <label class="field"><span>% normal</span><input type="number" step="0.5" min="0" max="100" data-rule="${i}" data-rk="percent" value="${r.percent}"></label>
-          <label class="field"><span>% bonificado</span><input type="number" step="0.5" min="0" max="100" data-rule="${i}" data-rk="boostPercent" value="${r.boostPercent}"></label>
-          <label class="field"><span>Días</span>
-            <span class="days"><input type="number" min="1" max="31" data-rule="${i}" data-rk="boostFromDay" value="${r.boostFromDay}"> a
-            <input type="number" min="0" max="31" data-rule="${i}" data-rk="boostToDay" value="${r.boostToDay}"></span>
-          </label>
-        </div>
-        ${!isDefault(r.id) ? html`<button type="button" class="btn small" data-del-rule="${i}">Eliminar regla</button>` : ''}
-      </fieldset>`)}
-    <button type="button" class="btn" id="add-rule">+ Añadir otra marca</button>
     ${Object.keys(s.overrides).length ? html`<p class="small"><button type="button" class="btn small" id="clear-overrides">Borrar mis marcas manuales</button></p>` : ''}
 
     <h3>Filtros</h3>
@@ -251,33 +211,6 @@ export function renderSettings(ctx) {
     afterVehicle(false);
   });
 
-  root.querySelectorAll('[data-rule]').forEach((el) =>
-    el.addEventListener('change', () => {
-      const r = s.program.rules[Number(el.dataset.rule)];
-      const k = el.dataset.rk;
-      if (k === 'enabled') r.enabled = el.checked;
-      else if (k === 'match') r.match = el.value.split(',').map((x) => x.trim()).filter(Boolean);
-      else if (k === 'name') r.name = el.value.trim() || 'Otra marca';
-      else r[k] = Math.max(0, Number(el.value) || 0);
-      save();
-      if (k === 'enabled') renderSettings(ctx);
-    }),
-  );
-  root.querySelectorAll('[data-del-rule]').forEach((b) =>
-    b.addEventListener('click', () => {
-      s.program.rules.splice(Number(b.dataset.delRule), 1);
-      save();
-      renderSettings(ctx);
-    }),
-  );
-  root.querySelector('#add-rule').addEventListener('click', () => {
-    s.program.rules.push({
-      id: `custom-${Date.now()}`, name: 'Otra marca', match: [], percent: 3, boostPercent: 6,
-      boostFromDay: 1, boostToDay: 5, enabled: true, requirement: 'Regla añadida por ti.',
-    });
-    save();
-    renderSettings(ctx);
-  });
   root.querySelector('#clear-overrides')?.addEventListener('click', () => {
     if (!confirm('¿Borrar todas tus marcas manuales de adherida / no adherida?')) return;
     s.overrides = {};
@@ -286,23 +219,6 @@ export function renderSettings(ctx) {
   });
 
   // ---- Lista oficial ----
-  root.querySelectorAll('[data-prov]').forEach((el) =>
-    el.addEventListener('change', () => {
-      const set = new Set(state.localOfficial.provinces);
-      if (el.checked) set.add(el.dataset.prov);
-      else set.delete(el.dataset.prov);
-      state.localOfficial.provinces = [...set].sort();
-      saveLocal();
-    }),
-  );
-  root.querySelectorAll('[data-region]').forEach((b) =>
-    b.addEventListener('click', () => {
-      const set = new Set(state.localOfficial.provinces);
-      REGIONES[b.dataset.region].forEach((p) => set.add(p));
-      state.localOfficial.provinces = [...set].sort();
-      saveLocal();
-    }),
-  );
   root.querySelector('#export-list').addEventListener('click', () => exportList(state));
   root.querySelector('#clear-local')?.addEventListener('click', () => {
     if (!confirm('¿Borrar la lista importada en este dispositivo? La lista compartida no se toca.')) return;
@@ -317,8 +233,6 @@ export function renderSettings(ctx) {
       const entries = await readImport(root);
       if (!entries.length) throw new Error('No se encontró ninguna gasolinera en los datos (¿has buscado en el mapa antes de guardar?)');
       const res = await ctx.api.matchOfficial(entries);
-      // Se propone como "completa" una provincia si tiene al menos 10 adheridas.
-      res.provinces = res.provinces.map((p) => ({ ...p, complete: p.count >= 10 }));
       lastImport = res;
       out.innerHTML = importResult(res);
       bindImport(ctx, root);
@@ -355,12 +269,9 @@ function bindImport(ctx, root) {
   root.querySelector('#import-save')?.addEventListener('click', () => {
     if (!lastImport) return;
     const local = state.localOfficial;
-    for (const m of lastImport.matched) local.stations[m.id] = { tipo: m.tipo, nombre: m.nombre };
-    const set = new Set(local.provinces);
-    root.querySelectorAll('[data-import-prov]').forEach((el) => {
-      if (el.checked) set.add(el.dataset.importProv);
-    });
-    local.provinces = [...set].sort();
+    for (const m of lastImport.matched) {
+      local.stations[m.id] = { tipo: m.tipo, nombre: m.nombre, ...(m.ventajas ? { ventajas: m.ventajas } : {}) };
+    }
     local.updatedAt = new Date().toISOString().slice(0, 10);
     const n = lastImport.matched.length;
     lastImport = null;

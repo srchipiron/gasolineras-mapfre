@@ -10,27 +10,14 @@ export function createMap(el, { onSelect }) {
     return { showResults() {}, showRoute() {}, showUser() {}, focus() {}, invalidate() {}, clearRoute() {} };
   }
   const map = L.map(el, { zoomControl: true, attributionControl: true, zoomSnap: 0.25 }).setView([40.2, -3.7], 6);
-  // Capas de mapa. OpenStreetMap exige el origen de la web (Referer); CARTO
-  // sirve de alternativa y tiene una versión oscura.
-  const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-  const CARTO = `${OSM} &copy; <a href="https://carto.com/attributions">CARTO</a>`;
-  const common = { maxZoom: 19, referrerPolicy: 'strict-origin-when-cross-origin' };
-  const layers = {
-    'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { ...common, attribution: OSM }),
-    'Claro (CARTO)': L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { ...common, subdomains: 'abcd', attribution: CARTO }),
-    'Oscuro (CARTO)': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { ...common, subdomains: 'abcd', attribution: CARTO }),
-  };
-  const KEY = 'gm.mapLayer.v1';
-  let chosen = null;
-  try { chosen = localStorage.getItem(KEY); } catch { /* sin almacenamiento */ }
-  if (!layers[chosen]) {
-    chosen = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'Oscuro (CARTO)' : 'OpenStreetMap';
-  }
-  layers[chosen].addTo(map);
-  L.control.layers(layers, null, { position: 'topright' }).addTo(map);
-  map.on('baselayerchange', (e) => {
-    try { localStorage.setItem(KEY, e.name); } catch { /* sin almacenamiento */ }
-  });
+  // Mapa de OpenStreetMap. Sus servidores exigen el origen de la web
+  // (Referer). En modo oscuro se oscurece con un filtro CSS (ver app.css):
+  // los proveedores con mapa oscuro propio, como CARTO, piden clave de API.
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    referrerPolicy: 'strict-origin-when-cross-origin',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map);
 
   // Leyenda plegable.
   const legend = L.control({ position: 'bottomleft' });
@@ -40,8 +27,7 @@ export function createMap(el, { onSelect }) {
       <summary>Leyenda</summary>
       <ul>
         <li><span class="sw cheap"></span> Barata · <span class="sw mid"></span> Media · <span class="sw expensive"></span> Cara</li>
-        <li><span class="sw mapfre"></span> 🍀 Club MAPFRE (precio ya con tréboles)</li>
-        <li><span class="sw mapfre approx"></span> Club MAPFRE solo por la marca (aprox.)</li>
+        <li><span class="sw mapfre"></span> 🍀 En la lista oficial de Club MAPFRE (precio ya con tréboles)</li>
         <li><span class="sw dot"></span> Más gasolineras: acerca el mapa para ver su precio</li>
       </ul></details>`;
     L.DomEvent.disableClickPropagation(div);

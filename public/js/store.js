@@ -33,7 +33,7 @@ export const DEFAULT_SETTINGS = {
   fuel: 'gasoleoA',
   radiusKm: 10,
   sort: 'effective',
-  onlyMapfre: false,
+  onlyMapfre: true, // por defecto solo se ven las adheridas de la lista oficial
   openNow: false,
   hideRestricted: true,
   litres: 40,
@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS = {
   program: cloneProgram(),
   overrides: {}, // { idEstacion: 'in' | 'out' }
   markMode: false, // botón rápido para marcar adheridas en la lista
+  settingsVersion: 2,
   vehicles: [], // perfiles de vehículo (ver shared/vehiculos.js)
   vehicleId: null,
   lastLocation: null, // { lat, lon, label }
@@ -50,12 +51,18 @@ export const DEFAULT_SETTINGS = {
 
 export function loadSettings() {
   const saved = read(KEYS.settings, {});
-  return ensureVehicles({
+  const s = ensureVehicles({
     ...structuredClone(DEFAULT_SETTINGS),
     ...saved,
     program: migrateProgram(saved.program),
     overrides: saved.overrides ?? {},
   });
+  // Versión 2: solo se muestran las adheridas de la lista oficial.
+  if ((saved.settingsVersion ?? 1) < 2) {
+    s.onlyMapfre = true;
+    s.settingsVersion = 2;
+  }
+  return s;
 }
 
 export const saveSettings = (s) => write(KEYS.settings, s);

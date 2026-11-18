@@ -33,7 +33,7 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com",
+  "img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
   "connect-src 'self'",
   "manifest-src 'self'",
   "worker-src 'self'",
@@ -208,6 +208,7 @@ export function createApp({
         tipo: ['repsol', 'colaboradora'].includes(e.tipo) ? e.tipo : 'colaboradora',
         direccion: String(e.direccion ?? '').slice(0, 200),
         localidad: String(e.localidad ?? '').slice(0, 100),
+        ventajas: String(e.ventajas ?? '').slice(0, 300),
       });
     }
     const { matched, unmatched } = matchEntries(clean, store.stations);

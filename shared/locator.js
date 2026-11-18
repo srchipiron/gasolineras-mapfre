@@ -54,6 +54,7 @@ export function parseLocatorPayload(payload) {
       tipo: TIPO_BY_CODE[Number(x.codigoTipoColaborador)] ?? (['repsol', 'colaboradora'].includes(x.tipo) ? x.tipo : 'colaboradora'),
       direccion: String(x.direccion ?? '').trim().slice(0, 200),
       localidad: String(x.localidad ?? '').trim().slice(0, 100),
+      ventajas: String(x.ventajas ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300),
       lat,
       lon,
     });

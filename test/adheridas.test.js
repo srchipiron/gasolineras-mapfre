@@ -15,7 +15,7 @@ test('lee la respuesta del localizador: tipos, comas decimales y duplicados', ()
   const entries = parseLocatorPayload(locator);
   assert.equal(entries.length, 3, 'el duplicado se elimina');
   assert.deepEqual(entries[0], {
-    nombre: 'E.S. GALP PRINCESA', tipo: 'colaboradora', direccion: 'C/ Princesa 3', localidad: 'MADRID', lat: 40.42365, lon: -3.7119,
+    nombre: 'E.S. GALP PRINCESA', tipo: 'colaboradora', direccion: 'C/ Princesa 3', localidad: 'MADRID', ventajas: '3% en Tréboles', lat: 40.42365, lon: -3.7119,
   });
   assert.equal(entries[1].tipo, 'repsol');
 });
