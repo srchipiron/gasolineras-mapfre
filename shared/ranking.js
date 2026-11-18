@@ -1,7 +1,7 @@
 // Cálculo de resultados: precio efectivo con tréboles, coste real del
 // repostaje (incluido el desvío), filtros, orden y estadísticas.
 
-import { findRule, percentFor, treblesFor, fuelEligible, eligibleAmount } from './treboles.js';
+import { findRule, percentFor, treblesFor, fuelEligible, eligibleAmount, isApprox } from './treboles.js';
 import { isOpenAt, parseSchedule } from './horario.js';
 
 // Los km por carretera suelen ser ~30 % más que en línea recta.
@@ -35,7 +35,8 @@ export function enrich(stations, opts) {
     const pct = eligibleFuel ? percentFor(rule, now) : 0;
     const amount = litres * price;
     // Solo da tréboles la parte del importe que cabe en el tope.
-    const eligible = Math.max(0, Math.min(eligibleAmount(amount, program), capLeft));
+    // La Tarjeta Repsol Carburante no tiene el tope del carnet.
+    const eligible = rule?.noCap ? amount : Math.max(0, Math.min(eligibleAmount(amount, program), capLeft));
     const share = amount > 0 ? eligible / amount : 0;
     const eff = price * (1 - (pct / 100) * trebolValue * share);
     const detourKm = (st.offRouteKm ?? st.distanceKm ?? 0) * 2 * ROAD_FACTOR;
@@ -51,7 +52,7 @@ export function enrich(stations, opts) {
       rule,
       mapfre: !!rule && pct > 0,
       adherida: !!rule,
-      approx: rule?.source === 'brand',
+      approx: isApprox(rule),
       percent: pct,
       effective: eff,
       treboles: rule ? treblesFor(eligible, pct) : 0,
