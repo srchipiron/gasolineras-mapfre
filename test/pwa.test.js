@@ -20,7 +20,7 @@ test('todos los ficheros que precarga el service worker existen', () => {
 test('manifiesto: iconos y accesos directos', () => {
   const m = JSON.parse(readFileSync(join(ROOT, 'public/manifest.webmanifest'), 'utf8'));
   for (const i of m.icons) assert.ok(existsSync(join(ROOT, 'public', i.src)), i.src);
-  assert.deepEqual(m.shortcuts.map((s) => s.url), ['/?accion=cerca', '/?accion=repostaje', '/?accion=ruta']);
+  assert.deepEqual(m.shortcuts.map((s) => s.url), ['/?accion=carnet', '/?accion=cerca', '/?accion=repostaje', '/?accion=ruta']);
 });
 
 test('recordatorio de calendario', () => {

@@ -9,6 +9,7 @@ export const KEYS = {
   log: 'gm.log.v1',
   official: 'gm.official.v1',
   notes: 'gm.notes.v1',
+  card: 'gm.card.v1',
 };
 
 function read(key, fallback) {
@@ -89,6 +90,16 @@ export const saveLocalOfficial = (o) => write(KEYS.official, o);
 // { idEstacion: { verdict: 'ok' | 'ko' | null, note: '', date: 'aaaa-mm-dd' } }
 export const loadNotes = () => read(KEYS.notes, {});
 export const saveNotes = (n) => write(KEYS.notes, n);
+
+// ---- Carnet de socio (solo en este dispositivo) ----
+export const loadCard = () => read(KEYS.card, null);
+export function saveCard(card) {
+  if (!card) {
+    try { localStorage.removeItem(KEYS.card); } catch { /* nada */ }
+    return true;
+  }
+  return write(KEYS.card, card);
+}
 
 // ---- Favoritas ----
 export const loadFavorites = () => read(KEYS.favorites, []);
