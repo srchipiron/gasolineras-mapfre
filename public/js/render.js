@@ -3,7 +3,10 @@
 import { html, raw, eurL, eur, km, num2, pct } from './format.js';
 import { openStatus } from '/shared/horario.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
-import { findRule, percentFor, effectivePrice, treblesFor } from '/shared/treboles.js';
+import {
+  findRule, percentFor, effectivePrice, treblesFor, fuelEligible, eligibleAmount, DEFAULT_PROGRAM,
+} from '/shared/treboles.js';
+import { provinciaName } from '/shared/provincias.js';
 
 function openBadge(r) {
   if (r.open === true) return html`<span class="badge ok">Abierta</span>`;
@@ -11,18 +14,25 @@ function openBadge(r) {
   return '';
 }
 
-export function resultItem(r, i, { litres, mode = 'nearby', favorite = false }) {
+function mapfreBadge(r) {
+  if (!r.adherida) return '';
+  if (!r.mapfre) return html`<span class="badge" title="Este carburante no da tréboles">🍀 sin tréboles</span>`;
+  return html`<span class="badge mapfre" title="${r.rule.name}">🍀 ${pct(r.percent)}</span>${
+    r.approx ? html`<span class="badge approx" title="Solo por la marca: compruébalo en el mapa oficial">aprox.</span>` : ''}`;
+}
+
+export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, markMode = false }) {
   const st = r.station;
   const where = mode === 'route'
     ? `km ${Math.round(st.alongKm)} de la ruta · desvío ${km(st.offRouteKm)}`
     : km(st.distanceKm);
   return html`
-  <li class="result ${r.mapfre ? 'is-mapfre' : ''}" data-id="${st.id}" tabindex="0">
+  <li class="result ${r.mapfre ? 'is-mapfre' : ''} ${r.approx ? 'is-approx' : ''}" data-id="${st.id}" tabindex="0">
     <div class="rank">${i + 1}</div>
     <div class="info">
       <div class="title">
         <strong>${st.brand}</strong>
-        ${r.mapfre ? html`<span class="badge mapfre" title="${r.rule.name}">🍀 ${pct(r.percent)}</span>` : ''}
+        ${mapfreBadge(r)}
         ${openBadge(r)}
         ${st.saleType === 'R' ? html`<span class="badge off">Venta restringida</span>` : ''}
         ${favorite ? html`<span class="star" aria-label="Favorita">★</span>` : ''}
@@ -33,13 +43,18 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false }) 
     <div class="price">
       <div class="eff">${eurL(r.effective)}</div>
       ${r.mapfre ? html`<div class="pump">surtidor ${eurL(r.price)}</div>` : html`<div class="pump">sin tréboles</div>`}
+      ${markMode ? html`<button type="button" class="btn small mark ${r.adherida ? 'on' : ''}" data-mark="${st.id}" aria-pressed="${r.adherida}">${r.adherida ? '✓ Adherida' : '＋ Adherida'}</button>` : ''}
     </div>
   </li>`;
 }
 
-export function summaryHtml(s, { litres, fuel }) {
+export function summaryHtml(s, { litres, fuel, program }) {
   if (!s.count) {
     return html`<div class="empty">No hay gasolineras con ${fuelLabel(fuel)} que cumplan los filtros. Prueba a ampliar el radio o quitar filtros.</div>`;
+  }
+  if (!fuelEligible(program, fuel)) {
+    return html`<p class="verdict bad">El ${fuelLabel(fuel)} no da tréboles en Club MAPFRE: la lista está ordenada por precio en surtidor.</p>
+      <div class="stats"><span><b>${s.count}</b> gasolineras</span><span>Mín. <b>${eurL(s.min)}</b></span><span>Media <b>${eurL(s.avg)}</b></span><span>Máx. <b>${eurL(s.max)}</b></span></div>`;
   }
   const m = s.bestMapfre, o = s.bestNonMapfre;
   let verdict = '';
@@ -49,7 +64,7 @@ export function summaryHtml(s, { litres, fuel }) {
       ? html`<p class="verdict good">La mejor de Club MAPFRE te sale <b>${eurL(diff)}/L más barata</b> que la mejor sin tréboles (${eur(diff * litres)} en ${litres} L).</p>`
       : html`<p class="verdict bad">Aunque cuentes los tréboles, la mejor sin Club MAPFRE es <b>${eurL(-diff)}/L más barata</b> (${eur(-diff * litres)} en ${litres} L).</p>`;
   } else if (!m) {
-    verdict = html`<p class="verdict bad">No hay gasolineras de Club MAPFRE en esta zona con tus reglas actuales. Revisa las marcas en Ajustes o amplía el radio.</p>`;
+    verdict = html`<p class="verdict bad">No hay gasolineras de Club MAPFRE en esta zona. Amplía el radio o revisa la lista de adheridas en Ajustes.</p>`;
   }
   const t = s.bestTotal;
   const totalNote = t && s.bestEffective && t.station.id !== s.bestEffective.station.id
@@ -57,7 +72,7 @@ export function summaryHtml(s, { litres, fuel }) {
     : '';
   const card = (r, title, cls) => r
     ? html`<button class="best ${cls}" data-open="${r.station.id}">
-        <span class="label">${title}</span>
+        <span class="label">${title}${r.approx ? ' (aprox.)' : ''}</span>
         <strong>${r.station.brand}</strong>
         <span class="small">${r.station.address}</span>
         <span class="big">${eurL(r.effective)}</span>
@@ -87,21 +102,34 @@ function navLinks(st) {
     <a class="btn" target="_blank" rel="noopener" href="https://maps.apple.com/?daddr=${ll}">Apple Maps</a>`;
 }
 
-export function detailHtml(st, { settings, favorite, fecha, now = new Date() }) {
+const SOURCE_TEXT = {
+  official: 'Según la lista oficial de Club MAPFRE.',
+  brand: 'Solo por la marca: puede que esta estación no esté adherida. Compruébalo en el mapa oficial y márcala.',
+  manual: 'La has marcado tú como adherida.',
+};
+
+export function detailHtml(st, { settings, official, favorite, fecha, now = new Date() }) {
   const { program, overrides, fuel, litres } = settings;
-  const rule = findRule(st, program, overrides);
+  const rule = findRule(st, program, overrides, official);
   const p = percentFor(rule, now);
   const status = openStatus(st.schedule, now);
   const ov = overrides[st.id];
   const price = st.prices[fuel];
+  const eligible = fuelEligible(program, fuel);
   const rows = FUELS.filter((f) => st.prices[f.key] != null).map((f) => {
     const v = st.prices[f.key];
-    return html`<tr class="${f.key === fuel ? 'sel' : ''}"><td>${f.label}</td><td>${eurL(v)}</td><td>${rule ? eurL(effectivePrice(v, p, program.trebolValue)) : '—'}</td></tr>`;
+    const withT = rule && fuelEligible(program, f.key)
+      ? eurL(effectivePrice(v, p, program.trebolValue, { amountEur: v * litres, program }))
+      : '—';
+    return html`<tr class="${f.key === fuel ? 'sel' : ''}"><td>${f.label}</td><td>${eurL(v)}</td><td>${withT}</td></tr>`;
   });
   // Carburantes que no están en la lista conocida
   for (const [k, v] of Object.entries(st.prices)) {
     if (!FUELS.some((f) => f.key === k)) rows.push(html`<tr><td>${k}</td><td>${eurL(v)}</td><td>—</td></tr>`);
   }
+  const covered = official?.provinces?.includes(st.idProvincia);
+  const amount = price != null ? price * litres : 0;
+  const capped = eligibleAmount(amount, program);
   return html`
   <form method="dialog" class="sheet-head">
     <div>
@@ -115,16 +143,20 @@ export function detailHtml(st, { settings, favorite, fecha, now = new Date() }) 
        <span class="small muted">${st.schedule || 'Sin horario publicado'}</span></p>
     ${st.saleType === 'R' ? html`<p class="warn small">Venta restringida: solo para socios o clientes de esta estación (cooperativas, flotas…).</p>` : ''}
 
-    <div class="mapfre-box ${rule ? 'yes' : 'no'}">
+    <div class="mapfre-box ${rule ? 'yes' : 'no'} ${rule?.source === 'brand' ? 'approx' : ''}">
       ${rule
         ? html`<p><b>🍀 Club MAPFRE: ${rule.name}</b></p>
-               <p>Hoy te devuelve el <b>${pct(p)}</b> en tréboles${price != null ? html`: ${num2(treblesFor(price * litres, p))} tréboles por ${litres} L de ${fuelLabel(fuel)} (${eur(price * litres)})` : ''}.</p>
-               <p class="small muted">${rule.requirement ?? ''}</p>`
-        : html`<p><b>No consta como adherida a Club MAPFRE</b> con tus reglas actuales.</p>`}
+               <p class="small">${SOURCE_TEXT[rule.source] ?? ''}</p>
+               ${eligible && price != null
+                 ? html`<p>Hoy te devuelve el <b>${pct(p)}</b> en tréboles: ${num2(treblesFor(capped, p))} tréboles por ${litres} L de ${fuelLabel(fuel)} (${eur(amount)})${capped < amount ? html` <span class="small">— tope de ${eur(capped)} al día</span>` : ''}.</p>`
+                 : html`<p class="warn small">El ${fuelLabel(fuel)} no da tréboles (el GLP y el GNC están excluidos).</p>`}
+               <p class="small muted">${program.requirement ?? DEFAULT_PROGRAM.requirement}</p>`
+        : html`<p><b>No consta como adherida a Club MAPFRE</b>${covered ? html` en la lista oficial de ${provinciaName(st.idProvincia)}` : ' con tus reglas actuales'}.</p>`}
       <div class="row wrap">
-        ${ov !== 'in' ? html`<button class="btn small" data-action="mark-in">Marcar como adherida</button>` : ''}
+        ${ov !== 'in' && !rule ? html`<button class="btn small" data-action="mark-in">Marcar como adherida</button>` : ''}
         ${ov !== 'out' && rule ? html`<button class="btn small" data-action="mark-out">Marcar como NO adherida</button>` : ''}
         ${ov ? html`<button class="btn small" data-action="mark-clear">Quitar mi marca</button>` : ''}
+        <a class="btn small" target="_blank" rel="noopener" href="${program.officialMapUrl ?? DEFAULT_PROGRAM.officialMapUrl}">Ver mapa oficial ↗</a>
       </div>
     </div>
 

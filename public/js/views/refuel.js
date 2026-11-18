@@ -2,14 +2,14 @@
 
 import { html, todayISO, num2, eur } from '../format.js';
 import { FUELS } from '/shared/fuels.js';
-import { findRule, percentFor, treblesFor } from '/shared/treboles.js';
+import { findRule, percentFor, treblesFor, fuelEligible, cappedAmount } from '/shared/treboles.js';
 import { saveLog, newId } from '../store.js';
 
 export function openRefuel(ctx, station = null) {
   const { state } = ctx;
   const dlg = document.getElementById('refuel');
   const s = state.settings;
-  const rule = station ? findRule(station, s.program, s.overrides) : null;
+  const rule = station ? findRule(station, s.program, s.overrides, state.official) : null;
   const fuel = station && station.prices[s.fuel] == null
     ? Object.keys(station.prices)[0] ?? s.fuel
     : s.fuel;
@@ -49,14 +49,22 @@ export function openRefuel(ctx, station = null) {
   const ruleFor = () => rule ?? s.program.manual;
   const setPercent = () => {
     const d = new Date(`${el('date').value}T12:00:00`);
-    el('percent').value = el('mapfre').checked ? percentFor(ruleFor(), d) : 0;
+    const ok = el('mapfre').checked && fuelEligible(s.program, el('fuel').value);
+    el('percent').value = ok ? percentFor(ruleFor(), d) : 0;
   };
+  // Importe que da tréboles: tope de 100 € al día y 300 € a la semana.
+  const eligible = () => cappedAmount(Number(el('amount').value) || 0, el('date').value, state.log, s.program);
   const calc = () => {
     const amount = Number(el('amount').value) || 0;
-    const t = treblesFor(amount, Number(el('percent').value) || 0);
-    dlg.querySelector('#refuel-calc').textContent = el('mapfre').checked
-      ? `Ganarás ${num2(t)} tréboles (${eur(t * (s.program.trebolValue ?? 1))} de descuento en tu seguro).`
-      : 'Sin tréboles (no es Club MAPFRE).';
+    const base = eligible();
+    const t = treblesFor(base, Number(el('percent').value) || 0);
+    const out = dlg.querySelector('#refuel-calc');
+    if (!el('mapfre').checked) out.textContent = 'Sin tréboles (no es Club MAPFRE).';
+    else if (!fuelEligible(s.program, el('fuel').value)) out.textContent = 'Este carburante no da tréboles (GLP y GNC excluidos).';
+    else {
+      out.textContent = `Ganarás ${num2(t)} tréboles (${eur(t * (s.program.trebolValue ?? 1))} de descuento en tu seguro).` +
+        (base < amount ? ` Solo cuentan ${eur(base)} por el tope de 100 € al día y 300 € a la semana.` : '');
+    }
   };
   const fromLitres = () => {
     el('amount').value = ((Number(el('litres').value) || 0) * (Number(el('price').value) || 0)).toFixed(2);
@@ -72,6 +80,7 @@ export function openRefuel(ctx, station = null) {
   el('fuel').addEventListener('change', () => {
     const v = station?.prices[el('fuel').value];
     if (v != null) el('price').value = v;
+    setPercent();
     fromLitres();
   });
   el('mapfre').addEventListener('change', () => { setPercent(); calc(); });
@@ -84,6 +93,7 @@ export function openRefuel(ctx, station = null) {
     ev.preventDefault();
     const amount = Number(el('amount').value) || 0;
     const percent = Number(el('percent').value) || 0;
+    const eligibleAmount = el('mapfre').checked ? eligible() : 0;
     const entry = {
       id: newId(),
       date: el('date').value,
@@ -95,7 +105,8 @@ export function openRefuel(ctx, station = null) {
       amount,
       mapfre: el('mapfre').checked,
       percent,
-      treboles: el('mapfre').checked ? treblesFor(amount, percent) : 0,
+      eligibleAmount,
+      treboles: el('mapfre').checked ? treblesFor(eligibleAmount, percent) : 0,
     };
     state.log = [entry, ...state.log].sort((a, b) => b.date.localeCompare(a.date));
     saveLog(state.log);

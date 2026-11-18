@@ -5,6 +5,7 @@ COPY package.json ./
 COPY server ./server
 COPY shared ./shared
 COPY public ./public
+COPY config ./config
 
 RUN mkdir -p /data && chown node:node /data
 ENV NODE_ENV=production PORT=3000 DATA_DIR=/data

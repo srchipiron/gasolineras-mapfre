@@ -1,8 +1,13 @@
 // Persistencia local (en el navegador): ajustes, favoritas y repostajes.
 
-import { DEFAULT_PROGRAM, cloneProgram } from '/shared/treboles.js';
+import { cloneProgram, emptyOfficial, migrateProgram } from '/shared/treboles.js';
 
-const KEYS = { settings: 'gm.settings.v1', favorites: 'gm.favorites.v1', log: 'gm.log.v1' };
+export const KEYS = {
+  settings: 'gm.settings.v1',
+  favorites: 'gm.favorites.v1',
+  log: 'gm.log.v1',
+  official: 'gm.official.v1',
+};
 
 function read(key, fallback) {
   try {
@@ -35,29 +40,16 @@ export const DEFAULT_SETTINGS = {
   routeSort: 'effective',
   program: cloneProgram(),
   overrides: {}, // { idEstacion: 'in' | 'out' }
+  markMode: false, // botón rápido para marcar adheridas en la lista
   lastLocation: null, // { lat, lon, label }
 };
-
-/** Mezcla las reglas guardadas con las de fábrica (por si llegan reglas nuevas). */
-function mergeProgram(saved) {
-  const base = cloneProgram(DEFAULT_PROGRAM);
-  if (!saved || typeof saved !== 'object') return base;
-  const rules = base.rules.map((r) => ({ ...r, ...(saved.rules ?? []).find((s) => s.id === r.id) }));
-  for (const s of saved.rules ?? []) if (!rules.some((r) => r.id === s.id)) rules.push(s);
-  return {
-    ...base,
-    trebolValue: Number.isFinite(saved.trebolValue) ? saved.trebolValue : base.trebolValue,
-    rules,
-    manual: { ...base.manual, ...(saved.manual ?? {}) },
-  };
-}
 
 export function loadSettings() {
   const saved = read(KEYS.settings, {});
   return {
     ...structuredClone(DEFAULT_SETTINGS),
     ...saved,
-    program: mergeProgram(saved.program),
+    program: migrateProgram(saved.program),
     overrides: saved.overrides ?? {},
   };
 }
@@ -70,6 +62,10 @@ export function resetSettings(current) {
   saveSettings(s);
   return s;
 }
+
+// ---- Lista oficial importada en este dispositivo ----
+export const loadLocalOfficial = () => read(KEYS.official, emptyOfficial());
+export const saveLocalOfficial = (o) => write(KEYS.official, o);
 
 // ---- Favoritas ----
 export const loadFavorites = () => read(KEYS.favorites, []);

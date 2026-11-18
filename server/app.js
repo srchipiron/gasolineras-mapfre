@@ -6,7 +6,8 @@ import { join, normalize, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
 import { nearby, alongRoute } from './search.js';
-import { DEFAULT_PROGRAM } from '../shared/treboles.js';
+import { matchEntries, provinceSummary } from './adheridas.js';
+import { DEFAULT_PROGRAM, emptyOfficial } from '../shared/treboles.js';
 import { FUELS } from '../shared/fuels.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -69,6 +70,22 @@ function fuelParam(v) {
   return v;
 }
 
+async function readJson(req, limitBytes) {
+  if (!/application\/json/.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'Se esperaba JSON');
+  const chunks = [];
+  let size = 0;
+  for await (const c of req) {
+    size += c.length;
+    if (size > limitBytes) throw new HttpError(413, 'Demasiados datos');
+    chunks.push(c);
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    throw new HttpError(400, 'JSON no válido');
+  }
+}
+
 function send(req, res, status, body, headers = {}) {
   let buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
   const h = {
@@ -95,7 +112,9 @@ function send(req, res, status, body, headers = {}) {
  * @param {{route(a:object,b:object):Promise<object>}} deps.router
  * @param {{forStation(st:object, days:number):Promise<object>}} deps.history
  */
-export function createApp({ store, geocoder, router, history, demo = false, logger = console }) {
+export function createApp({
+  store, geocoder, router, history, official = { get: async () => emptyOfficial() }, demo = false, logger = console,
+}) {
   function requireData() {
     if (!store.ready) {
       throw new HttpError(503, store.lastError ? `Sin datos de precios: ${store.lastError.message}` : 'Cargando precios, inténtalo en unos segundos');
@@ -162,9 +181,38 @@ export function createApp({ store, geocoder, router, history, demo = false, logg
     },
   };
 
+  routes['GET /api/adheridas'] = () => official.get();
+
+  // Empareja estaciones del localizador oficial (ya extraídas en el navegador)
+  // con las del Ministerio. No guarda nada: solo devuelve el resultado.
+  async function matchOfficial(req) {
+    requireData();
+    const body = await readJson(req, 4 * 1024 * 1024);
+    const entries = Array.isArray(body?.entries) ? body.entries : null;
+    if (!entries || entries.length > 20000) throw new HttpError(400, 'Faltan las estaciones (entries)');
+    const clean = [];
+    for (const e of entries) {
+      const lat = Number(e?.lat), lon = Number(e?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      clean.push({
+        lat, lon,
+        nombre: String(e.nombre ?? '').slice(0, 120),
+        tipo: ['repsol', 'colaboradora'].includes(e.tipo) ? e.tipo : 'colaboradora',
+        direccion: String(e.direccion ?? '').slice(0, 200),
+        localidad: String(e.localidad ?? '').slice(0, 100),
+      });
+    }
+    const { matched, unmatched } = matchEntries(clean, store.stations);
+    const totals = {};
+    for (const s of store.stations) totals[s.idProvincia] = (totals[s.idProvincia] ?? 0) + 1;
+    const provinces = provinceSummary(matched).map((p) => ({ ...p, total: totals[p.idProvincia] ?? 0 }));
+    return { received: clean.length, matched, unmatched, provinces };
+  }
+
   async function handleApi(req, url) {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${url.pathname}`;
     if (routes[key]) return routes[key](url.searchParams);
+    if (key === 'POST /api/adheridas/match') return matchOfficial(req);
 
     let m = /^\/api\/stations\/([A-Za-z0-9]+)$/.exec(url.pathname);
     if (m && (req.method === 'GET' || req.method === 'HEAD')) {
@@ -224,6 +272,9 @@ export function createApp({ store, geocoder, router, history, demo = false, logg
     const url = new URL(req.url, 'http://localhost');
     try {
       if (url.pathname.startsWith('/api/')) {
+        if (req.method === 'POST' && req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') {
+          throw new HttpError(403, 'Petición de otro origen');
+        }
         const data = await handleApi(req, url);
         send(req, res, 200, data, { 'Cache-Control': 'no-cache' });
       } else if (req.method === 'GET' || req.method === 'HEAD') {

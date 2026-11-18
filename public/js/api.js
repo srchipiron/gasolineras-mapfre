@@ -30,5 +30,16 @@ export const api = {
       public: publicOnly ? 1 : 0,
     }),
   geocode: (q) => get('/api/geocode', { q }),
+  adheridas: () => get('/api/adheridas'),
+  matchOfficial: async (entries) => {
+    const res = await fetch('/api/adheridas/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ entries }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
+    return body;
+  },
   history: (id, days = 30) => get(`/api/history/${encodeURIComponent(id)}`, { days }),
 };

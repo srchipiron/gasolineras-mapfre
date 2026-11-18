@@ -18,6 +18,10 @@ export const FUELS = [
   { key: 'bioetanol', label: 'Bioetanol', short: 'Bioetanol', field: 'Precio Bioetanol' },
   { key: 'dieselRenovable', label: 'Diésel renovable', short: 'Diésel R', field: 'Precio Diésel Renovable' },
   { key: 'gasolinaRenovable', label: 'Gasolina renovable', short: 'Gasolina R', field: 'Precio Gasolina Renovable' },
+  { key: 'gasolina95E25', label: 'Gasolina 95 E25', short: 'E25', field: 'Precio Gasolina 95 E25' },
+  { key: 'gasolina95E85', label: 'Gasolina 95 E85', short: 'E85', field: 'Precio Gasolina 95 E85' },
+  { key: 'biogasNaturalComprimido', label: 'Biogás comprimido', short: 'BioGNC', field: 'Precio Biogas Natural Comprimido' },
+  { key: 'biogasNaturalLicuado', label: 'Biogás licuado', short: 'BioGNL', field: 'Precio Biogas Natural Licuado' },
   { key: 'adblue', label: 'AdBlue', short: 'AdBlue', field: 'Precio Adblue' },
   { key: 'hidrogeno', label: 'Hidrógeno (€/kg)', short: 'H₂', field: 'Precio Hidrogeno' },
 ];

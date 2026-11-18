@@ -5,6 +5,7 @@ import { request } from 'node:http';
 import { createHttpServer } from '../server/app.js';
 import { StationStore } from '../server/store.js';
 import { createDemoGeocoder, createDemoRouter, createDemoHistory } from '../server/demo.js';
+import { parseLocatorPayload } from '../shared/locator.js';
 
 const raw = JSON.parse(readFileSync(new URL('./fixtures/minetur-sample.json', import.meta.url)));
 const quiet = { info() {}, warn() {}, error() {} };
@@ -18,6 +19,7 @@ before(async () => {
     geocoder: createDemoGeocoder(),
     router: createDemoRouter(),
     history: createDemoHistory(),
+    official: { get: async () => ({ version: 1, updatedAt: '2026-11-18', source: 'test', provinces: ['28'], stations: { 1001: { tipo: 'colaboradora', nombre: 'GALP' } } }) },
     logger: quiet,
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -97,6 +99,34 @@ test('no se puede salir de la carpeta pública', async () => {
     });
     assert.ok([403, 404].includes(status), `${path} -> ${status}`);
   }
+});
+
+test('lista compartida de adheridas', async () => {
+  const { status, body } = await getJson('/api/adheridas');
+  assert.equal(status, 200);
+  assert.deepEqual(body.provinces, ['28']);
+  assert.equal(body.stations['1001'].tipo, 'colaboradora');
+});
+
+test('emparejado de estaciones del localizador', async () => {
+  const locator = JSON.parse(readFileSync(new URL('./fixtures/localizador-sample.json', import.meta.url)));
+  const post = (body, headers = {}) => fetch(`${base}/api/adheridas/match`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body,
+  });
+  const res = await post(JSON.stringify({ entries: parseLocatorPayload(locator) }));
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.received, 3);
+  assert.deepEqual(body.matched.map((m) => m.id), ['1001', '1003']);
+  assert.equal(body.unmatched.length, 1);
+  assert.deepEqual(body.provinces, [{ idProvincia: '28', province: 'Madrid', count: 2, total: 4 }]);
+  assert.equal((await post('no es json')).status, 400);
+  assert.equal((await post(JSON.stringify({}))).status, 400);
+  assert.equal((await post(JSON.stringify({ entries: [] }), { 'Sec-Fetch-Site': 'cross-site' })).status, 403);
+  const plain = await fetch(`${base}/api/adheridas/match`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: '{}' });
+  assert.equal(plain.status, 415);
+  const big = await post(JSON.stringify({ entries: [], pad: 'x'.repeat(5 * 1024 * 1024) }));
+  assert.equal(big.status, 413);
 });
 
 test('503 mientras no hay datos', async () => {

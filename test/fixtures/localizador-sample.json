@@ -1,0 +1,41 @@
+{
+  "message": {
+    "contenido": [
+      {
+        "nombreCentro": "E.S. GALP PRINCESA",
+        "codigoTipoColaborador": 3,
+        "direccion": "C/ Princesa 3",
+        "localidad": "MADRID",
+        "latitud": "40,42365",
+        "longitud": "-3,71190",
+        "distancia": 1200,
+        "ventajas": "3% en Tréboles"
+      },
+      {
+        "nombreCentro": "REPSOL BRAVO MURILLO",
+        "codigoTipoColaborador": 4,
+        "direccion": "C/ Bravo Murillo 300",
+        "localidad": "MADRID",
+        "latitud": 40.4602,
+        "longitud": -3.7003,
+        "distancia": 4500
+      },
+      {
+        "nombreCentro": "E.S. GALP PRINCESA",
+        "codigoTipoColaborador": 3,
+        "direccion": "C/ Princesa 3",
+        "localidad": "MADRID",
+        "latitud": "40,42365",
+        "longitud": "-3,71190"
+      },
+      {
+        "nombreCentro": "GASOLINERA LEJANA",
+        "codigoTipoColaborador": 3,
+        "direccion": "Ctra. N-1 km 99",
+        "localidad": "SOMOSIERRA",
+        "latitud": 41.13,
+        "longitud": -3.58
+      }
+    ]
+  }
+}

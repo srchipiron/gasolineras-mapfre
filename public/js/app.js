@@ -6,7 +6,7 @@ import { html, eurL, km, duration } from './format.js';
 import { resultItem, summaryHtml, detailHtml } from './render.js';
 import { lineChart } from './chart.js';
 import {
-  loadSettings, saveSettings, loadFavorites, loadLog, isFavorite, toggleFavorite,
+  loadSettings, saveSettings, loadFavorites, loadLog, isFavorite, toggleFavorite, loadLocalOfficial,
 } from './store.js';
 import { renderFavorites, checkAlerts } from './views/favorites.js';
 import { renderLog, exportLogCsv } from './views/log.js';
@@ -14,7 +14,9 @@ import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
 import { enrich, filterResults, sortResults, summarize, SORTS } from '/shared/ranking.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
-import { isBoostDay, percentFor, daysUntilBoost, programExpired, DEFAULT_PROGRAM } from '/shared/treboles.js';
+import {
+  isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, mergeOfficial, emptyOfficial, DEFAULT_PROGRAM,
+} from '/shared/treboles.js';
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const DEFAULT_CENTER = { lat: 40.4168, lon: -3.7038, label: 'Madrid (ubicación por defecto)' };
@@ -24,6 +26,10 @@ const state = {
   favorites: loadFavorites(),
   log: loadLog(),
   status: null,
+  serverOfficial: emptyOfficial(), // config/adheridas.json del servidor
+  localOfficial: loadLocalOfficial(), // importada en este dispositivo
+  official: null, // unión de las dos
+  pendingMarks: new Map(),
   center: null,
   nearby: null, // respuesta de /api/stations
   route: null, // respuesta de /api/route + etiquetas
@@ -46,7 +52,7 @@ const persist = () => saveSettings(state.settings);
 function computeList(stations, sort) {
   const s = state.settings;
   const enriched = enrich(stations, {
-    fuel: s.fuel, program: s.program, overrides: s.overrides, litres: s.litres, consumption: s.consumption,
+    fuel: s.fuel, program: s.program, overrides: s.overrides, official: state.official, litres: s.litres, consumption: s.consumption,
   });
   const filtered = filterResults(enriched, {
     onlyMapfre: s.onlyMapfre, openNow: s.openNow, hideRestricted: s.hideRestricted,
@@ -57,12 +63,19 @@ function computeList(stations, sort) {
 function renderList(el, results, mode) {
   const s = state.settings;
   const shown = results.slice(0, 150);
-  el.innerHTML = html`${shown.map((r, i) => resultItem(r, i, { litres: s.litres, mode, favorite: isFavorite(state.favorites, r.station.id) }))}${
+  el.innerHTML = html`${shown.map((r, i) => resultItem(r, i, { litres: s.litres, mode, markMode: s.markMode, favorite: isFavorite(state.favorites, r.station.id) }))}${
     results.length > shown.length ? html`<li class="muted small more">Y ${results.length - shown.length} más… acerca el mapa o reduce el radio.</li>` : ''}`;
 }
 
 function bindOpeners(root, results) {
   const byId = new Map(results.map((r) => [r.station.id, r]));
+  root.querySelectorAll('[data-mark]').forEach((b) =>
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const r = byId.get(b.dataset.mark);
+      if (r) toggleMark(r);
+    }),
+  );
   root.querySelectorAll('[data-id]').forEach((li) => {
     const open = () => {
       const r = byId.get(li.dataset.id);
@@ -89,7 +102,7 @@ function recompute({ fit = false } = {}) {
   if (state.nearby) {
     const { results, summary } = computeList(state.nearby.stations, s.sort);
     state.computed.nearby = results;
-    $('#summary').innerHTML = summaryHtml(summary, { litres: s.litres, fuel: s.fuel });
+    $('#summary').innerHTML = summaryHtml(summary, { litres: s.litres, fuel: s.fuel, program: s.program });
     renderList($('#results'), results, 'nearby');
     bindOpeners($('#results'), results);
     bindSummaryLinks($('#summary'), results);
@@ -108,7 +121,7 @@ function renderRoute({ fit }) {
   $('#route-summary').innerHTML = html`
     <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
-    ${summaryHtml(summary, { litres: s.litres, fuel: s.fuel })}`;
+    ${summaryHtml(summary, { litres: s.litres, fuel: s.fuel, program: s.program })}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
   bindSummaryLinks($('#route-summary'), results);
@@ -119,8 +132,7 @@ function renderRoute({ fit }) {
 }
 
 function renderBoost() {
-  const rules = state.settings.program.rules.filter((r) => r.enabled);
-  const rule = rules[0] ?? DEFAULT_PROGRAM.rules[0];
+  const rule = state.settings.program.official ?? DEFAULT_PROGRAM.official;
   const el = $('#boost-banner');
   const now = new Date();
   if (programExpired(state.settings.program, now)) {
@@ -136,6 +148,27 @@ function renderBoost() {
     el.className = 'boost';
     el.textContent = `🍀 Hoy ${percentFor(rule, now)} % en tréboles · el ${rule.boostPercent} % vuelve en ${d} ${d === 1 ? 'día' : 'días'}`;
   }
+  const promos = activePromos(state.settings.program, now);
+  $('#promo-banner').hidden = !promos.length;
+  $('#promo-banner').textContent = promos.map((p) => `🎁 ${p.text}`).join(' · ');
+}
+
+/** Marca o desmarca una estación como adherida desde la lista (modo marcar). */
+function toggleMark(r) {
+  const s = state.settings;
+  const id = r.station.id;
+  const ov = s.overrides[id];
+  if (r.adherida) {
+    if (ov === 'in') delete s.overrides[id];
+    else s.overrides[id] = 'out';
+  } else if (ov === 'out') delete s.overrides[id];
+  else s.overrides[id] = 'in';
+  persist();
+  recompute();
+}
+
+function setOfficial() {
+  state.official = mergeOfficial(state.serverOfficial, state.localOfficial);
 }
 
 // ---------------------------------------------------------------- carga de datos
@@ -265,7 +298,7 @@ function openDetail(st) {
   const s = state.settings;
   const draw = () => {
     dlg.innerHTML = detailHtml(st, {
-      settings: s, favorite: isFavorite(state.favorites, st.id), fecha: state.nearby?.fecha ?? state.status?.fecha,
+      settings: s, official: state.official, favorite: isFavorite(state.favorites, st.id), fecha: state.nearby?.fecha ?? state.status?.fecha,
     });
     dlg.querySelectorAll('[data-action]').forEach((b) => b.addEventListener('click', () => onAction(b.dataset.action)));
     loadHistory();
@@ -405,6 +438,7 @@ const map = createMap($('#map'), { onSelect: (r) => openDetail(r.station) });
 
 const ctx = {
   state, api, toast, persist, recompute, renderBoost, refreshTab, openDetailById, syncControls,
+  setOfficial: () => { setOfficial(); recompute(); },
   reload: () => { persist(); loadNearby({ fit: false }); },
 };
 
@@ -414,6 +448,13 @@ async function init() {
   syncControls();
   renderBoost();
 
+  setOfficial();
+  try {
+    state.serverOfficial = await api.adheridas();
+    setOfficial();
+  } catch {
+    /* sin lista compartida: se usan las reglas por marca */
+  }
   try {
     state.status = await api.status();
     $('#demo-banner').hidden = !state.status.demo;

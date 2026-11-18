@@ -57,6 +57,13 @@ test('textos vacíos o raros devuelven null (desconocido)', () => {
   assert.equal(openStatus('???').open, null);
 });
 
+test('"L:" a secas es ambiguo (¿solo lunes o toda la semana?): desconocido', () => {
+  assert.equal(parseSchedule('L: 24H'), null);
+  assert.equal(parseSchedule('L: 06:00-22:00'), null);
+  assert.equal(isOpenAt('L: 06:00-22:00', at(1, 10)), null);
+  assert.notEqual(parseSchedule('L: 06:00-22:00; M: 06:00-22:00'), null);
+});
+
 test('hasta las 24:00', () => {
   assert.equal(isOpenAt('L-D: 06:00-24:00', at(3, 23, 59)), true);
   assert.equal(isOpenAt('L-D: 06:00-24:00', at(3, 5)), false);
