@@ -1,6 +1,6 @@
 // Service worker: la app funciona sin conexión con los últimos datos vistos.
 
-const VERSION = 'v21';
+const VERSION = 'v22';
 const SHELL_CACHE = `shell-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 const SHELL = [
