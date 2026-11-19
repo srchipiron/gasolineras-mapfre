@@ -1,7 +1,8 @@
 // Pestaña "Favoritas": precios actuales y aviso de precio objetivo.
 
-import { html, eurL, km } from '../format.js';
-import { enrich } from '/shared/ranking.js';
+import { html, eurL, km, num2 } from '../format.js';
+import { enrich, sortResults } from '/shared/ranking.js';
+import { isCompany } from '/shared/modo.js';
 import { haversineKm } from '/shared/geo.js';
 import { fuelLabel } from '/shared/fuels.js';
 import { saveFavorites } from '../store.js';
@@ -52,7 +53,10 @@ export async function renderFavStrip(ctx) {
     return;
   }
   const targets = new Map(state.favorites.map((f) => [f.id, f.target]));
-  const top = [...byId.values()].sort((a, b) => a.effective - b.effective).slice(0, 3);
+  // Como «Te aconsejo»: en tu coche, la que menos te cuesta; en el de
+  // empresa, la que más tréboles te da.
+  const company = isCompany(state.settings);
+  const top = sortResults([...byId.values()], company ? 'treboles' : 'total').slice(0, 3);
   if (!top.length) {
     el.innerHTML = '';
     return;
@@ -67,7 +71,7 @@ export async function renderFavStrip(ctx) {
         return html`
       <li><button type="button" class="fav-row ${hit ? 'hit' : ''}" data-open="${r.station.id}">
         <span class="fav-name">${r.mapfre ? '🍀 ' : ''}<b>${r.station.brand}</b> · ${r.station.locality}${r.station.distanceKm != null ? ` · ${km(r.station.distanceKm)}` : ''}${hit ? ' 🔔' : ''}</span>
-        <span class="fav-price">${eurL(r.effective)}</span>
+        <span class="fav-price">${company ? (r.treboles > 0 ? `+${num2(r.treboles)} 🍀` : eurL(r.price)) : eurL(r.effective)}</span>
       </button></li>`;
       })}
     </ol>
