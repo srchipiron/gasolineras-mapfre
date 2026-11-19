@@ -42,6 +42,9 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 - Ordenadas por precio con tréboles, por coste real o por el orden en que te las encuentras.
 
 **Lo tuyo**
+- **Dos modos: «Voy en mi coche» y «Voy en el coche de empresa»**, arriba del todo. En tu coche pagas tú y manda el precio con tréboles. En el de empresa el carburante no sale de tu bolsillo pero los tréboles van a tu carnet: la lista pone primero las que más tréboles te dan (entre iguales, la que menos le cuesta a la empresa), enseña «+X 🍀» en cada gasolinera y cuánto paga de más la empresa frente a la más barata. Cada modo recuerda su vehículo y su orden. El tope de 100 €/300 € es de tu carnet y cuenta en los dos.
+- En cada repostaje, **«Pago yo» o «Paga la empresa»**: el registro separa lo que salió de tu bolsillo y lo que pagó la empresa (también en el CSV); los tréboles son tuyos en los dos casos.
+- **Novedades y versión** al final de Ajustes: el registro de cambios, la versión de la app instalada y la publicada en el servidor, y aviso si no coinciden.
 - **Gasto del viaje** en el modo ruta: litros y euros del trayecto con el consumo de tu vehículo, al precio de la mejor gasolinera de la ruta y a precio medio, e ida y vuelta.
 - **Mi carnet**: guarda tu número de socio de Club MAPFRE y enséñalo en caja a pantalla completa con QR, código de barras (Code 128, o EAN-13 si tu número lo es) y el número en grande. La pantalla no se apaga mientras está abierto. Botón «🪪 Mi carnet» arriba, en la ficha de cada adherida y como acceso directo del icono.
 - Favoritas con **aviso de precio objetivo**: al abrir la app te avisa si alguna ha bajado de tu precio.
@@ -171,6 +174,12 @@ node scripts/importar-adheridas.mjs --reemplazar --toda-espana mapa-oficial.har
 ```
 
 Del HAR (decenas de MB, la misma respuesta repetida en cada búsqueda) solo se guarda lo que usa la app: por cada gasolinera del Ministerio, su tipo, el nombre y las ventajas. Queda en unos 600 KB de JSON, y unos 45 KB comprimido con gzip al descargarlo. El servidor lo sirve también como `/data/adheridas.json`. El service worker lo guarda al instalar la app, de modo que el móvil lo tiene al abrirla, sin conexión y sin esperar a que despierte el servidor. Después busca en segundo plano la lista publicada más reciente. Ya no hace falta pasar el HAR al móvil.
+
+## Versiones y registro de cambios
+
+El registro de cambios está en `shared/changelog.js` (la primera entrada es la versión actual). Al publicar algo nuevo, añade una entrada arriba y sube la versión también en `package.json` (un test comprueba que coinciden) y `VERSION` en `public/sw.js`.
+
+La app enseña al final de Ajustes su versión (la del código guardado en el móvil) y la del servidor (`version` en `/api/status`, la que corre en treboles.onrender.com). Si la publicada es más nueva, basta con 🔄 Actualizar o volver a abrir la app.
 
 ## Estructura
 

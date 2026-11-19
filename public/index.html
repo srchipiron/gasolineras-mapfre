@@ -38,6 +38,10 @@
   <div id="update-banner" class="update-banner" role="status" hidden>Hay una versión nueva de la app. <button type="button" class="btn small">Recargar</button></div>
 
   <section class="controls" aria-label="Búsqueda">
+    <div class="mode-switch" role="radiogroup" aria-label="¿Quién paga el carburante?">
+      <button type="button" role="radio" data-mode="personal" aria-checked="true">🚗 Voy en mi coche</button>
+      <button type="button" role="radio" data-mode="company" aria-checked="false">💼 Voy en el coche de empresa</button>
+    </div>
     <form id="search-form" class="search" autocomplete="off">
       <input id="q" type="search" placeholder="Dirección, ciudad o código postal" aria-label="Dirección, ciudad o código postal">
       <button type="submit" class="btn primary">Buscar</button>

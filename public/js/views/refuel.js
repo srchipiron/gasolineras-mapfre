@@ -4,6 +4,7 @@ import { html, todayISO, num2, eur } from '../format.js';
 import { FUELS } from '/shared/fuels.js';
 import { findRule, percentFor, treblesFor, fuelEligible, cappedAmount } from '/shared/treboles.js';
 import { saveLog, newId } from '../store.js';
+import { isCompany } from '/shared/modo.js';
 
 export function openRefuel(ctx, station = null) {
   const { state } = ctx;
@@ -14,6 +15,7 @@ export function openRefuel(ctx, station = null) {
     ? Object.keys(station.prices)[0] ?? s.fuel
     : s.fuel;
   const price = station?.prices[fuel] ?? '';
+  const company = isCompany(s);
   const fuels = FUELS.filter((f) => !station || station.prices[f.key] != null || f.key === fuel);
 
   dlg.innerHTML = html`
@@ -35,6 +37,10 @@ export function openRefuel(ctx, station = null) {
       <label class="field"><span>Litros</span><input type="number" name="litres" step="0.01" min="0" inputmode="decimal" value="${s.litres}" required></label>
       <label class="field"><span>Precio €/L</span><input type="number" name="price" step="0.001" min="0" inputmode="decimal" value="${price}" required></label>
       <label class="field"><span>Importe €</span><input type="number" name="amount" step="0.01" min="0" inputmode="decimal"></label>
+    </div>
+    <div class="payer-row" role="radiogroup" aria-label="¿Quién paga?">
+      <label class="chip"><input type="radio" name="payer" value="personal" ${company ? '' : 'checked'}> 🚗 Pago yo</label>
+      <label class="chip"><input type="radio" name="payer" value="company" ${company ? 'checked' : ''}> 💼 Paga la empresa</label>
     </div>
     <div class="row">
       <label class="chip"><input type="checkbox" name="mapfre" ${rule ? 'checked' : ''}> Club MAPFRE</label>
@@ -109,11 +115,13 @@ export function openRefuel(ctx, station = null) {
       percent,
       eligibleAmount,
       treboles: el('mapfre').checked ? treblesFor(eligibleAmount, percent) : 0,
+      payer: f.querySelector('input[name=payer]:checked')?.value === 'company' ? 'company' : 'personal',
     };
     state.log = [entry, ...state.log].sort((a, b) => b.date.localeCompare(a.date));
     saveLog(state.log);
     dlg.close();
-    ctx.toast(entry.mapfre ? `Repostaje guardado: +${num2(entry.treboles)} tréboles 🍀` : 'Repostaje guardado');
+    const who = entry.payer === 'company' ? ' (paga la empresa)' : '';
+    ctx.toast(entry.mapfre ? `Repostaje guardado${who}: +${num2(entry.treboles)} tréboles 🍀 para ti` : `Repostaje guardado${who}`);
     ctx.refreshTab('log');
     ctx.recompute(); // el tope diario/semanal cambia los precios con tréboles
   });

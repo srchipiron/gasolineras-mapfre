@@ -9,6 +9,7 @@ import { cardSettingsHtml, bindCardSettings } from './card.js';
 import { installSectionHtml, promptInstall } from '../install.js';
 import { backupSectionHtml, bindBackup } from './backup.js';
 import { FUELS } from '/shared/fuels.js';
+import { CHANGELOG, APP_VERSION, versionStatus } from '/shared/changelog.js';
 import { VEHICLE_ICONS, addVehicle, updateVehicle, removeVehicle, selectVehicle } from '/shared/vehiculos.js';
 
 let lastImport = null; // resultado del último emparejado, pendiente de guardar
@@ -147,6 +148,30 @@ function dataStatus(st) {
     ${st.trendDays != null ? html`<br>Precio medio de la provincia: ${st.trendDays >= 14 ? 'últimos 14 días' : html`${st.trendDays} de 14 días descargados (se completa solo)`}.` : ''}`;
 }
 
+const VERSION_TEXT = {
+  same: '✓ Tienes la versión publicada.',
+  outdated: 'Hay una versión nueva publicada: pulsa 🔄 Actualizar o cierra y vuelve a abrir la app.',
+  ahead: 'Esta app es más nueva que la del servidor: esta versión aún no está publicada.',
+  unknown: 'Sin conexión con el servidor: no se puede comparar con la publicada.',
+};
+
+/** Registro de cambios y versión instalada frente a la publicada. */
+function changelogHtml(st) {
+  const published = st?.version ?? null;
+  const status = versionStatus(APP_VERSION, published);
+  return html`
+    <h3 id="novedades">Novedades y versión</h3>
+    <p class="small">Esta app: <b>v${APP_VERSION}</b> · Publicada en el servidor: <b>${published ? `v${published}` : '—'}</b><br>
+      <span class="${status === 'same' ? 'ok-text' : status === 'unknown' ? 'muted' : 'warn'}">${VERSION_TEXT[status]}</span></p>
+    <div class="changelog small">
+      <ol>${CHANGELOG.map((e) => html`
+        <li class="${e.version === APP_VERSION ? 'current' : ''}">v${e.version} · ${date(e.date)}${e.version === APP_VERSION ? ' (la tuya)' : ''}${
+          published && e.version === published && published !== APP_VERSION ? ' (publicada)' : ''}
+          <ul>${e.changes.map((c) => html`<li>${c}</li>`)}</ul>
+        </li>`)}</ol>
+    </div>`;
+}
+
 export function renderSettings(ctx) {
   const { state } = ctx;
   const s = state.settings;
@@ -208,6 +233,8 @@ export function renderSettings(ctx) {
       <button type="button" class="btn" id="reset-settings">Restaurar ajustes de fábrica</button>
       <button type="button" class="btn danger" id="wipe">Borrar todos mis datos</button>
     </div>
+
+    ${changelogHtml(st)}
   </form>`;
 
   root.querySelector('#settings-form').addEventListener('submit', (e) => e.preventDefault());

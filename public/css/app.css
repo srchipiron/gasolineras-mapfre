@@ -14,6 +14,8 @@
   --danger: #c53030;
   --warn-bg: #fff6e0;
   --warn-text: #7a5300;
+  --company: #1d5fa8;
+  --company-soft: #e3eefb;
   --shadow: 0 1px 3px rgb(0 0 0 / 0.08), 0 4px 14px rgb(0 0 0 / 0.06);
   --radius: 12px;
   color-scheme: light;
@@ -36,6 +38,8 @@
     --danger: #f06565;
     --warn-bg: #3a2e12;
     --warn-text: #f3d48a;
+    --company: #7fb4f0;
+    --company-soft: #15283d;
     --shadow: 0 1px 3px rgb(0 0 0 / 0.4);
     color-scheme: dark;
   }
@@ -154,6 +158,28 @@ input:focus-visible, select:focus-visible, button:focus-visible, .result:focus-v
   border: 1px solid var(--border); border-radius: 999px; background: var(--surface); cursor: pointer; font-size: 0.9rem;
 }
 .chip:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+
+/* ---------- modo: mi coche / coche de empresa ---------- */
+.mode-switch {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; margin-bottom: 8px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+}
+.mode-switch button {
+  font: inherit; font-size: 0.9rem; min-height: 38px; padding: 6px 8px; border: 0; border-radius: 9px;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.mode-switch button[aria-checked="true"] { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow); }
+.mode-switch button[data-mode="company"][aria-checked="true"] { color: var(--company); }
+.badge.company, .log-payer { background: var(--company-soft); color: var(--company); }
+.log-payer { display: inline-block; padding: 0 6px; border-radius: 6px; font-size: 0.75rem; margin-left: 4px; }
+.price .gain { font-size: 1.15rem; font-weight: 700; color: var(--accent); }
+.price .gain.none { color: var(--muted); font-weight: 500; font-size: 0.95rem; }
+.payer-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.payer-row .chip { justify-content: center; }
+.changelog ol { padding-left: 0; list-style: none; margin: 0; }
+.changelog li { padding: 8px 0; border-top: 1px solid var(--border); }
+.changelog li.current { font-weight: 600; }
+.changelog ul { margin: 4px 0 0; padding-left: 18px; font-weight: 400; }
 
 /* ---------- layout ---------- */
 .layout { flex: 1; display: flex; flex-direction: column; min-height: 0; }

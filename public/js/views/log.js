@@ -5,12 +5,15 @@ import { html, raw, eur, eur0, num2, eurL, date, todayISO } from '../format.js';
 import { fuelLabel } from '/shared/fuels.js';
 import { capStatus, trebolStatus } from '/shared/treboles.js';
 import { saveLog } from '../store.js';
+import { payerOf, splitByPayer } from '/shared/modo.js';
 
 function totals(entries) {
-  return entries.reduce(
+  const t = entries.reduce(
     (t, e) => ({ amount: t.amount + e.amount, litres: t.litres + e.litres, treboles: t.treboles + (e.treboles || 0), n: t.n + 1 }),
     { amount: 0, litres: 0, treboles: 0, n: 0 },
   );
+  // Lo que salió de tu bolsillo y lo que pagó la empresa (los tréboles, tuyos).
+  return { ...t, ...splitByPayer(entries) };
 }
 
 function capBar(label, part) {
@@ -58,6 +61,7 @@ export function renderLog(ctx) {
       <span class="label">${title}</span>
       <strong>${num2(t.treboles)} 🍀</strong>
       <span class="small">${eur(t.amount)} · ${num2(t.litres)} L · ${t.n} ${t.n === 1 ? 'repostaje' : 'repostajes'}</span>
+      ${t.company > 0 ? html`<span class="small">🚗 Tú ${eur(t.personal)} · 💼 Empresa ${eur(t.company)}</span>` : ''}
       <span class="small muted">${t.litres ? `Media ${eurL(t.amount / t.litres)}/L` : ''}</span>
     </div>`;
   document.getElementById('log-summary').innerHTML = html`
@@ -83,7 +87,7 @@ export function renderLog(ctx) {
     return html`
     <li class="log-item ${st?.kind === 'ask' ? 'ask' : ''}">
       <div>
-        <strong>${e.name || 'Repostaje'}</strong>
+        <strong>${e.name || 'Repostaje'}</strong>${payerOf(e) === 'company' ? html`<span class="log-payer">💼 Empresa</span>` : ''}
         <div class="small muted">${date(e.date)} · ${fuelLabel(e.fuel)} · ${num2(e.litres)} L a ${eurL(e.price)}</div>
         ${st?.kind === 'waiting' ? html`<div class="small muted">Los tréboles llegan antes del ${date(st.until)}.</div>` : ''}
         ${st?.kind === 'ok' ? html`<div class="small ok-text">✓ Tréboles recibidos</div>` : ''}
@@ -133,11 +137,12 @@ const csvCell = (v) => {
 const dec = (n, d) => (Number(n) || 0).toFixed(d).replace('.', ',');
 
 export function exportLogCsv(state) {
-  const header = ['fecha', 'gasolinera', 'carburante', 'litros', 'precio_litro', 'importe', 'club_mapfre', 'porcentaje', 'importe_con_treboles', 'treboles', 'treboles_recibidos'];
+  const header = ['fecha', 'gasolinera', 'carburante', 'litros', 'precio_litro', 'importe', 'club_mapfre', 'porcentaje', 'importe_con_treboles', 'treboles', 'treboles_recibidos', 'paga'];
   const rows = state.log.map((e) => [
     e.date, e.name, fuelLabel(e.fuel), dec(e.litres, 2), dec(e.price, 3), dec(e.amount, 2),
     e.mapfre ? 'sí' : 'no', dec(e.percent, 1), dec(e.eligibleAmount ?? (e.mapfre ? e.amount : 0), 2), dec(e.treboles, 2),
     e.confirmed === true ? 'sí' : e.confirmed === false ? 'no' : '',
+    payerOf(e) === 'company' ? 'empresa' : 'yo',
   ]);
   const csv = '﻿' + [header, ...rows].map((r) => r.map(csvCell).join(';')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));

@@ -1,6 +1,6 @@
 // Service worker: la app funciona sin conexión con los últimos datos vistos.
 
-const VERSION = 'v19';
+const VERSION = 'v20';
 const SHELL_CACHE = `shell-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 const SHELL = [
@@ -25,11 +25,13 @@ const SHELL = [
   '/js/views/refuel.js',
   '/js/views/settings.js',
   '/shared/carnet.js',
+  '/shared/changelog.js',
   '/shared/backup.js',
   '/shared/fuels.js',
   '/shared/geo.js',
   '/shared/geocode.js',
   '/shared/horario.js',
+  '/shared/modo.js',
   '/shared/ics.js',
   '/shared/locator.js',
   '/shared/provincias.js',

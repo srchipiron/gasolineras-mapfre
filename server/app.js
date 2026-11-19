@@ -11,6 +11,7 @@ import { checkAdminKey, createAttemptLimiter, writeJsonAtomic, commitToGitHub } 
 import { DEFAULT_PROGRAM, emptyOfficial } from '../shared/treboles.js';
 import { FUELS } from '../shared/fuels.js';
 import { provinciaName } from '../shared/provincias.js';
+import { APP_VERSION } from '../shared/changelog.js';
 import { dayAverages, trendSummary } from './tendencia.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -187,7 +188,8 @@ export function createApp({
   };
 
   const routes = {
-    'GET /api/status': () => ({ ...store.status(), demo, trendDays: trend ? trend.days.size : 0, canPublish: !!publish?.adminKey, publishPersists: !!publish?.github?.token }),
+    // version: la del código que corre en el servidor (la publicada).
+    'GET /api/status': () => ({ ...store.status(), version: APP_VERSION, demo, trendDays: trend ? trend.days.size : 0, canPublish: !!publish?.adminKey, publishPersists: !!publish?.github?.token }),
 
     'GET /api/program': () => DEFAULT_PROGRAM,
 
