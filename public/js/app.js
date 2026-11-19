@@ -3,7 +3,7 @@
 import { api } from './api.js';
 import { createMap } from './map.js';
 import { html, eurL, eur, km, duration, todayISO } from './format.js';
-import { resultItem, summaryHtml, detailHtml, adviceHtml, brandsHtml } from './render.js';
+import { resultItem, summaryHtml, detailHtml, adviceHtml, brandsHtml, recommendHtml } from './render.js';
 import { lineChart } from './chart.js';
 import {
   loadSettings, saveSettings, loadFavorites, loadLog, isFavorite, toggleFavorite, loadLocalOfficial, loadNotes, saveNotes,
@@ -17,7 +17,7 @@ import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
 import { openCard } from './views/card.js';
 import {
-  enrich, filterResults, sortResults, summarize, compareFilter, compareCompany, byBrand, SORTS, COMPANY_SORTS, OFFICIAL_FILTERS,
+  enrich, filterResults, sortResults, summarize, compareFilter, compareCompany, recommend, byBrand, SORTS, COMPANY_SORTS, OFFICIAL_FILTERS,
 } from '/shared/ranking.js';
 import { MODES, isCompany, sortKey, routeSortKey, routeSorts, switchMode } from '/shared/modo.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
@@ -120,6 +120,9 @@ function computeList(stations, sort) {
     summary: summarize(filtered),
     comparison: compareFilter(all, { tipo }),
     companyCmp: isCompany(s) ? compareCompany(all, { tipo }) : null,
+    // La que te aconseja la app: entre todas (no solo las del filtro).
+    recommendation: recommend(all, { company: isCompany(s) }),
+    all,
   };
 }
 
@@ -182,15 +185,17 @@ function bindSummaryLinks(root, results) {
 function recompute({ fit = false } = {}) {
   const s = state.settings;
   if (state.nearby) {
-    const { results, summary, comparison, companyCmp } = computeList(state.nearby.stations, s[sortKey(s)]);
+    const { results, summary, comparison, companyCmp, recommendation, all } = computeList(state.nearby.stations, s[sortKey(s)]);
     state.computed.nearby = results;
-    $('#summary').innerHTML = summaryHtml(summary, summaryOpts(comparison, companyCmp, { radiusKm: state.nearby.radiusKm }));
+    summary.recommended = recommendation?.best ?? null; // se destaca en el mapa
+    $('#summary').innerHTML = recommendHtml(recommendation, { litres: s.litres, tv: s.program.trebolValue ?? 1 })
+      + summaryHtml(summary, summaryOpts(comparison, companyCmp, { radiusKm: state.nearby.radiusKm }));
     renderAdvice(summary);
     renderTrend(ctx);
     renderFavStrip(ctx);
     renderList($('#results'), results, 'nearby');
     bindOpeners($('#results'), results);
-    bindSummaryLinks($('#summary'), results);
+    bindSummaryLinks($('#summary'), all);
     renderBrands($('#brands'), results);
     if (state.tab !== 'route') {
       map.showResults(results, summary, { center: state.nearby.center, radiusKm: state.nearby.radiusKm, fit });
@@ -243,16 +248,18 @@ function tripCostHtml(distanceKm, summary) {
 function renderRoute({ fit }) {
   const s = state.settings;
   const r = state.route;
-  const { results, summary, comparison, companyCmp } = computeList(r.stations, s[routeSortKey(s)]);
+  const { results, summary, comparison, companyCmp, recommendation, all } = computeList(r.stations, s[routeSortKey(s)]);
+  summary.recommended = recommendation?.best ?? null;
   state.computed.route = results;
   $('#route-summary').innerHTML = html`
     <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
     ${tripCostHtml(r.route.distanceKm, summary)}
+    ${recommendHtml(recommendation, { litres: s.litres, tv: s.program.trebolValue ?? 1, route: true })}
     ${summaryHtml(summary, summaryOpts(comparison, companyCmp))}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
-  bindSummaryLinks($('#route-summary'), results);
+  bindSummaryLinks($('#route-summary'), all);
   $('#route-summary').insertAdjacentHTML('beforeend', '<div class="route-brands"></div>');
   renderBrands($('#route-summary .route-brands'), results);
   if (state.tab === 'route') {

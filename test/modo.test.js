@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { enrich, sortResults, compareCompany } from '../shared/ranking.js';
+import { enrich, sortResults, compareCompany, recommend } from '../shared/ranking.js';
 import { cloneProgram } from '../shared/treboles.js';
 import { switchMode, splitByPayer, payerOf, sortKey, routeSortKey, isCompany } from '../shared/modo.js';
 import { ensureVehicles, addVehicle, selectVehicle } from '../shared/vehiculos.js';
@@ -24,6 +24,33 @@ test('coche de empresa: primero las que dan tréboles y, entre iguales, la que m
   // La empresa paga el surtidor entero: los tréboles no se le descuentan.
   const b = list.find((r) => r.station.id === 'B');
   assert.ok(Math.abs(b.pumpCost - (40 * 1.4 + b.detourCost)) < 1e-9);
+});
+
+test('te aconseja la mejor para ti según el modo, y nunca una cerrada', () => {
+  const list = enrich(stations, opts);
+  // Tu coche: la que menos te cuesta de verdad (C, sin tréboles pero más barata y cerca).
+  const mine = recommend(list);
+  assert.equal(mine.best.station.id, 'C');
+  assert.equal(mine.nearest.station.id, 'C');
+  assert.ok(mine.savingVsNext > 0);
+  // Los tréboles cuentan, pero si una sin tréboles sale más barata, gana ella
+  // y se explica frente a la mejor con tréboles.
+  assert.equal(mine.rival.station.id, 'B');
+  assert.ok(mine.savingVsRival > 0);
+  // Si la adherida baja de precio, pasa a ser la aconsejada por sus tréboles.
+  const cheapB = enrich([st('A', 1.5, 1), st('B', 1.3, 0.5), st('C', 1.3, 0.5)], opts);
+  const r2 = recommend(cheapB);
+  assert.equal(r2.best.station.id, 'B');
+  assert.equal(r2.rival.station.id, 'C');
+  // Coche de empresa: la que más tréboles te da y menos cuesta a la empresa.
+  const work = recommend(list, { company: true });
+  assert.equal(work.best.station.id, 'B');
+  assert.equal(work.cheapestForCompany.station.id, 'C');
+  assert.ok(work.extraForCompany > 0);
+  // Si la mejor está cerrada, pasa a la siguiente.
+  const closed = list.map((r) => (r.station.id === 'C' ? { ...r, open: false } : r));
+  assert.notEqual(recommend(closed).best.station.id, 'C');
+  assert.equal(recommend([]), null);
 });
 
 test('sin adheridas en la zona no hay «mejor para ti»', () => {

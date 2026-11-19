@@ -34,7 +34,7 @@ function write(key, value) {
 export const DEFAULT_SETTINGS = {
   fuel: 'gasoleoA',
   radiusKm: 10,
-  sort: 'effective',
+  sort: 'total',
   // «Voy en mi coche» (pagas tú) o «Voy en el coche de empresa» (paga la
   // empresa y los tréboles son tuyos). Ver shared/modo.js.
   mode: 'personal',
@@ -48,11 +48,11 @@ export const DEFAULT_SETTINGS = {
   litres: 40,
   consumption: 6.5,
   corridorKm: 2,
-  routeSort: 'effective',
+  routeSort: 'total',
   program: cloneProgram(),
   overrides: {}, // { idEstacion: 'in' | 'out' }
   markMode: false, // botón rápido para marcar adheridas en la lista
-  settingsVersion: 3,
+  settingsVersion: 4,
   vehicles: [], // perfiles de vehículo (ver shared/vehiculos.js)
   vehicleId: null,
   lastLocation: null, // { lat, lon, label }
@@ -73,6 +73,15 @@ export function loadSettings() {
   if ((saved.settingsVersion ?? 1) < 3) {
     s.onlyMapfre = false;
     s.settingsVersion = 3;
+  }
+  // Versión 4: la lista se ordena por lo mejor para ti (coste real en tu
+  // coche, tréboles en el de empresa), igual que la gasolinera aconsejada.
+  if (s.settingsVersion < 4) {
+    s.sort = 'total';
+    s.routeSort = 'total';
+    s.companySort = 'treboles';
+    s.companyRouteSort = 'treboles';
+    s.settingsVersion = 4;
   }
   return s;
 }
