@@ -729,12 +729,18 @@ async function init() {
   renderBoost();
 
   setOfficial();
+  // Lista de adheridas empaquetada con la app: sale de la caché del service
+  // worker, así que está al instante y sin conexión aunque el servidor duerma.
   try {
-    state.serverOfficial = await api.adheridas();
+    state.serverOfficial = await api.adheridasLocal();
     setOfficial();
   } catch {
-    /* sin lista compartida: se usan las reglas por marca */
+    /* primera visita sin conexión: se usan las reglas por marca */
   }
+  // Y en segundo plano, la publicada más reciente (sin bloquear el arranque).
+  api.adheridas()
+    .then((o) => { state.serverOfficial = o; ctx.setOfficial(); })
+    .catch(() => { /* sin conexión: se queda la empaquetada */ });
   // Render gratuito se duerme: el primer arranque puede tardar casi un minuto.
   let slowShown = false;
   const slow = setTimeout(() => {

@@ -25,6 +25,26 @@ function b64(text) {
   return Buffer.from(text, 'base64').toString('utf8');
 }
 
+// Algunas respuestas llegan con los acentos mal decodificados («TrÃ©boles»):
+// texto UTF-8 leído como Latin-1. Se recompone solo si el resultado es válido.
+export function fixMojibake(text) {
+  const s = String(text ?? '');
+  if (!/[\xC2\xC3][\x80-\xBF]/.test(s) || /[^\x00-\xFF]/.test(s)) return s;
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(Uint8Array.from(s, (c) => c.charCodeAt(0)));
+  } catch {
+    return s;
+  }
+}
+
+const clean = (v, max) => fixMojibake(v).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+
+// «ventajas» puede ser un texto o una lista de { codigo, descripcion }.
+function ventajasText(v) {
+  const parts = Array.isArray(v) ? v.map((x) => (typeof x === 'object' ? x?.descripcion : x)) : [v];
+  return parts.map((x) => clean(x, 300).replace(/[\s.]+$/, '')).filter(Boolean).join('. ').slice(0, 300);
+}
+
 export function parseLocatorPayload(payload) {
   const out = [];
   const visit = (x, depth = 0) => {
@@ -50,11 +70,11 @@ export function parseLocatorPayload(payload) {
     const lon = num(x.longitud ?? x.lng ?? x.lon);
     if (lat == null || lon == null) return;
     out.push({
-      nombre: String(x.nombreCentro ?? x.nombre ?? '').trim().slice(0, 120),
+      nombre: clean(x.nombreCentro ?? x.nombre, 120),
       tipo: TIPO_BY_CODE[Number(x.codigoTipoColaborador)] ?? (['repsol', 'colaboradora'].includes(x.tipo) ? x.tipo : 'colaboradora'),
-      direccion: String(x.direccion ?? '').trim().slice(0, 200),
-      localidad: String(x.localidad ?? '').trim().slice(0, 100),
-      ventajas: String(x.ventajas ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 300),
+      direccion: clean(x.direccion, 200),
+      localidad: clean(x.localidad, 100),
+      ventajas: ventajasText(x.ventajas),
       lat,
       lon,
     });

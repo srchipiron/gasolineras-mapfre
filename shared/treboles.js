@@ -155,6 +155,8 @@ export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, off
     //  - un único porcentaje («6 % con la tarjeta…»): ese, todos los días.
     //  - dos («6 % del 1 al 5 y 3 % el resto»): el mayor los días bonificados.
     const pcts = /hasta/i.test(hit.ventajas ?? '') ? [] : percentsIn(hit.ventajas);
+    //  - «3 % en Tréboles. Del 1 al 5 de cada mes un 3 % adicional»: se suman.
+    if (pcts.length === 2 && /adicional/i.test(hit.ventajas)) return { ...base, percent: pcts[0], boostPercent: pcts[0] + pcts[1], promos: [] };
     if (pcts.length === 1) return { ...base, percent: pcts[0], boostPercent: pcts[0], promos: [] };
     if (pcts.length >= 2) return { ...base, percent: Math.min(...pcts), boostPercent: Math.max(...pcts), promos: [] };
     return base;

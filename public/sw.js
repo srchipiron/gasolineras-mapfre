@@ -1,11 +1,12 @@
 // Service worker: la app funciona sin conexión con los últimos datos vistos.
 
-const VERSION = 'v17';
+const VERSION = 'v18';
 const SHELL_CACHE = `shell-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 const SHELL = [
   '/',
   '/index.html',
+  '/data/adheridas.json',
   '/manifest.webmanifest',
   '/css/app.css',
   '/js/app.js',

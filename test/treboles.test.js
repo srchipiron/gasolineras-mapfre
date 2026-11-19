@@ -43,6 +43,11 @@ test('porcentaje del texto de ventajas del mapa oficial', () => {
   const d = findRule(st('6', 'X'), DEFAULT_PROGRAM, {}, dos);
   assert.equal(percentFor(d, new Date(2026, 10, 18)), 2);
   assert.equal(percentFor(d, new Date(2026, 11, 3)), 5);
+  // Texto real de las «Más EESS colaboradoras»: el 3 % adicional se suma
+  const adicional = { provinces: [], stations: { 5: { tipo: 'colaboradora', ventajas: '3% en Tréboles. Del 1 al 5 de cada mes un 3% adicional en Tréboles' } } };
+  const a = findRule(st('5', 'X'), DEFAULT_PROGRAM, {}, adicional);
+  assert.equal(percentFor(a, new Date(2026, 10, 18)), 3);
+  assert.equal(percentFor(a, new Date(2026, 11, 3)), 6);
 });
 
 test('cuentan las dos categorías del mapa oficial y se puede limitar por tipo', () => {

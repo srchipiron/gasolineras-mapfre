@@ -127,6 +127,10 @@ test('lista compartida de adheridas', async () => {
   assert.equal(status, 200);
   assert.deepEqual(body.provinces, ['28']);
   assert.equal(body.stations['1001'].tipo, 'colaboradora');
+  // La misma lista como fichero de la app, para que la precargue el service worker
+  const local = await getJson('/data/adheridas.json');
+  assert.equal(local.status, 200);
+  assert.deepEqual(local.body, body);
 });
 
 test('emparejado de estaciones del localizador', async () => {

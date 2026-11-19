@@ -12,6 +12,9 @@
 // Opciones:
 //   --provincias 04,11,14   provincias que la lista cubre por completo
 //                           (por defecto ninguna, salvo las de una lista exportada)
+//   --toda-espana           la lista cubre toda España: el localizador devuelve
+//                           todas las adheridas en cada respuesta, así que
+//                           cuentan como completas todas las provincias
 //   --reemplazar            empieza de cero en vez de añadir a la lista actual
 //   --datos ruta.json       caché de estaciones del Ministerio (data/estaciones.json)
 
@@ -43,9 +46,18 @@ const flag = (name) => {
 const provinciasArg = opt('--provincias');
 const datos = opt('--datos') ?? join(ROOT, 'data', 'estaciones.json');
 const reemplazar = flag('--reemplazar');
+const todaEspana = flag('--toda-espana');
 if (!args.length) {
-  console.error('Uso: node scripts/importar-adheridas.mjs [--provincias 04,11] [--reemplazar] fichero...');
+  console.error('Uso: node scripts/importar-adheridas.mjs [--provincias 04,11 | --toda-espana] [--reemplazar] fichero...');
   process.exit(1);
+}
+
+// Una estación por línea: el fichero ocupa poco y los cambios se leen bien en git.
+function serialize(list) {
+  const { stations, ...head } = list;
+  const rows = Object.entries(stations).map(([id, v]) => `    ${JSON.stringify(id)}: ${JSON.stringify(v)}`);
+  const body = rows.length ? `{\n${rows.join(',\n')}\n  }` : '{}';
+  return `${JSON.stringify({ ...head, stations: '@@' }, null, 2).replace('"@@"', body)}\n`;
 }
 
 async function loadStations() {
@@ -65,7 +77,12 @@ for (const f of args) {
   if (data && typeof data.stations === 'object' && !Array.isArray(data.stations) && Array.isArray(data.provinces)) {
     exported.push(normalizeOfficial(data));
   } else {
-    entries.push(...parseLocatorPayload(data));
+    // Varios HAR repiten las mismas estaciones: solo una vez cada una.
+    const seen = new Set(entries.map((e) => `${e.lat.toFixed(5)},${e.lon.toFixed(5)}`));
+    for (const e of parseLocatorPayload(data)) {
+      const k = `${e.lat.toFixed(5)},${e.lon.toFixed(5)}`;
+      if (!seen.has(k)) seen.add(k), entries.push(e);
+    }
   }
 }
 
@@ -81,10 +98,11 @@ for (const e of exported) {
 // Una provincia solo se da por completa si se indica: con una importación
 // parcial dejarían de contar gasolineras que sí están adheridas.
 if (provinciasArg) provinciasArg.split(',').map((p) => p.trim().padStart(2, '0')).filter((p) => /^\d{2}$/.test(p)).forEach((p) => provinces.add(p));
+if (todaEspana) stations.forEach((s) => s.idProvincia && provinces.add(s.idProvincia));
 next.provinces = [...provinces].sort();
 next.updatedAt = new Date().toISOString().slice(0, 10);
 next.source = 'Localizador de Club MAPFRE (mapfretecuidamos.com/gasolineras)';
-await writeFile(OUT, `${JSON.stringify(next, null, 2)}\n`);
+await writeFile(OUT, serialize(next));
 
 const totals = {};
 for (const s of stations) totals[s.idProvincia] = (totals[s.idProvincia] ?? 0) + 1;
