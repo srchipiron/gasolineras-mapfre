@@ -211,6 +211,11 @@ export function compareCompany(list, { tipo = 'all' } = {}) {
   };
 }
 
+/** La misma gasolinera, pero sin contar sus tréboles (precio de surtidor). */
+function sinTreboles(r) {
+  return { ...r, treboles: 0, trebolShare: 0, percent: 0, mapfre: false, effective: r.price, totalCost: r.pumpCost };
+}
+
 /**
  * La gasolinera que te aconseja la app, según quién paga.
  * - Mi coche: la que menos te cuesta de verdad (tus litros con los tréboles
@@ -220,8 +225,12 @@ export function compareCompany(list, { tipo = 'all' } = {}) {
  * Solo cuenta las que no están cerradas. `list` debe traer todas las
  * gasolineras (no solo las del filtro «Solo Club MAPFRE»): se busca lo mejor.
  */
-export function recommend(list, { company = false } = {}) {
-  const open = list.filter((r) => r.open !== false);
+export function recommend(list, { company = false, tipo = 'all' } = {}) {
+  // Con un tipo elegido («Más EESS colaboradoras» o «Gasolinera Repsol»), los
+  // tréboles de las demás no cuentan (p. ej. el 6 % de Repsol exige su
+  // tarjeta): se comparan como si no dieran tréboles.
+  const counted = tipo === 'all' ? list : list.map((r) => (r.treboles > 0 && !inOfficialFilter(r, tipo) ? sinTreboles(r) : r));
+  const open = counted.filter((r) => r.open !== false);
   if (!open.length) return null;
   const sorted = sortResults(open, company ? 'treboles' : 'total');
   const best = sorted[0];

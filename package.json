@@ -1,6 +1,6 @@
 {
   "name": "gasolineras-club-mapfre",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Encuentra la gasolinera más barata de España teniendo en cuenta los tréboles de Club MAPFRE.",
   "type": "module",
   "private": true,

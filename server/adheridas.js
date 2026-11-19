@@ -33,7 +33,7 @@ const STOP = new Set([
   'SOCIEDAD', 'COOPERATIVA', 'INDUSTRIAL', 'PARCELA', 'NAVE', 'LOCAL',
 ]);
 
-function words(text) {
+export function words(text) {
   return normalizeBrand(text).split(' ').filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d+$/.test(w));
 }
 
@@ -74,6 +74,17 @@ export function similarity(e, s) {
   return { street, number, name };
 }
 
+// Cadenas que no son de Repsol: una «Gasolinera Repsol» del mapa oficial nunca
+// puede ser una de estas (p. ej. una Plenergy en la misma avenida que la Repsol).
+// Los rótulos con el nombre del dueño («E.S. SANTA RITA») sí pueden ser Repsol,
+// y Petrocat (vinculada a Repsol: sus «CRED …» salen en el mapa oficial) también.
+const OTHER_CHAINS = /\b(AQUAVEL|BALLENOIL|BASIC|BEROIL|BIGASOIL|BONAREA|CEPSA|MOEVE|GALP|SHELL|BP|NATURGY|PETROLIS|PETROPRIX|PLENERGY|SPL|SET ?& ?GO|LOW ?COST|LOWCOST|H2GO|H2EXAGON|ALCAMPO|CARREFOUR|EROSKI|DISA|AVIA|ESCLATOIL|MEROIL|VALCARCE|TAMOIL|Q8|GASEXPRESS|AGLA|MASOIL|PATEROIL|MAROIL|ANDAMUR|STAROIL|ROCK ?& ?OIL)\b/i;
+
+/** ¿La gasolinera del Ministerio es de otra cadena que la del mapa oficial? */
+export function brandConflict(tipo, brand) {
+  return tipo === 'repsol' && OTHER_CHAINS.test(String(brand ?? ''));
+}
+
 // Solo se acepta un emparejado si es seguro.
 function acceptable(sim, d) {
   if (d <= 30) return 'posición'; // mismas coordenadas
@@ -100,6 +111,7 @@ export function matchEntries(entries, stations) {
     for (const s of nearbyCandidates(index, e.lat, e.lon)) {
       const d = haversineKm(e.lat, e.lon, s.lat, s.lon) * 1000;
       if (d > 600) continue;
+      if (brandConflict(e.tipo, s.brand)) continue; // otra cadena: nunca es esta
       const sim = similarity(e, s);
       const how = acceptable(sim, d);
       if (!how) continue;

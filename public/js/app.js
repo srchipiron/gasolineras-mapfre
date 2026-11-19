@@ -121,7 +121,7 @@ function computeList(stations, sort) {
     comparison: compareFilter(all, { tipo }),
     companyCmp: isCompany(s) ? compareCompany(all, { tipo }) : null,
     // La que te aconseja la app: entre todas (no solo las del filtro).
-    recommendation: recommend(all, { company: isCompany(s) }),
+    recommendation: recommend(all, { company: isCompany(s), tipo }),
     all,
   };
 }
