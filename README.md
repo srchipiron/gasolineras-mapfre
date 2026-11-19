@@ -229,6 +229,7 @@ gasolineras-mapfre/
 - **Precio medio de la provincia**: al arrancar, el servidor descarga uno a uno los 14 días anteriores (unos 12 MB y 20 s cada uno, con pausas) y guarda solo las medias en `data/tendencia.json`. En Render gratuito el disco se borra al dormirse, así que tras un arranque en frío el gráfico tarda unos minutos en completarse.
 - **Histórico**: se construye con los datos diarios por municipio del Ministerio (`EstacionesTerrestresHist/FiltroMunicipio`). La primera vez tarda unos segundos; después se guarda en `data/historico/`.
 - **Nominatim y OSRM** son servicios públicos gratuitos con uso razonable (la app limita a 1 búsqueda por segundo y guarda caché). Para mucho tráfico, configura servidores propios con `NOMINATIM_URL` y `OSRM_URL`.
+- **Búsqueda de direcciones con error 429**: Nominatim limita las IP compartidas como la de Render gratuito. Por eso el móvil busca directamente en Nominatim con su propia IP. Si no puede, pregunta al servidor, que prueba Nominatim y, si responde 429 o falla, usa [Photon](https://photon.komoot.io) (también con datos de OpenStreetMap). Tras un 429, el servidor no vuelve a probar Nominatim durante un minuto.
 
 ## Fuentes de datos
 

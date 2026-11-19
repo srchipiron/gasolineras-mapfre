@@ -1,5 +1,7 @@
 // Cliente de la API del servidor.
 
+import { nominatimUrl, parseNominatim } from '/shared/geocode.js';
+
 async function get(path, params = {}) {
   const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v != null && v !== '')).toString();
   const res = await fetch(qs ? `${path}?${qs}` : path, { headers: { Accept: 'application/json' } });
@@ -29,7 +31,18 @@ export const api = {
       fuel,
       public: publicOnly ? 1 : 0,
     }),
-  geocode: (q) => get('/api/geocode', { q }),
+  geocode: async (q) => {
+    // Primero desde el móvil, con su propia IP: Nominatim limita la IP
+    // compartida del servidor (Render gratuito) y responde 429. Si falla,
+    // el servidor lo intenta con Nominatim y, si no, con Photon.
+    try {
+      const res = await fetch(nominatimUrl(q), { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(8000) });
+      if (res.ok) return { results: parseNominatim(await res.json()) };
+    } catch {
+      /* sin conexión directa o bloqueado: se pregunta al servidor */
+    }
+    return get('/api/geocode', { q });
+  },
   adheridas: () => get('/api/adheridas'),
   // La misma lista, empaquetada con la app (precargada por el service worker).
   adheridasLocal: () => get('/data/adheridas.json'),

@@ -37,7 +37,7 @@ const CSP = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org",
-  "connect-src 'self'",
+  "connect-src 'self' https://nominatim.openstreetmap.org", // búsqueda de direcciones desde el móvil
   "manifest-src 'self'",
   "worker-src 'self'",
   "frame-ancestors 'none'",
