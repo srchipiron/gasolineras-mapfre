@@ -191,7 +191,7 @@ function companySummaryHtml(s, { litres, fuel, capLeft, onlyMapfre, cmp, tv, rad
  * Tarjeta «Te aconsejo»: una sola gasolinera, la mejor para ti según el modo,
  * con el porqué en una frase y botones para verla o ir.
  */
-export function recommendHtml(rec, { litres, tv = 1, route = false } = {}) {
+export function recommendHtml(rec, { litres, tv = 1, route = false, rangeKm = null } = {}) {
   if (!rec?.best) return '';
   const b = rec.best;
   const st = b.station;
@@ -227,7 +227,7 @@ export function recommendHtml(rec, { litres, tv = 1, route = false } = {}) {
   }
   return html`
   <div class="advise ${rec.company ? 'company' : ''}">
-    <span class="label">${rec.company ? '💼 Te aconsejo (coche de empresa)' : '🚗 Te aconsejo (tu coche)'}</span>
+    <span class="label">${rec.company ? '💼 Te aconsejo (coche de empresa)' : '🚗 Te aconsejo (tu coche)'}${rangeKm != null && route ? ` · antes del km ${Math.round(rangeKm)}` : ''}</span>
     <button type="button" class="advise-main" data-open="${st.id}">
       <strong>${b.mapfre ? '🍀 ' : ''}${st.brand}</strong>
       <span class="small">${st.address} · ${st.locality ?? ''} · ${where}${b.open === true ? ' · abierta' : ''}</span>

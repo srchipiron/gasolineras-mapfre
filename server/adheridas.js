@@ -4,7 +4,7 @@
 
 import { readFile, stat } from 'node:fs/promises';
 import { haversineKm } from '../shared/geo.js';
-import { emptyOfficial, normalizeBrand, brandConflict } from '../shared/treboles.js';
+import { emptyOfficial, normalizeBrand, brandConflict, CHAINS, chainOf } from '../shared/treboles.js';
 export { parseLocatorPayload } from '../shared/locator.js';
 
 function grid(stations, cell = 0.01) {
@@ -103,7 +103,7 @@ export function matchEntries(entries, stations) {
     for (const s of nearbyCandidates(index, e.lat, e.lon)) {
       const d = haversineKm(e.lat, e.lon, s.lat, s.lon) * 1000;
       if (d > 600) continue;
-      if (brandConflict(e.tipo, s.brand)) continue; // otra cadena: nunca es esta
+      if (brandConflict(e.tipo, s.brand, e.nombre)) continue; // otra cadena: nunca es esta
       const sim = similarity(e, s);
       const how = acceptable(sim, d);
       if (!how) continue;
@@ -175,7 +175,7 @@ export function normalizeOfficial(data) {
 
 const REPSOL_FAMILY = /\b(REPSOL|CAMPSA|PETRONOR)\b/i;
 // Palabras del nombre oficial que no dicen nada de la calle.
-const NOISE = new Set(['CRED', 'AVDA', 'AVENIDA', 'CALLE', 'CTRA', 'CARRETERA', 'GASOLINERA', 'ESTACION', 'SERVICIO']);
+const NOISE = new Set(['ENI', 'ENILIVE', 'OP', 'GALP', 'SHELL', 'REPSOL', 'CEPSA', 'AVIA', 'CRED', 'AVDA', 'AVENIDA', 'CALLE', 'CTRA', 'CARRETERA', 'GASOLINERA', 'ESTACION', 'SERVICIO']);
 
 /**
  * Revisa la lista de adheridas con las estaciones actuales del Ministerio:
@@ -191,12 +191,13 @@ export function reviewOfficial(list, stations) {
   const moved = [];
   for (const [id, v] of Object.entries(list.stations ?? {})) {
     const wrong = byId.get(id);
-    if (!wrong || !brandConflict(v.tipo, wrong.brand)) continue;
+    if (!wrong || !brandConflict(v.tipo, wrong.brand, v.nombre)) continue;
     delete next[id];
+    const family = v.tipo === 'repsol' ? REPSOL_FAMILY : CHAINS[chainOf(v.nombre)];
     const nameWords = new Set(words(v.nombre).filter((w) => !NOISE.has(w)));
     let best = null;
     for (const s of stations) {
-      if (!REPSOL_FAMILY.test(s.brand ?? '') || next[s.id] || list.stations[s.id]) continue;
+      if (!family?.test(s.brand ?? '') || next[s.id] || list.stations[s.id]) continue;
       const d = haversineKm(wrong.lat, wrong.lon, s.lat, s.lon);
       if (d > 1.5) continue;
       if (!words(s.address).some((w) => nameWords.has(w))) continue;

@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS = {
   litres: 40,
   consumption: 6.5,
   corridorKm: 2,
+  fuelLeft: null, // litros que te quedan (ruta: hasta dónde llegas)
   routeSort: 'total',
   program: cloneProgram(),
   overrides: {}, // { idEstacion: 'in' | 'out' }

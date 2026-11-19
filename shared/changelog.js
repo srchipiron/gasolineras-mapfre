@@ -8,6 +8,14 @@
 
 export const CHANGELOG = [
   {
+    version: '1.6.0',
+    date: '2026-11-19',
+    changes: [
+      'Ruta: nuevo campo «Te quedan (L)». Con el consumo de tu vehículo calcula hasta qué km llegas (con un 15 % de margen) y «Te aconsejo» elige la mejor gasolinera antes de ese punto. Si te llega para todo el viaje o no llegas a ninguna, te lo dice.',
+      'Corregidas 11 «Más EESS colaboradoras» cuyo nombre oficial es de una cadena (Enilive, Galp, Shell, BP…) pero estaban asignadas a una gasolinera de otra (p. ej. una Ballenoil en Rivas). La revisión automática también lo vigila.',
+    ],
+  },
+  {
     version: '1.5.0',
     date: '2026-11-19',
     changes: [

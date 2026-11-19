@@ -139,9 +139,38 @@ export function mergeOfficial(...lists) {
 // dueño («E.S. SANTA RITA») y Petrocat (vinculada a Repsol) sí pueden serlo.
 const OTHER_CHAINS = /\b(AQUAVEL|BALLENOIL|BASIC|BEROIL|BIGASOIL|BONAREA|CEPSA|MOEVE|GALP|SHELL|BP|NATURGY|PETROLIS|PETROPRIX|PLENERGY|SPL|SET ?& ?GO|LOW ?COST|LOWCOST|H2GO|H2EXAGON|ALCAMPO|CARREFOUR|EROSKI|DISA|AVIA|ESCLATOIL|MEROIL|VALCARCE|TAMOIL|Q8|GASEXPRESS|AGLA|MASOIL|PATEROIL|MAROIL|ANDAMUR|STAROIL|ROCK ?& ?OIL)\b/i;
 
-/** ¿La gasolinera (por su rótulo) es de otra cadena que la del mapa oficial? */
-export function brandConflict(tipo, brand) {
-  return tipo === 'repsol' && OTHER_CHAINS.test(String(brand ?? ''));
+// Cadenas reconocibles por el nombre (del mapa oficial) o el rótulo (del
+// Ministerio). Moeve es la antigua Cepsa; Enilive, la antigua Eni/Agip.
+export const CHAINS = {
+  REPSOL: /\b(REPSOL|CAMPSA|PETRONOR)\b/i,
+  ENI: /\b(ENI|ENILIVE|AGIP)\b/i,
+  GALP: /\bGALP\b/i,
+  BP: /\bBP\b/i,
+  CEPSA: /\b(CEPSA|MOEVE)\b/i,
+  SHELL: /\bSHELL\b/i,
+  AVIA: /\bAVIA\b/i,
+  BALLENOIL: /\bBALLENOIL\b/i,
+  PLENERGY: /\bPLENERGY\b/i,
+  PLENOIL: /\bPLENOIL\b/i,
+  PETROPRIX: /\bPETROPRIX\b/i,
+  ALCAMPO: /\bALCAMPO\b/i,
+  CARREFOUR: /\bCARREFOUR\b/i,
+  ANDAMUR: /\bANDAMUR\b/i,
+  DISA: /\bDISA\b/i,
+};
+export const chainOf = (text) => Object.keys(CHAINS).find((k) => CHAINS[k].test(String(text ?? ''))) ?? null;
+
+/**
+ * ¿La gasolinera (por su rótulo) es de otra cadena que la del mapa oficial?
+ * - Una «Gasolinera Repsol» nunca es de otra cadena.
+ * - Si el nombre oficial dice una cadena («ENILIVE OP. RIVAS 2», «GALP …») y
+ *   el rótulo es de otra (una Ballenoil), no es esa gasolinera.
+ */
+export function brandConflict(tipo, brand, nombre = '') {
+  if (tipo === 'repsol' && OTHER_CHAINS.test(String(brand ?? ''))) return true;
+  const a = chainOf(nombre);
+  const b = chainOf(brand);
+  return !!(a && b && a !== b);
 }
 
 export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, official = null) {
@@ -150,7 +179,7 @@ export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, off
   if (ov === 'in') return { ...(program.manual ?? DEFAULT_PROGRAM.manual), source: 'manual' };
   let hit = official?.stations?.[station.id];
   // Una lista vieja importada en el móvil puede traer cruces erróneos: no cuentan.
-  if (hit && brandConflict(hit.tipo, station.brand)) hit = null;
+  if (hit && brandConflict(hit.tipo, station.brand, hit.nombre)) hit = null;
   const types = program.officialTypes ?? DEFAULT_PROGRAM.officialTypes;
   // Las añadidas a mano en una lista exportada («manual») cuentan siempre.
   if (hit && hit.tipo !== 'manual' && !types.includes(hit.tipo)) return null;

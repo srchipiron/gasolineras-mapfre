@@ -211,6 +211,29 @@ export function compareCompany(list, { tipo = 'all' } = {}) {
   };
 }
 
+// Margen de seguridad de la autonomía: el consumo real varía (cuestas, tráfico,
+// aire acondicionado) y no conviene llegar con el depósito vacío.
+export const RANGE_MARGIN = 0.85;
+
+/**
+ * Autonomía con lo que queda en el depósito: km que puedes hacer con margen.
+ * @param {number} litresLeft litros que te quedan
+ * @param {number} consumption L/100 km del vehículo
+ */
+export function usableRangeKm(litresLeft, consumption) {
+  if (!(litresLeft > 0) || !(consumption > 0)) return null;
+  return (litresLeft / consumption) * 100 * RANGE_MARGIN;
+}
+
+/** Km hasta la gasolinera siguiendo la ruta: lo recorrido más el desvío de ida. */
+export const kmToStation = (r) => (r.station.alongKm ?? 0) + (r.station.offRouteKm ?? 0) * ROAD_FACTOR;
+
+/** Las gasolineras de la ruta a las que llegas con la autonomía que te queda. */
+export function reachable(list, rangeKm) {
+  if (rangeKm == null) return list;
+  return list.filter((r) => kmToStation(r) <= rangeKm);
+}
+
 /** La misma gasolinera, pero sin contar sus tréboles (precio de surtidor). */
 function sinTreboles(r) {
   return { ...r, treboles: 0, trebolShare: 0, percent: 0, mapfre: false, effective: r.price, totalCost: r.pumpCost };

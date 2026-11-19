@@ -190,6 +190,9 @@ input:focus-visible, select:focus-visible, button:focus-visible, .result:focus-v
 .advise-main .small { grid-column: 1; overflow: hidden; text-overflow: ellipsis; }
 .advise-main .big { grid-column: 2; grid-row: 1 / span 2; font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .advise p { margin: 0; }
+.range-note { margin: 6px 0; padding: 6px 10px; border-radius: 8px; background: var(--surface-2); }
+.range-note.ok { background: var(--accent-soft); }
+.range-note.warn { background: var(--warn-bg); color: var(--warn-text); }
 .freshness { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 0; color: var(--muted); }
 .freshness b { color: var(--text); font-weight: 600; }
 .freshness.warn, .freshness.warn b { color: var(--warn-text); }
