@@ -1,6 +1,6 @@
 // Service worker: la app funciona sin conexión con los últimos datos vistos.
 
-const VERSION = 'v27';
+const VERSION = 'v28';
 const SHELL_CACHE = `shell-${VERSION}`;
 const API_CACHE = `api-${VERSION}`;
 const SHELL = [
@@ -24,6 +24,7 @@ const SHELL = [
   '/js/views/log.js',
   '/js/views/refuel.js',
   '/js/views/settings.js',
+  '/shared/capturar.js',
   '/shared/carnet.js',
   '/shared/changelog.js',
   '/shared/backup.js',
@@ -67,6 +68,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin) return; // teselas del mapa: red
+  if (url.pathname.startsWith('/api/adheridas/captura/')) return; // de un solo uso: nunca en caché
 
   if (url.pathname.startsWith('/api/')) {
     // Red primero; si no hay conexión, la última respuesta guardada.

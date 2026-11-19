@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '1.7.0',
+    date: '2026-11-19',
+    changes: [
+      'Actualizar la lista de adheridas con un clic: en Ajustes hay un botón «🍀 Enviar a Tréboles» para la barra de marcadores. Lo pulsas en el mapa oficial de Club MAPFRE, buscas cualquier ciudad y la app recibe la lista de toda España, sin HAR ni F12.',
+      'Antes de guardar ves qué ha cambiado frente a tu lista: nuevas, las que ya no están en el mapa y las que cambian de tipo. Una lista de toda España sustituye a la anterior, así que las que MAPFRE quita dejan de dar tréboles.',
+      'Si la lista tiene más de 2 meses, la línea «🍀 Adheridas» se pone en ámbar con un enlace para actualizarla.',
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-11-19',
     changes: [

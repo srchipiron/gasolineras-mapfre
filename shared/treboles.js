@@ -125,6 +125,41 @@ export function mergeOfficial(...lists) {
 }
 
 /**
+ * La lista que usa la app: la del servidor y la importada en este dispositivo.
+ * Una importación de toda España (`completa`) sustituye a la del servidor si
+ * es igual o más reciente (así desaparecen las que MAPFRE ha quitado); si la
+ * del servidor es más nueva, manda la del servidor. Las parciales se suman.
+ */
+export function combineOfficial(server, local) {
+  if (local?.completa) {
+    return (local.updatedAt ?? '') >= (server?.updatedAt ?? '') ? mergeOfficial(local) : mergeOfficial(server);
+  }
+  return mergeOfficial(server, local);
+}
+
+/**
+ * Qué cambia una importación de toda España frente a la lista actual.
+ * @param {object} current lista oficial actual ({ stations })
+ * @param {Array<{id,tipo,nombre}>} matched emparejadas de la importación
+ * @returns {{ nuevas, quitadas, cambian }} listas de { id, nombre, tipo }
+ */
+export function diffOfficial(current, matched) {
+  const cur = current?.stations ?? {};
+  const next = new Map(matched.map((m) => [String(m.id), m]));
+  const nuevas = [];
+  const cambian = [];
+  for (const [id, m] of next) {
+    const c = cur[id];
+    if (!c || c.tipo === 'manual') nuevas.push({ id, nombre: m.nombre, tipo: m.tipo });
+    else if (c.tipo !== m.tipo) cambian.push({ id, nombre: m.nombre, tipo: m.tipo, antes: c.tipo });
+  }
+  const quitadas = Object.entries(cur)
+    .filter(([id, c]) => c.tipo !== 'manual' && !next.has(id))
+    .map(([id, c]) => ({ id, nombre: c.nombre, tipo: c.tipo }));
+  return { nuevas, quitadas, cambian };
+}
+
+/**
  * Regla MAPFRE aplicable a una estación, o null si no está adherida.
  * Prioridad: tus marcas manuales > lista oficial (en las provincias que cubre)
  * > reglas por marca.
