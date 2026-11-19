@@ -4,7 +4,8 @@ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseLocatorPayload } from '../shared/locator.js';
-import { matchEntries, provinceSummary, normalizeOfficial, createOfficialSource, similarity } from '../server/adheridas.js';
+import { matchEntries, provinceSummary, normalizeOfficial, createOfficialSource, similarity, brandConflict } from '../server/adheridas.js';
+import { review } from '../scripts/revisar-adheridas.mjs';
 import { parseResponse } from '../server/minetur.js';
 
 const read = (f) => JSON.parse(readFileSync(new URL(`./fixtures/${f}`, import.meta.url)));
@@ -60,11 +61,35 @@ test('no empareja si la gasolinera está demasiado lejos', () => {
 test('con dos entradas para la misma gasolinera, gana la más cercana', () => {
   const two = [
     { nombre: 'LEJOS', tipo: 'colaboradora', direccion: '', localidad: '', lat: 40.4250, lon: -3.7119 },
-    { nombre: 'CERCA', tipo: 'repsol', direccion: '', localidad: '', lat: 40.4237, lon: -3.7119 },
+    { nombre: 'CERCA', tipo: 'colaboradora', direccion: '', localidad: '', lat: 40.4237, lon: -3.7119 },
   ];
   const { matched } = matchEntries(two, stations);
   assert.equal(matched.length, 1);
   assert.equal(matched[0].nombre, 'CERCA');
+});
+
+test('una «Gasolinera Repsol» nunca se empareja con otra cadena (Galp, Plenergy…)', () => {
+  // A 0 m de la Galp del ejemplo: aun así no se atribuye a ella.
+  const e = [{ nombre: 'CRED X', tipo: 'repsol', direccion: '', localidad: '', lat: 40.423611, lon: -3.7119 }];
+  assert.equal(matchEntries(e, stations).matched.length, 0);
+  assert.equal(matchEntries([{ ...e[0], tipo: 'colaboradora' }], stations).matched.length, 1);
+  assert.ok(brandConflict('repsol', 'PLENERGY'));
+  assert.ok(!brandConflict('repsol', 'E.S. SANTA RITA'));
+  assert.ok(!brandConflict('repsol', 'PETROCAT'));
+  assert.ok(!brandConflict('colaboradora', 'PLENERGY'));
+});
+
+test('la revisión pasa la Repsol de otra cadena a la Repsol de la misma calle', () => {
+  const list = { version: 1, stations: { P: { tipo: 'repsol', nombre: 'CRED AVDA. DEL MEDITERRANEO' }, Q: { tipo: 'repsol', nombre: 'CRED OTRA' } } };
+  const st = [
+    { id: 'P', brand: 'PLENERGY', address: 'Avenida Mediterraneo, 184', lat: 36.8378, lon: -2.4471 },
+    { id: 'R', brand: 'REPSOL', address: 'Avenida Mediterraneo, S/N', lat: 36.8273, lon: -2.4450 },
+    { id: 'Q', brand: 'PETROPRIX', address: 'Calle Lejana, 1', lat: 37.5, lon: -2.4 },
+  ];
+  const res = review(list, st);
+  assert.deepEqual(Object.keys(res.list.stations), ['R']);
+  assert.equal(res.moved.length, 1);
+  assert.equal(res.removed.length, 1);
 });
 
 test('valida la lista compartida', () => {

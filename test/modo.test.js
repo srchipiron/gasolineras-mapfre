@@ -53,6 +53,24 @@ test('te aconseja la mejor para ti según el modo, y nunca una cerrada', () => {
   assert.equal(recommend([]), null);
 });
 
+test('con un tipo elegido, los tréboles de las demás no cuentan para «Te aconsejo»', () => {
+  // B es «Gasolinera Repsol» (6 % con su tarjeta) y A colaboradora; C sin tréboles.
+  const official = { stations: { A: { tipo: 'colaboradora', nombre: 'A' }, B: { tipo: 'repsol', nombre: 'B' } } };
+  const list = enrich(stations, { ...opts, overrides: {}, official });
+  const all = recommend(list, { company: true });
+  assert.equal(all.best.station.id, 'B');
+  const colab = recommend(list, { company: true, tipo: 'colaboradora' });
+  assert.equal(colab.best.station.id, 'A', 'la Repsol no cuenta si filtras colaboradoras');
+});
+
+test('una lista vieja con una «Gasolinera Repsol» en una Plenergy no da tréboles', () => {
+  const official = { stations: { P: { tipo: 'repsol', nombre: 'CRED X', ventajas: '6% en Tréboles' } } };
+  const [r] = enrich([{ ...st('P', 1.5, 1), brand: 'PLENERGY' }], { ...opts, overrides: {}, official });
+  assert.equal(r.treboles, 0);
+  const [ok] = enrich([{ ...st('P', 1.5, 1), brand: 'REPSOL' }], { ...opts, overrides: {}, official });
+  assert.ok(ok.treboles > 0);
+});
+
 test('sin adheridas en la zona no hay «mejor para ti»', () => {
   const c = compareCompany(enrich(stations, { ...opts, overrides: {} }));
   assert.equal(c.best, null);

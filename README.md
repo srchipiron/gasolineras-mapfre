@@ -166,6 +166,17 @@ node scripts/importar-adheridas.mjs --provincias 41,29 mapa.har   # o directamen
 
 El script actualiza `config/adheridas.json`. El servidor lo relee solo, sin reiniciar, y se publica con el siguiente despliegue.
 
+### Revisar la lista sin volver a importar
+
+Una «Gasolinera Repsol» del mapa oficial nunca se empareja con una gasolinera de otra cadena (Plenergy, Petroprix, Ballenoil, Cepsa…): suele ser una Repsol que cambió de rótulo o la de al lado en la misma avenida. Los rótulos con el nombre del dueño y Petrocat (vinculada a Repsol) sí se aceptan. Para revisar la lista ya importada con las estaciones actuales del Ministerio:
+
+```
+node scripts/revisar-adheridas.mjs --simular   # enseña qué cambiaría
+node scripts/revisar-adheridas.mjs             # lo guarda en config/adheridas.json
+```
+
+Las que se pueden pasar a la Repsol de verdad (cerca y en la misma calle) se pasan; el resto se quitan.
+
 ### La lista va empaquetada con la app
 
 El localizador devuelve **todas las adheridas de España en cada búsqueda**, así que un solo HAR basta para toda la lista:

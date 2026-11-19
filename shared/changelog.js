@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '1.4.3',
+    date: '2026-11-19',
+    changes: [
+      'Corregida la lista de adheridas: 35 «Gasolinera Repsol» del mapa oficial estaban asignadas a gasolineras de otra cadena (Plenergy, Petroprix, Ballenoil, Naturgy, Cepsa…) y daban tréboles que no dan. Dos pasan a su Repsol de verdad (p. ej. la de Av. Mediterráneo en Almería) y el resto se quitan.',
+      'El cruce con el mapa oficial ya no puede atribuir una «Gasolinera Repsol» a otra cadena.',
+      'Aunque tengas en el móvil una lista vieja importada, una «Gasolinera Repsol» en una gasolinera de otra cadena ya no da tréboles.',
+      '«Te aconsejo» respeta el tipo elegido: con «Más EESS colaboradoras» no cuenta los tréboles de las Repsol (que exigen su tarjeta), y al revés.',
+    ],
+  },
+  {
     version: '1.4.2',
     date: '2026-11-19',
     changes: [

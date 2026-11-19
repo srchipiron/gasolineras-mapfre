@@ -4,7 +4,7 @@
 
 import { readFile, stat } from 'node:fs/promises';
 import { haversineKm } from '../shared/geo.js';
-import { emptyOfficial, normalizeBrand } from '../shared/treboles.js';
+import { emptyOfficial, normalizeBrand, brandConflict } from '../shared/treboles.js';
 export { parseLocatorPayload } from '../shared/locator.js';
 
 function grid(stations, cell = 0.01) {
@@ -33,7 +33,7 @@ const STOP = new Set([
   'SOCIEDAD', 'COOPERATIVA', 'INDUSTRIAL', 'PARCELA', 'NAVE', 'LOCAL',
 ]);
 
-function words(text) {
+export function words(text) {
   return normalizeBrand(text).split(' ').filter((w) => w.length >= 3 && !STOP.has(w) && !/^\d+$/.test(w));
 }
 
@@ -74,6 +74,9 @@ export function similarity(e, s) {
   return { street, number, name };
 }
 
+// brandConflict (shared/treboles.js): una «Gasolinera Repsol» nunca es otra cadena.
+export { brandConflict };
+
 // Solo se acepta un emparejado si es seguro.
 function acceptable(sim, d) {
   if (d <= 30) return 'posición'; // mismas coordenadas
@@ -100,6 +103,7 @@ export function matchEntries(entries, stations) {
     for (const s of nearbyCandidates(index, e.lat, e.lon)) {
       const d = haversineKm(e.lat, e.lon, s.lat, s.lon) * 1000;
       if (d > 600) continue;
+      if (brandConflict(e.tipo, s.brand)) continue; // otra cadena: nunca es esta
       const sim = similarity(e, s);
       const how = acceptable(sim, d);
       if (!how) continue;
