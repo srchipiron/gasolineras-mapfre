@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.4.1',
+    date: '2026-11-19',
+    changes: [
+      'El buscador de direcciones ya no repite la misma sugerencia dos veces (p. ej. «Sevilla, Andalucía, España»).',
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-11-19',
     changes: [

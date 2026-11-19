@@ -16,6 +16,8 @@ const photon = {
 
 test('lee las respuestas de Nominatim y de Photon', () => {
   assert.deepEqual(parseNominatim(nominatim), [{ label: 'Sevilla, Andalucía, España', lat: 37.3886, lon: -5.9823 }]);
+  // Sin sugerencias repetidas (la ciudad y su término municipal se llaman igual).
+  assert.equal(parseNominatim([...nominatim, { ...nominatim[0], lat: '37.38' }]).length, 1);
   // Photon: sin duplicados y solo España
   assert.deepEqual(parsePhoton(photon), [{ label: 'Avenida de la Constitución, 41004 Sevilla, Andalucía', lat: 37.3856, lon: -5.994 }]);
   assert.deepEqual(parsePhoton({}), []);

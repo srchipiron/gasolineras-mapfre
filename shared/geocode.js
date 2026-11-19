@@ -22,9 +22,12 @@ export function photonUrl(q, base = PHOTON_URL) {
 const valid = (r) => Number.isFinite(r.lat) && Number.isFinite(r.lon) && r.label;
 
 export function parseNominatim(data) {
+  // Nominatim devuelve a veces el mismo nombre dos veces (la ciudad y su
+  // término municipal): se deja solo el primero.
+  const seen = new Set();
   return (Array.isArray(data) ? data : [])
     .map((r) => ({ label: String(r.display_name ?? ''), lat: Number(r.lat), lon: Number(r.lon) }))
-    .filter(valid);
+    .filter((r) => valid(r) && !seen.has(r.label) && seen.add(r.label));
 }
 
 export function parsePhoton(data) {
