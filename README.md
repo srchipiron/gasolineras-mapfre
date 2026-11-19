@@ -57,6 +57,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 **Técnicas**
 - PWA: se instala en la pantalla de inicio y funciona sin conexión con los últimos datos vistos. Al mantener pulsado el icono hay accesos directos («Carnet», «Cerca», «Repostaje», «Ruta»), y la app avisa cuando hay una versión nueva.
 - **Instalar la app**: botón «Instalar» en Android y aviso con los pasos en iPhone (Safari no deja instalar desde un botón). También en Ajustes.
+- **A simple vista**, bajo los filtros: hace cuánto son los precios («⏱ Precios: hace 12 min») y de cuándo es la lista de adheridas; en ámbar si los precios tienen más de 3 horas.
 - **🔄 Actualizar**: vuelve a descargar los precios, la lista compartida y el estado del servidor, y busca si hay versión nueva de la app. Si el servidor está despertando, la app reintenta sola (hasta unos 4 minutos) aunque falle la conexión.
 - **Al momento al abrir**: la app enseña la última lista guardada en el móvil para esa búsqueda, con la hora de esos precios, mientras el servidor responde. Si Render gratuito está dormido, se actualiza sola en cuanto despierta (sin esperar en blanco).
 - Leyenda del mapa: colores por precio y borde amarillo para las de la lista oficial. En modo oscuro el mapa se oscurece.

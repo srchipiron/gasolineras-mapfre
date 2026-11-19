@@ -2,7 +2,7 @@
 
 import { api } from './api.js';
 import { createMap } from './map.js';
-import { html, eurL, eur, km, duration, todayISO } from './format.js';
+import { html, eurL, eur, km, duration, todayISO, date } from './format.js';
 import { resultItem, summaryHtml, detailHtml, adviceHtml, brandsHtml, recommendHtml } from './render.js';
 import { lineChart } from './chart.js';
 import {
@@ -191,6 +191,7 @@ function recompute({ fit = false } = {}) {
     $('#summary').innerHTML = recommendHtml(recommendation, { litres: s.litres, tv: s.program.trebolValue ?? 1 })
       + summaryHtml(summary, summaryOpts(comparison, companyCmp, { radiusKm: state.nearby.radiusKm }));
     renderAdvice(summary);
+    renderFreshness();
     renderTrend(ctx);
     renderFavStrip(ctx);
     renderList($('#results'), results, 'nearby');
@@ -307,6 +308,7 @@ function toggleMark(r) {
 
 function setOfficial() {
   state.official = mergeOfficial(state.serverOfficial, state.localOfficial);
+  renderFreshness();
 }
 
 // ---------------------------------------------------------------- carga de datos
@@ -422,6 +424,33 @@ async function syncNow() {
 }
 
 /** Vuelve a pedir el estado del servidor (nº de gasolineras, fecha, errores). */
+/** «19/11/2026 18:33:27» (hora de Madrid, del Ministerio) -> Date. */
+function parseFecha(fecha) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})(?: (\d{2}):(\d{2}))?/.exec(fecha ?? '');
+  return m ? new Date(+m[3], m[2] - 1, +m[1], +(m[4] ?? 0), +(m[5] ?? 0)) : null;
+}
+
+/**
+ * Línea «a simple vista» bajo los filtros: hace cuánto son los precios que
+ * ves (los del Ministerio, que el servidor descarga cada 30 min) y de cuándo
+ * es la lista de adheridas.
+ */
+function renderFreshness() {
+  const el = $('#freshness');
+  if (!el) return;
+  const fecha = state.nearby?.fecha ?? state.status?.fecha;
+  const d = parseFecha(fecha);
+  const min = d ? (Date.now() - d.getTime()) / 60000 : null;
+  const prices = d ? agoText(d) : 'sin datos todavía';
+  const old = min != null && min > 3 * 60; // más de 3 horas: algo va mal
+  const o = state.official;
+  const n = Object.keys(o?.stations ?? {}).length;
+  const list = o?.updatedAt ? `${date(o.updatedAt)}${n ? ` (${n.toLocaleString('es-ES')})` : ''}` : '—';
+  el.className = `freshness small ${old ? 'warn' : ''}`;
+  el.innerHTML = html`<span title="Precios del Ministerio para la Transición Ecológica${fecha ? `: ${fecha}` : ''}">⏱ Precios: <b>${prices}</b></span>
+    <span title="Lista de gasolineras adheridas del mapa oficial de Club MAPFRE">🍀 Adheridas: <b>${list}</b></span>`;
+}
+
 async function refreshStatus() {
   const wasReady = !!state.status?.ready;
   try {
@@ -429,6 +458,7 @@ async function refreshStatus() {
   } catch {
     return;
   }
+  renderFreshness();
   $('#demo-banner').hidden = !state.status.demo;
   if (state.status.ready && !wasReady) {
     // Al arrancar el servidor la lista de carburantes llega vacía: se rellena ahora.
@@ -792,6 +822,7 @@ async function init() {
     state.status = await api.status();
     clearTimeout(slow);
     if (slowShown) toast('Conectado ✓', 1500);
+    renderFreshness();
     $('#demo-banner').hidden = !state.status.demo;
     const fuels = await api.fuels();
     if (fuels.length) { fillFuelSelect(fuels); syncControls(); }
@@ -815,6 +846,7 @@ async function init() {
 }
 
 init();
+setInterval(renderFreshness, 60_000); // «hace X min» se mantiene al día
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const hadController = !!navigator.serviceWorker.controller;
