@@ -8,6 +8,14 @@
 
 export const CHANGELOG = [
   {
+    version: '1.5.0',
+    date: '2026-11-19',
+    changes: [
+      'Revisión automática de las adheridas: con cada descarga de precios del Ministerio (cada 30 min), si una «Gasolinera Repsol» del mapa oficial aparece con el rótulo de otra cadena (cambió de bandera), deja de dar tréboles sola o pasa a la Repsol de la misma calle.',
+      'En Ajustes se ve qué ha cambiado la revisión y un aviso si la lista del mapa oficial tiene más de 2 meses.',
+    ],
+  },
+  {
     version: '1.4.4',
     date: '2026-11-19',
     changes: [
