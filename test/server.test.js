@@ -155,6 +155,44 @@ test('emparejado de estaciones del localizador', async () => {
   assert.equal(big.status, 413);
 });
 
+test('«Enviar a Tréboles»: el mapa oficial sube su lista y la app la recoge una sola vez', async () => {
+  const locator = readFileSync(new URL('./fixtures/localizador-sample.json', import.meta.url), 'utf8');
+  // Conexión propia en cada petición (la prueba anterior deja una conexión a medias).
+  const up = (origin, body = locator) => new Promise((resolve, reject) => {
+    const req = request(`${base}/api/adheridas/captura`, {
+      method: 'POST', agent: false,
+      headers: { Origin: origin, 'Content-Type': 'text/plain;charset=UTF-8', 'Sec-Fetch-Site': 'cross-site' },
+    }, (res) => {
+      let text = '';
+      res.on('data', (c) => { text += c; });
+      res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, json: () => JSON.parse(text) }));
+    });
+    req.on('error', reject);
+    req.end(body);
+  });
+  const res = await up('https://www.mapfretecuidamos.com');
+  assert.equal(res.status, 200);
+  assert.equal(res.headers['access-control-allow-origin'], 'https://www.mapfretecuidamos.com');
+  const { id, count } = res.json();
+  assert.equal(count, 3);
+  assert.match(id, /^[\w-]{16}$/);
+  // Desde otra web, no.
+  assert.equal((await up('https://otra-web.example')).status, 403);
+  assert.equal((await up('https://www.mapfretecuidamos.com', '{"nada":1}')).status, 400);
+  // La app la recoge con el código, una sola vez.
+  const get = (path) => new Promise((resolve, reject) => {
+    request(`${base}${path}`, { agent: false }, (r) => {
+      let text = '';
+      r.on('data', (c) => { text += c; });
+      r.on('end', () => resolve({ status: r.statusCode, body: JSON.parse(text) }));
+    }).on('error', reject).end();
+  });
+  const first = await get(`/api/adheridas/captura/${id}`);
+  assert.equal(first.status, 200);
+  assert.equal(first.body.entries.length, 3);
+  assert.equal((await get(`/api/adheridas/captura/${id}`)).status, 404);
+});
+
 test('precios de ayer: se descargan una vez y se añaden a las estaciones', async () => {
   const { StationStore: Store, madridDate } = await import('../server/store.js');
   assert.match(madridDate(new Date(Date.UTC(2026, 10, 17, 23, 30))), /^2026-11-18$/, 'a las 00:30 en Madrid ya es el día 18');

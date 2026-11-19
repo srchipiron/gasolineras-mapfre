@@ -147,15 +147,30 @@ Por defecto la app muestra solo esas gasolineras («Solo Club MAPFRE» activado)
 
 Si el mapa oficial indica un porcentaje para una estación (campo «ventajas»), la app usa ese porcentaje y muestra el texto en la ficha. Si no, aplica las condiciones del carnet: 6 % del día 1 al 5 y 3 % el resto, con el tope de 100 €/día y 300 €/semana.
 
-### Importar la lista del mapa oficial
+### Actualizar la lista con un clic («Enviar a Tréboles»)
 
-Desde un ordenador con Chrome o Edge:
+Desde un ordenador (Chrome, Edge o Firefox):
+
+1. La primera vez: en **Ajustes → Actualizar la lista desde el mapa oficial**, arrastra el botón **🍀 Enviar a Tréboles** a la barra de marcadores (`Ctrl+Mayús+B` si no la ves).
+2. Abre el mapa oficial y pulsa ese marcador. Sale un recuadro verde.
+3. Busca cualquier ciudad en el buscador del mapa. El mapa descarga la lista de toda España, el recuadro dice cuántas ha leído y aparece «Enviar a Tréboles».
+4. Al pulsarlo se abre la app con lo que cambia frente a tu lista: nuevas, las que ya no están y las que cambian de tipo. Pulsa «Guardar».
+
+Cómo funciona (`shared/capturar.js`, `server/capturas.js`):
+- **Qué lee:** el marcador solo lee la respuesta que el mapa ya ha recibido en tu navegador, igual que un HAR. No usa las credenciales de MAPFRE ni le hace peticiones por su cuenta.
+- **Cómo llega a la app:** sube la lista a Tréboles, que solo acepta esa subida desde el origen del mapa oficial, y recibe un código de un solo uso. La app recoge la lista con ese código. Se guarda solo en memoria, 30 minutos como mucho.
+- **Qué sustituye:** como es la lista de toda España, sustituye a la anterior en ese dispositivo, y las que MAPFRE quita dejan de dar tréboles. Si después se publica en el servidor una lista más nueva, manda la del servidor.
+- **Otros móviles:** para que llegue a todos, usa «Publicar para todos» o «Descargar lista» (ver abajo).
+
+### Importar la lista del mapa oficial (HAR)
+
+La alternativa manual, desde un ordenador con Chrome o Edge:
 
 1. Abre el mapa oficial y pulsa **F12** → pestaña **Red** (Network).
-2. Busca en el mapa las ciudades de la zona, una a una. Cada búsqueda descarga las gasolineras de alrededor.
+2. Busca cualquier ciudad en el mapa. Cada búsqueda descarga las gasolineras de toda España.
 3. En la pestaña Red, clic derecho sobre cualquier petición → **Guardar todo como HAR**.
-4. En la app: **Ajustes → Importar del mapa oficial**, elige el fichero y pulsa «Leer y emparejar».
-5. Revisa el resultado por provincia, marca las que estén completas y pulsa «Guardar».
+4. En la app: **Ajustes → Importar del mapa oficial (HAR o JSON)**, elige el fichero y pulsa «Leer y emparejar».
+5. Revisa el resultado y pulsa «Guardar».
 
 El HAR se lee en el navegador. Al servidor solo llegan los nombres y las posiciones de las gasolineras, nunca las cookies ni las cabeceras. Cada gasolinera del mapa oficial se empareja con la del Ministerio solo si es seguro: misma calle o carretera y número o punto kilométrico (hasta 600 m), misma calle o carretera (hasta 250 m), mismo nombre (hasta 400 m) o mismas coordenadas (menos de 30 m). Lo que no case queda «sin emparejar» para revisarlo a mano; nunca se atribuye a la gasolinera de al lado. El resultado de la importación muestra cada pareja.
 
@@ -179,7 +194,7 @@ node scripts/revisar-adheridas.mjs             # lo guarda en config/adheridas.j
 
 Las que se pueden pasar a la Repsol de verdad (cerca y en la misma calle) se pasan; el resto se quitan.
 
-**El servidor lo hace solo**: con cada descarga de precios del Ministerio (cada 30 min) revisa la lista que sirve a la app, sin tocar `config/adheridas.json`. En Ajustes se ve qué ha cambiado y un aviso si la lista del mapa oficial tiene más de 2 meses (para volver a importarla). La lista del mapa oficial no se descarga sola: su servicio está protegido con credenciales de MAPFRE y no hay permiso para usarlo desde otra web.
+**El servidor lo hace solo**: con cada descarga de precios del Ministerio (cada 30 min) revisa la lista que sirve a la app, sin tocar `config/adheridas.json`. En Ajustes se ve qué ha cambiado y, si la lista del mapa oficial tiene más de 2 meses, un aviso aquí y en la línea «🍀 Adheridas» (en ámbar, con un enlace para actualizarla). El servidor no descarga solo la lista del mapa oficial: su servicio está protegido con credenciales de MAPFRE y no hay permiso para usarlo desde otra web. Por eso la actualización se hace con «Enviar a Tréboles» desde tu navegador.
 
 ### La lista va empaquetada con la app
 
@@ -209,6 +224,7 @@ gasolineras-mapfre/
 │   ├── search.js      búsqueda por radio y por corredor de ruta
 │   ├── services.js    direcciones (Nominatim), rutas (OSRM) e histórico
 │   ├── adheridas.js   lista compartida y emparejado con el mapa oficial
+│   ├── capturas.js    listas subidas por «Enviar a Tréboles» (en memoria, un solo uso)
 │   ├── tendencia.js   precio medio diario por provincia (últimos 14 días)
 │   └── demo.js        datos de demostración con el formato real de la API
 ├── shared/            lógica común a servidor y navegador
@@ -216,6 +232,7 @@ gasolineras-mapfre/
 │   ├── ranking.js     precio efectivo, coste real, filtros y estadísticas
 │   ├── horario.js     interpreta horarios ("L-V: 06:00-22:00; S: ...")
 │   ├── geo.js         distancias, rutas y simplificación de polilíneas
+│   ├── capturar.js    marcador «Enviar a Tréboles» para el mapa oficial
 │   ├── locator.js     lee los datos del mapa oficial (JSON o HAR)
 │   ├── provincias.js  códigos de provincia del INE
 │   ├── vehiculos.js   perfiles de vehículo

@@ -13,6 +13,9 @@ import { FUELS } from '../shared/fuels.js';
 import { provinciaName } from '../shared/provincias.js';
 import { APP_VERSION } from '../shared/changelog.js';
 import { dayAverages, trendSummary } from './tendencia.js';
+import { createCaptureStore } from './capturas.js';
+import { parseLocatorPayload } from '../shared/locator.js';
+import { isMapfreOrigin } from '../shared/capturar.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const STATIC_DIRS = [
@@ -90,6 +93,17 @@ async function readJson(req, limitBytes) {
   }
 }
 
+async function readText(req, limitBytes) {
+  const chunks = [];
+  let size = 0;
+  for await (const c of req) {
+    size += c.length;
+    if (size > limitBytes) throw new HttpError(413, 'Demasiados datos');
+    chunks.push(c);
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
+
 function send(req, res, status, body, headers = {}) {
   let buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
   const h = {
@@ -121,6 +135,7 @@ function send(req, res, status, body, headers = {}) {
 export function createApp({
   store, geocoder, router, history, trend = null, official = { get: async () => emptyOfficial() }, demo = false, logger = console,
   publish = null, // { adminKey, officialFile, github: { token, repo, branch } | null }
+  captures = createCaptureStore(),
 }) {
   const perIp = createAttemptLimiter({ max: 5 });
   const global = createAttemptLimiter({ max: 30 });
@@ -294,13 +309,40 @@ export function createApp({
     return { received: clean.length, matched, unmatched, provinces };
   }
 
+  // Marcador «Enviar a Tréboles» (shared/capturar.js): el mapa oficial, en el
+  // navegador del usuario, sube la lista que acaba de recibir. Es la única
+  // petición que se acepta desde otra web, y solo desde el mapa oficial.
+  async function receiveCapture(req, res, origin) {
+    const cors = { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' };
+    if (req.method === 'OPTIONS') {
+      res.writeHead(204, { ...cors, 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Private-Network': 'true', 'Access-Control-Max-Age': '600' });
+      return res.end();
+    }
+    let payload;
+    try {
+      payload = JSON.parse(await readText(req, 12 * 1024 * 1024));
+    } catch (err) {
+      throw err.status ? err : new HttpError(400, 'JSON no válido');
+    }
+    const entries = parseLocatorPayload(payload).slice(0, 20000);
+    if (!entries.length) throw new HttpError(400, 'No hay gasolineras del mapa oficial en los datos');
+    const id = captures.put(entries);
+    send(req, res, 200, { id, count: entries.length }, { ...cors, 'Cache-Control': 'no-store' });
+  }
+
   async function handleApi(req, url) {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${url.pathname}`;
     if (routes[key]) return routes[key](url.searchParams);
     if (key === 'POST /api/adheridas/match') return matchOfficial(req);
     if (key === 'POST /api/adheridas/publish') return publishOfficial(req);
 
-    let m = /^\/api\/stations\/([A-Za-z0-9]+)$/.exec(url.pathname);
+    let m = /^\/api\/adheridas\/captura\/([\w-]{8,40})$/.exec(url.pathname);
+    if (m && req.method === 'GET') {
+      const entries = captures.take(m[1]);
+      if (!entries) throw new HttpError(404, 'Esta lista ya se recogió o ha caducado: vuelve a pulsar «Enviar a Tréboles» en el mapa oficial');
+      return { entries };
+    }
+    m = /^\/api\/stations\/([A-Za-z0-9]+)$/.exec(url.pathname);
     if (m && (req.method === 'GET' || req.method === 'HEAD')) {
       requireData();
       const st = store.byId.get(m[1]);
@@ -357,7 +399,11 @@ export function createApp({
     const t0 = Date.now();
     const url = new URL(req.url, 'http://localhost');
     try {
-      if (url.pathname.startsWith('/api/')) {
+      if (url.pathname === '/api/adheridas/captura' && (req.method === 'POST' || req.method === 'OPTIONS')) {
+        const origin = req.headers.origin;
+        if (!isMapfreOrigin(origin)) throw new HttpError(403, 'Solo desde el mapa oficial de Club MAPFRE');
+        await receiveCapture(req, res, origin);
+      } else if (url.pathname.startsWith('/api/')) {
         if (req.method === 'POST' && req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') {
           throw new HttpError(403, 'Petición de otro origen');
         }
@@ -377,7 +423,12 @@ export function createApp({
       if (status >= 500) logger.error?.(`${req.method} ${url.pathname} -> ${status}: ${err.message}`);
       const body = url.pathname.startsWith('/api/') ? { error: err.message } : `${status} ${err.message}`;
       if (!res.headersSent) {
-        send(req, res, status, body, url.pathname.startsWith('/api/') ? {} : { 'Content-Type': MIME['.txt'] });
+        const headers = url.pathname.startsWith('/api/') ? {} : { 'Content-Type': MIME['.txt'] };
+        // Que el marcador del mapa oficial pueda leer el motivo del error.
+        if (url.pathname === '/api/adheridas/captura' && isMapfreOrigin(req.headers.origin)) {
+          Object.assign(headers, { 'Access-Control-Allow-Origin': req.headers.origin, Vary: 'Origin' });
+        }
+        send(req, res, status, body, headers);
       } else {
         res.end();
       }

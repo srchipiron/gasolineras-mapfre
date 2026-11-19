@@ -66,6 +66,13 @@ export const api = {
     if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
     return body;
   },
+  /** La lista del mapa oficial que subió el marcador «Enviar a Tréboles» (una sola vez). */
+  capture: async (code) => {
+    const res = await fetch(`/api/adheridas/captura/${encodeURIComponent(code)}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
+    return body.entries ?? [];
+  },
   trend: ({ province, fuel }) => get('/api/trend', { province, fuel }),
   history: (id, days = 30) => get(`/api/history/${encodeURIComponent(id)}`, { days }),
 };

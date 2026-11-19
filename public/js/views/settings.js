@@ -1,8 +1,9 @@
 // Pestaña "Ajustes": repostaje, gasolineras adheridas, reglas y datos.
 
-import { html, date } from '../format.js';
-import { DEFAULT_PROGRAM, mergeOfficial, emptyOfficial, TIPOS } from '/shared/treboles.js';
+import { html, raw, date } from '../format.js';
+import { DEFAULT_PROGRAM, combineOfficial, diffOfficial, emptyOfficial, TIPOS } from '/shared/treboles.js';
 import { parseLocatorPayload } from '/shared/locator.js';
+import { bookmarklet, MAPA_OFICIAL, TODA_ESPANA } from '/shared/capturar.js';
 import { provinciaName } from '/shared/provincias.js';
 import { resetSettings, saveLocalOfficial, KEYS } from '../store.js';
 import { cardSettingsHtml, bindCardSettings } from './card.js';
@@ -13,6 +14,9 @@ import { CHANGELOG, APP_VERSION, versionStatus } from '/shared/changelog.js';
 import { VEHICLE_ICONS, addVehicle, updateVehicle, removeVehicle, selectVehicle } from '/shared/vehiculos.js';
 
 let lastImport = null; // resultado del último emparejado, pendiente de guardar
+let importing = false; // emparejando ahora mismo
+let importError = null; // último error al importar (se mantiene al repintar Ajustes)
+const WAITING = '<p class="muted">⏳ Emparejando con las gasolineras del Ministerio… (si el servidor estaba dormido, tarda hasta un minuto)</p>';
 
 function officialSection(ctx) {
   const { state } = ctx;
@@ -38,20 +42,38 @@ function officialSection(ctx) {
 
     <label class="chip"><input type="checkbox" data-k="markMode" ${state.settings.markMode ? 'checked' : ''}> Modo marcar: botón «＋ Adherida» / «✓ Adherida» en cada gasolinera de la lista</label>
 
-    <fieldset class="rule on">
-      <legend><b>Importar del mapa oficial</b></legend>
+    <fieldset class="rule on" id="update-list">
+      <legend><b>🔄 Actualizar la lista desde el mapa oficial</b></legend>
+      <p class="small">Con un clic, en el ordenador (Chrome, Edge o Firefox). La primera vez:</p>
+      <ol class="small steps">
+        <li>Arrastra este botón a tu <b>barra de marcadores</b> (si no la ves: <kbd>Ctrl</kbd>+<kbd>Mayús</kbd>+<kbd>B</kbd>):
+          <a class="btn primary bookmarklet" id="bookmarklet" href="#" title="Arrástrame a la barra de marcadores">🍀 Enviar a Tréboles</a>
+          <button type="button" class="btn small" id="bookmarklet-copy">o copia su código</button></li>
+      </ol>
+      <p class="small">Cada vez que quieras actualizarla:</p>
+      <ol class="small steps">
+        <li>Abre <a href="${MAPA_OFICIAL}" target="_blank" rel="noopener">el mapa oficial de Club MAPFRE</a> y pulsa el marcador «🍀 Enviar a Tréboles».</li>
+        <li>En el buscador del mapa, escribe cualquier ciudad y elígela: el mapa descarga la lista de toda España.</li>
+        <li>Pulsa «Enviar a Tréboles» en el recuadro verde. Se abre la app con lo que ha cambiado (nuevas, quitadas…) y pulsas «Guardar».</li>
+      </ol>
+      <p class="small muted">El marcador solo lee lo que el mapa ya te ha enseñado en tu navegador, como un HAR: no usa claves de MAPFRE ni envía tus datos.</p>
+      <div id="import-result">${lastImport ? importResult(lastImport, state) : importing ? raw(WAITING) : importError ?? ''}</div>
+    </fieldset>
+
+    <fieldset class="rule">
+      <legend><b>Importar del mapa oficial (HAR o JSON)</b></legend>
       <label class="field"><span>Fichero HAR o JSON guardado desde el mapa oficial</span>
         <input type="file" id="import-file" accept=".har,.json,application/json" multiple></label>
       <label class="field"><span>…o pega aquí la respuesta copiada</span>
         <textarea id="import-text" rows="3" placeholder='{"message":{"contenido":[...]}}'></textarea></label>
-      <button type="button" class="btn primary" id="import-run">Leer y emparejar</button>
-      <div id="import-result">${lastImport ? importResult(lastImport) : ''}</div>
+      <button type="button" class="btn" id="import-run">Leer y emparejar</button>
+      <p class="small muted">El resultado aparece arriba, en «Actualizar la lista».</p>
       <details class="small">
         <summary>Cómo sacar la lista del mapa oficial (ordenador, Chrome o Edge)</summary>
         <ol>
           <li>Abre <a href="${DEFAULT_PROGRAM.officialMapUrl}" target="_blank" rel="noopener">el mapa oficial de Club MAPFRE</a>.</li>
           <li>Pulsa <b>F12</b> y ve a la pestaña <b>Red</b> (Network). Déjala abierta.</li>
-          <li>En el buscador del mapa, busca una a una las ciudades de la zona: Almería, Cádiz, Jerez, Algeciras, Córdoba, Granada, Motril, Huelva, Jaén, Linares, Málaga, Marbella, Antequera, Sevilla, Écija, Murcia, Cartagena, Lorca… Cada búsqueda descarga las gasolineras de alrededor.</li>
+          <li>En el buscador del mapa, busca cualquier ciudad: cada búsqueda descarga las gasolineras de toda España.</li>
           <li>En la pestaña Red, haz clic derecho sobre cualquier petición y elige <b>Guardar todo como HAR</b> (Save all as HAR).</li>
           <li>Aquí, elige ese fichero y pulsa «Leer y emparejar». Revisa el resultado y pulsa «Guardar».</li>
         </ol>
@@ -86,23 +108,52 @@ function publishHtml(ctx, merged) {
     </fieldset>`;
 }
 
-function importResult(r) {
+/** ¿Es una importación de toda España? (el mapa oficial la trae entera en cada búsqueda) */
+const isFull = (r) => r.received >= TODA_ESPANA;
+
+const TIPO_CORTO = { colaboradora: 'colaboradora', repsol: 'Gasolinera Repsol', manual: 'marcada a mano' };
+const nameList = (items) => html`<ul>${items.slice(0, 150).map((x) => html`<li>${x.nombre || x.id} <span class="muted">(${TIPO_CORTO[x.tipo] ?? x.tipo}${x.antes ? `, antes ${TIPO_CORTO[x.antes] ?? x.antes}` : ''})</span></li>`)}${items.length > 150 ? html`<li class="muted">… y ${items.length - 150} más</li>` : ''}</ul>`;
+
+/** Qué cambia frente a la lista que usas ahora (solo en importaciones de toda España). */
+function diffHtml(r, state) {
+  const current = state ? combineOfficial(state.serverOfficial, state.localOfficial) : null;
+  const curCount = Object.values(current?.stations ?? {}).filter((v) => v.tipo !== 'manual').length;
+  if (!isFull(r) || !curCount) return '';
+  const d = diffOfficial(current, r.matched);
+  const suspicious = d.quitadas.length > curCount * 0.25;
   return html`
-    <p><b>${r.matched.length}</b> gasolineras emparejadas de ${r.received} leídas${r.unmatched.length ? html`, <b>${r.unmatched.length}</b> sin emparejar` : ''}:
-      <b>${r.matched.filter((m) => m.tipo === 'colaboradora').length}</b> «Más EESS colaboradoras» y ${r.matched.filter((m) => m.tipo === 'repsol').length} «Gasolinera Repsol».</p>
-    <table class="prices">
+    <div class="diff ${suspicious ? 'warn' : ''}">
+      <p><b>Frente a la lista que usas ahora</b> (${curCount}, del ${date(current.updatedAt)}):
+        ${!d.nuevas.length && !d.quitadas.length && !d.cambian.length ? html`<b>no ha cambiado nada</b> ✓.` : html`
+        <b class="good">+${d.nuevas.length}</b> nuevas · <b class="bad">−${d.quitadas.length}</b> ya no están en el mapa${d.cambian.length ? html` · <b>${d.cambian.length}</b> cambian de tipo` : ''}.`}</p>
+      ${d.nuevas.length ? html`<details class="small"><summary>Ver las ${d.nuevas.length} nuevas</summary>${nameList(d.nuevas)}</details>` : ''}
+      ${d.quitadas.length ? html`<details class="small"><summary>Ver las ${d.quitadas.length} que ya no están</summary>${nameList(d.quitadas)}</details>` : ''}
+      ${d.cambian.length ? html`<details class="small"><summary>Ver las ${d.cambian.length} que cambian de tipo</summary>${nameList(d.cambian)}</details>` : ''}
+      ${suspicious ? html`<p class="small warn">Faltan muchas respecto a la lista actual. Si el mapa oficial no ha terminado de cargar, descarta y vuelve a enviarla.</p>` : ''}
+    </div>`;
+}
+
+function importResult(r, state) {
+  const full = isFull(r);
+  const provinces = html`<table class="prices">
       <thead><tr><th>Provincia</th><th>Adheridas encontradas</th></tr></thead>
       <tbody>${r.provinces.map((p) => html`<tr><td>${provinciaName(p.idProvincia)}</td><td>${p.count} de ${p.total} gasolineras</td></tr>`)}</tbody>
-    </table>
+    </table>`;
+  return html`
+    <p>${full ? html`📥 <b>Lista de toda España</b> del mapa oficial: ` : ''}<b>${r.matched.length}</b> gasolineras emparejadas de ${r.received} leídas${r.unmatched.length ? html`, <b>${r.unmatched.length}</b> sin emparejar` : ''}:
+      <b>${r.matched.filter((m) => m.tipo === 'colaboradora').length}</b> «Más EESS colaboradoras» y ${r.matched.filter((m) => m.tipo === 'repsol').length} «Gasolinera Repsol».</p>
+    ${diffHtml(r, state)}
+    ${full ? html`<details class="small"><summary>Ver por provincia</summary>${provinces}</details>` : provinces}
     <details class="small"><summary>Ver las ${r.matched.length} emparejadas (mapa oficial → Ministerio)</summary>
       <ul class="pairs">${r.matched.map((m) => html`<li class="${m.por === 'posición' ? 'weak' : ''}"><b>${m.nombre}</b> · ${m.direccionOficial || '—'}<br>→ ${m.brand} · ${m.address}, ${m.locality} <span class="muted">(${m.distanceM} m, por ${m.por})</span></li>`)}</ul></details>
     ${r.unmatched.length ? html`<details class="small"><summary>Ver las ${r.unmatched.length} sin emparejar (revísalas y márcalas a mano)</summary><ul>${r.unmatched.slice(0, 200).map((u) => html`<li>${u.nombre} · ${u.direccion}, ${u.localidad}</li>`)}</ul></details>` : ''}
-    <div class="row wrap"><button type="button" class="btn primary" id="import-save">Guardar</button><button type="button" class="btn" id="import-cancel">Descartar</button></div>`;
+    <div class="row wrap"><button type="button" class="btn primary" id="import-save">${full ? 'Guardar (sustituye la lista)' : 'Guardar'}</button><button type="button" class="btn" id="import-cancel">Descartar</button></div>
+    ${full ? html`<p class="small muted">Al ser la lista de toda España, sustituye a la actual en este dispositivo: las que MAPFRE ha quitado dejan de dar tréboles. Para los demás móviles: «Publicar para todos» o «Descargar lista».</p>` : ''}`;
 }
 
 /** La lista que ves en este dispositivo: la compartida + lo importado aquí + tus marcas. */
 function mergedList(state) {
-  const merged = mergeOfficial(state.serverOfficial, state.localOfficial);
+  const merged = combineOfficial(state.serverOfficial, state.localOfficial);
   for (const [id, v] of Object.entries(state.settings.overrides)) {
     if (v === 'in' && !merged.stations[id]) merged.stations[id] = { tipo: 'manual', nombre: '' };
     if (v === 'out') delete merged.stations[id];
@@ -362,23 +413,31 @@ export function renderSettings(ctx) {
     saveLocal();
   });
   root.querySelector('#import-run').addEventListener('click', async (e) => {
-    const out = root.querySelector('#import-result');
     e.target.disabled = true;
-    out.innerHTML = html`<p class="muted">Leyendo…</p>`;
     try {
-      const entries = await readImport(root);
-      if (!entries.length) throw new Error('No se encontró ninguna gasolinera en los datos (¿has buscado en el mapa antes de guardar?)');
-      const res = await ctx.api.matchOfficial(entries);
-      lastImport = res;
-      out.innerHTML = importResult(res);
-      bindImport(ctx, root);
-    } catch (err) {
-      out.innerHTML = html`<p class="error">${err.message}</p>`;
+      await importEntries(ctx, readImport(root));
     } finally {
       e.target.disabled = false;
     }
   });
   bindImport(ctx, root);
+
+  // Marcador «Enviar a Tréboles»: se arrastra a la barra de marcadores.
+  const bm = bookmarklet(location.origin);
+  const link = root.querySelector('#bookmarklet');
+  link.setAttribute('href', bm);
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    ctx.toast('Arrástralo a la barra de marcadores y púlsalo en el mapa oficial de Club MAPFRE', 6000);
+  });
+  root.querySelector('#bookmarklet-copy').addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(bm);
+      ctx.toast('Código copiado: crea un marcador nuevo y pégalo como dirección (URL)', 6000);
+    } catch {
+      prompt('Copia este código y pégalo como dirección (URL) de un marcador nuevo:', bm);
+    }
+  });
 
   root.querySelector('#reset-settings').addEventListener('click', () => {
     if (!confirm('¿Restaurar los ajustes de fábrica? Se mantienen favoritas, repostajes y la lista importada.')) return;
@@ -396,19 +455,57 @@ export function renderSettings(ctx) {
   });
 }
 
+/**
+ * Empareja gasolineras del mapa oficial (del marcador «Enviar a Tréboles» o de
+ * un HAR) y enseña el resultado en «Actualizar la lista» para guardarlo.
+ * @param {Array|Promise<Array>} entries estaciones leídas con parseLocatorPayload
+ */
+export async function importEntries(ctx, entries) {
+  const out = () => document.getElementById('import-result');
+  const show = (h) => {
+    const el = out();
+    if (el) {
+      el.innerHTML = h;
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+  importing = true;
+  lastImport = null;
+  importError = null;
+  show(WAITING);
+  try {
+    const list = await entries;
+    if (!list.length) throw new Error('No se encontró ninguna gasolinera en los datos (¿has buscado en el mapa antes de guardar?)');
+    lastImport = await ctx.api.matchOfficial(list);
+    show(importResult(lastImport, ctx.state));
+    bindImport(ctx, document);
+  } catch (err) {
+    importError = html`<p class="error">${err.message}</p>`;
+    show(importError);
+  } finally {
+    importing = false;
+  }
+}
+
 function bindImport(ctx, root) {
   const { state } = ctx;
   root.querySelector('#import-cancel')?.addEventListener('click', () => {
     lastImport = null;
+    importError = null;
     root.querySelector('#import-result').innerHTML = '';
   });
   root.querySelector('#import-save')?.addEventListener('click', () => {
     if (!lastImport) return;
-    const local = state.localOfficial;
+    const full = isFull(lastImport);
+    // Toda España: sustituye a la lista anterior. Parcial: se suma.
+    const local = full
+      ? { ...emptyOfficial(), completa: true, source: 'Mapa oficial de Club MAPFRE', provinces: [...new Set([...(state.serverOfficial?.provinces ?? []), ...lastImport.provinces.map((p) => p.idProvincia)])].sort() }
+      : state.localOfficial;
     for (const m of lastImport.matched) {
       local.stations[m.id] = { tipo: m.tipo, nombre: m.nombre, ...(m.ventajas ? { ventajas: m.ventajas } : {}) };
     }
     local.updatedAt = new Date().toISOString().slice(0, 10);
+    state.localOfficial = local;
     const n = lastImport.matched.length;
     lastImport = null;
     saveLocalOfficial(local);

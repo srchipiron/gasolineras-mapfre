@@ -473,3 +473,12 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 .brands-more > summary { cursor: pointer; color: var(--accent); margin-top: 4px; }
 .brands p { margin: 6px 0 0; }
 .file-btn { cursor: pointer; display: inline-flex; align-items: center; }
+
+/* Actualizar la lista desde el mapa oficial */
+.steps { margin: 4px 0 8px; padding-left: 22px; }
+.steps li { margin: 4px 0; }
+.bookmarklet { cursor: grab; display: inline-block; margin: 4px 6px 4px 0; }
+.diff { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin: 8px 0; }
+.diff .good { color: var(--cheap); }
+.diff .bad { color: var(--danger); }
+.freshness a { color: inherit; }

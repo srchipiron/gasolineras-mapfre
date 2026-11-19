@@ -13,7 +13,7 @@ import { renderFavorites, renderFavStrip, checkAlerts } from './views/favorites.
 import { renderTrend } from './views/trend.js';
 import { setupInstallBanner, onInstallChange } from './install.js';
 import { renderLog, exportLogCsv } from './views/log.js';
-import { renderSettings } from './views/settings.js';
+import { renderSettings, importEntries } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
 import { openCard } from './views/card.js';
 import {
@@ -22,7 +22,7 @@ import {
 import { MODES, isCompany, sortKey, routeSortKey, routeSorts, switchMode } from '/shared/modo.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
-  isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, mergeOfficial, emptyOfficial, DEFAULT_PROGRAM,
+  isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, combineOfficial, emptyOfficial, DEFAULT_PROGRAM,
   capStatus, waitAdvice, fuelEligible,
 } from '/shared/treboles.js';
 import { boostReminderIcs } from '/shared/ics.js';
@@ -339,7 +339,7 @@ function toggleMark(r) {
 }
 
 function setOfficial() {
-  state.official = mergeOfficial(state.serverOfficial, state.localOfficial);
+  state.official = combineOfficial(state.serverOfficial, state.localOfficial);
   renderFreshness();
 }
 
@@ -478,9 +478,17 @@ function renderFreshness() {
   const o = state.official;
   const n = Object.keys(o?.stations ?? {}).length;
   const list = o?.updatedAt ? `${date(o.updatedAt)}${n ? ` (${n.toLocaleString('es-ES')})` : ''}` : '—';
+  // La lista del mapa oficial con más de 2 meses: toca actualizarla.
+  const listDays = o?.updatedAt ? (Date.now() - new Date(`${o.updatedAt}T12:00:00`).getTime()) / 86400000 : null;
+  const listOld = listDays != null && listDays > 60;
   el.className = `freshness small ${old ? 'warn' : ''}`;
   el.innerHTML = html`<span title="Precios del Ministerio para la Transición Ecológica${fecha ? `: ${fecha}` : ''}">⏱ Precios: <b>${prices}</b></span>
-    <span title="Lista de gasolineras adheridas del mapa oficial de Club MAPFRE">🍀 Adheridas: <b>${list}</b></span>`;
+    <span class="${listOld ? 'warn' : ''}" title="Lista de gasolineras adheridas del mapa oficial de Club MAPFRE">🍀 Adheridas: <b>${list}</b>${listOld ? html` · <a href="#" data-update-list>actualizar</a>` : ''}</span>`;
+  el.querySelector('[data-update-list]')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    selectTab('settings');
+    setTimeout(() => document.getElementById('update-list')?.scrollIntoView({ behavior: 'smooth' }), 50);
+  });
 }
 
 async function refreshStatus() {
@@ -820,11 +828,27 @@ const ctx = {
   refetch: () => { syncControls(); persist(); loadNearby({ fit: false }); },
 };
 
+/**
+ * La lista del mapa oficial enviada con el marcador «Enviar a Tréboles»
+ * (shared/capturar.js): se recoge del servidor con su código de un solo uso y
+ * se empareja como una importación, en Ajustes, para revisarla y guardarla.
+ */
+function importFromMap(code) {
+  selectTab('settings');
+  if (!code) {
+    toast('Abre la app con el botón «Enviar a Tréboles» del mapa oficial (Ajustes → Actualizar la lista)', 8000);
+    return;
+  }
+  importEntries(ctx, api.capture(code));
+}
+
 async function init() {
   // Accesos directos del icono de la app (?accion=carnet|cerca|repostaje|ruta).
-  const accion = new URLSearchParams(location.search).get('accion');
+  const params = new URLSearchParams(location.search);
+  const accion = params.get('accion');
   if (accion) history.replaceState(null, '', location.pathname);
   bindControls();
+  if (accion === 'importar-mapa') importFromMap(params.get('captura'));
   // El carnet se abre al momento, sin esperar a los precios.
   if (accion === 'carnet') openCard(ctx);
   setupInstallBanner({
