@@ -101,6 +101,26 @@ test('empareja por calle y número aunque las coordenadas del mapa oficial esté
   assert.deepEqual(matched.map((m) => [m.id, m.por]), [['1001', 'dirección']]);
 });
 
+test('localizador real: ventajas como lista y acentos mal decodificados', () => {
+  const [e] = parseLocatorPayload({ message: { contenido: [{
+    nombreCentro: 'E.S. EJEMPLO', codigoTipoColaborador: '4', direccion: 'CR A-5, 104,3 IZQUIERDO', localidad: 'CAZALEGAS',
+    latitud: 40, longitud: -4.6,
+    ventajas: [{ codigo: null, descripcion: '6% en TrÃ©boles.' }, { codigo: null, descripcion: 'Con la tarjeta REPSOL Carburante.' }],
+  }] } });
+  assert.equal(e.tipo, 'repsol');
+  assert.equal(e.ventajas, '6% en Tréboles. Con la tarjeta REPSOL Carburante');
+});
+
+test('empareja por código de carretera y punto kilométrico', () => {
+  const s = { id: '9001', lat: 40, lon: -4.6, brand: 'REPSOL', address: 'Cr A-5, 104,3', locality: 'Cazalegas', province: 'Toledo', idProvincia: '45' };
+  assert.deepEqual(similarity({ nombre: 'CRED CAZALEGAS', direccion: 'CR A-5, 104,3 IZQUIERDO' }, s), { street: 1, number: true, name: false });
+  const lejos = [{ nombre: 'X', tipo: 'repsol', direccion: 'CR A-5, 104,3 IZQUIERDO', localidad: '', lat: 40.003, lon: -4.6 }]; // ~330 m
+  assert.deepEqual(matchEntries(lejos, [s]).matched.map((m) => [m.id, m.por]), [['9001', 'dirección']]);
+  // Otra carretera con el mismo kilómetro no vale
+  const otra = [{ nombre: 'X', tipo: 'repsol', direccion: 'CR N-5, 104,3', localidad: '', lat: 40.003, lon: -4.6 }];
+  assert.equal(matchEntries(otra, [s]).matched.length, 0);
+});
+
 test('similitud entre una estación oficial y una del Ministerio', () => {
   const s = stations.find((x) => x.id === '1001'); // GALP · Calle de la Princesa, 3
   assert.deepEqual(similarity({ nombre: 'E.S. GALP', direccion: 'C/ Princesa 3' }, s), { street: 1, number: true, name: true });

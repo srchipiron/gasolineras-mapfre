@@ -6,7 +6,10 @@ import { join } from 'node:path';
 import { boostReminderIcs } from '../shared/ics.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const pathFor = (u) => (u.startsWith('/shared/') ? join(ROOT, u) : join(ROOT, 'public', u === '/' ? 'index.html' : u));
+const pathFor = (u) => {
+  if (u === '/data/adheridas.json') return join(ROOT, 'config', 'adheridas.json'); // lo sirve el servidor
+  return u.startsWith('/shared/') ? join(ROOT, u) : join(ROOT, 'public', u === '/' ? 'index.html' : u);
+};
 
 test('todos los ficheros que precarga el service worker existen', () => {
   const sw = readFileSync(join(ROOT, 'public/sw.js'), 'utf8');

@@ -41,16 +41,32 @@ function numbers(text) {
   return new Set((normalizeBrand(text).match(/\b\d+\b/g) ?? []).filter((n) => n !== '0'));
 }
 
+// Códigos de carretera («A-5», «CM-403», «N 122», «AP7») normalizados: A5,
+// CM403, N122, AP7. Son cortos y words() los descarta, pero identifican la vía.
+function roads(text) {
+  const t = String(text ?? '').normalize('NFD').replace(/\p{M}/gu, '').toUpperCase();
+  const out = new Set();
+  for (const m of t.matchAll(/\b([A-Z]{1,3})(-|\s?)(\d{1,4})\b/g)) {
+    const [, letters, sep, n] = m;
+    if (['KM', 'PK', 'NO', 'NUM', 'BJ'].includes(letters)) continue;
+    if (sep !== '' && sep !== '-' && !['N', 'A', 'AP', 'AU'].includes(letters)) continue; // «L 16», «S 3»…
+    out.add(letters + Number(n));
+  }
+  return out;
+}
+
 /**
  * Cuánto se parecen una estación del mapa oficial y una del Ministerio:
- *  - street: palabras de la calle en común
+ *  - street: palabras de la calle (o códigos de carretera) en común
  *  - number: comparten número de portal o punto kilométrico
  *  - name:   el nombre oficial comparte alguna palabra con el rótulo o la dirección
  */
 export function similarity(e, s) {
   const officialStreet = new Set(words(e.direccion));
   const ministryStreet = words(s.address);
-  const street = ministryStreet.filter((w) => officialStreet.has(w)).length;
+  const officialRoads = roads(e.direccion);
+  const street = ministryStreet.filter((w) => officialStreet.has(w)).length
+    + [...roads(s.address)].filter((r) => officialRoads.has(r)).length;
   const officialNums = numbers(e.direccion);
   const number = [...numbers(s.address)].some((n) => officialNums.has(n));
   const officialName = new Set(words(e.nombre));

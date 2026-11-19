@@ -151,7 +151,7 @@ Desde un ordenador con Chrome o Edge:
 4. En la app: **Ajustes → Importar del mapa oficial**, elige el fichero y pulsa «Leer y emparejar».
 5. Revisa el resultado por provincia, marca las que estén completas y pulsa «Guardar».
 
-El HAR se lee en el navegador. Al servidor solo llegan los nombres y las posiciones de las gasolineras, nunca las cookies ni las cabeceras. Cada gasolinera del mapa oficial se empareja con la del Ministerio solo si es seguro: misma calle y número (hasta 600 m), misma calle (hasta 250 m), mismo nombre (hasta 400 m) o mismas coordenadas (menos de 30 m). Lo que no case queda «sin emparejar» para revisarlo a mano; nunca se atribuye a la gasolinera de al lado. El resultado de la importación muestra cada pareja.
+El HAR se lee en el navegador. Al servidor solo llegan los nombres y las posiciones de las gasolineras, nunca las cookies ni las cabeceras. Cada gasolinera del mapa oficial se empareja con la del Ministerio solo si es seguro: misma calle o carretera y número o punto kilométrico (hasta 600 m), misma calle o carretera (hasta 250 m), mismo nombre (hasta 400 m) o mismas coordenadas (menos de 30 m). Lo que no case queda «sin emparejar» para revisarlo a mano; nunca se atribuye a la gasolinera de al lado. El resultado de la importación muestra cada pareja.
 
 Lo importado se guarda en ese navegador. Para verlo en todos tus dispositivos, pulsa **Descargar lista (adheridas.json)** y súbela al repositorio:
 
@@ -161,6 +161,16 @@ node scripts/importar-adheridas.mjs --provincias 41,29 mapa.har   # o directamen
 ```
 
 El script actualiza `config/adheridas.json`. El servidor lo relee solo, sin reiniciar, y se publica con el siguiente despliegue.
+
+### La lista va empaquetada con la app
+
+El localizador devuelve **todas las adheridas de España en cada búsqueda**, así que un solo HAR basta para toda la lista:
+
+```bash
+node scripts/importar-adheridas.mjs --reemplazar --toda-espana mapa-oficial.har
+```
+
+Del HAR (decenas de MB, la misma respuesta repetida en cada búsqueda) solo se guarda lo que usa la app: por cada gasolinera del Ministerio, su tipo, el nombre y las ventajas. Queda en unos 600 KB de JSON, y unos 45 KB comprimido con gzip al descargarlo. El servidor lo sirve también como `/data/adheridas.json`. El service worker lo guarda al instalar la app, de modo que el móvil lo tiene al abrirla, sin conexión y sin esperar a que despierte el servidor. Después busca en segundo plano la lista publicada más reciente. Ya no hace falta pasar el HAR al móvil.
 
 ## Estructura
 

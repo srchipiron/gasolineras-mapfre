@@ -31,6 +31,8 @@ export const api = {
     }),
   geocode: (q) => get('/api/geocode', { q }),
   adheridas: () => get('/api/adheridas'),
+  // La misma lista, empaquetada con la app (precargada por el service worker).
+  adheridasLocal: () => get('/data/adheridas.json'),
   publishOfficial: async ({ key, list }) => {
     const res = await fetch('/api/adheridas/publish', {
       method: 'POST',

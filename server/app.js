@@ -361,6 +361,10 @@ export function createApp({
         }
         const data = await handleApi(req, url);
         send(req, res, 200, data, { 'Cache-Control': 'no-cache' });
+      } else if (url.pathname === '/data/adheridas.json' && (req.method === 'GET' || req.method === 'HEAD')) {
+        // La lista de adheridas como fichero de la app: el service worker la
+        // precarga y el móvil la tiene sin conexión desde que instala la app.
+        send(req, res, 200, await official.get(), { 'Cache-Control': 'no-cache' });
       } else if (req.method === 'GET' || req.method === 'HEAD') {
         await serveStatic(req, res, url);
       } else {
