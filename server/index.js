@@ -9,7 +9,7 @@ import { StationStore } from './store.js';
 import { createMineturClient, DEFAULT_BASE_URL } from './minetur.js';
 import { createGeocoder, createRouter, createHistory } from './services.js';
 import { generateDemoResponse, generateDemoPrevResponse, generateDemoDayResponse, createDemoGeocoder, createDemoRouter, createDemoHistory } from './demo.js';
-import { createOfficialSource } from './adheridas.js';
+import { createOfficialSource, createReviewedSource } from './adheridas.js';
 import { TrendStore } from './tendencia.js';
 
 const env = process.env;
@@ -54,8 +54,9 @@ const deps = {
   geocoder: demo ? createDemoGeocoder() : createGeocoder({ baseUrl: env.NOMINATIM_URL }),
   router: demo ? createDemoRouter() : createRouter({ baseUrl: env.OSRM_URL }),
   history: demo ? createDemoHistory() : createHistory({ client, cacheDir: join(DATA_DIR, 'historico'), logger }),
-  // Lista compartida de gasolineras adheridas (se versiona en el repositorio).
-  official: createOfficialSource(OFFICIAL_FILE),
+  // Lista compartida de gasolineras adheridas (se versiona en el repositorio),
+  // revisada sola con cada descarga del Ministerio (cambios de rótulo a otra cadena).
+  official: createReviewedSource(createOfficialSource(OFFICIAL_FILE), store),
   // Publicar la lista para todos desde la app (Ajustes). Sin ADMIN_KEY no se puede.
   publish: env.ADMIN_KEY
     ? {

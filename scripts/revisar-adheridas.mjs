@@ -12,8 +12,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { brandConflict, words } from '../server/adheridas.js';
-import { haversineKm } from '../shared/geo.js';
+import { reviewOfficial } from '../server/adheridas.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const args = process.argv.slice(2);
@@ -25,10 +24,6 @@ const OUT = join(ROOT, 'config', 'adheridas.json');
 const datos = join(ROOT, opt('--datos', 'data/estaciones.json'));
 const simular = args.includes('--simular');
 
-const REPSOL_FAMILY = /\b(REPSOL|CAMPSA|PETRONOR)\b/i;
-// Palabras del nombre oficial que no dicen nada de la calle.
-const NOISE = new Set(['CRED', 'AVDA', 'AVENIDA', 'CALLE', 'CTRA', 'CARRETERA', 'GASOLINERA', 'ESTACION', 'SERVICIO']);
-
 export function serialize(list) {
   const { stations, ...head } = list;
   const rows = Object.entries(stations).map(([id, v]) => `    ${JSON.stringify(id)}: ${JSON.stringify(v)}`);
@@ -36,34 +31,8 @@ export function serialize(list) {
   return `${JSON.stringify({ ...head, stations: '@@' }, null, 2).replace('"@@"', body)}\n`;
 }
 
-/** Revisa `list.stations` y devuelve { list, removed, moved }. */
-export function review(list, stations) {
-  const byId = new Map(stations.map((s) => [String(s.id), s]));
-  const next = { ...list.stations };
-  const removed = [];
-  const moved = [];
-  for (const [id, v] of Object.entries(list.stations)) {
-    const wrong = byId.get(id);
-    if (!wrong || !brandConflict(v.tipo, wrong.brand)) continue;
-    delete next[id];
-    const nameWords = new Set(words(v.nombre).filter((w) => !NOISE.has(w)));
-    let best = null;
-    for (const s of stations) {
-      if (!REPSOL_FAMILY.test(s.brand ?? '') || next[s.id] || list.stations[s.id]) continue;
-      const d = haversineKm(wrong.lat, wrong.lon, s.lat, s.lon);
-      if (d > 1.5) continue;
-      if (!words(s.address).some((w) => nameWords.has(w))) continue;
-      if (!best || d < best.d) best = { s, d };
-    }
-    if (best) {
-      next[String(best.s.id)] = v;
-      moved.push({ nombre: v.nombre, from: `${wrong.brand} · ${wrong.address}`, to: `${best.s.brand} · ${best.s.address}`, km: best.d });
-    } else {
-      removed.push({ nombre: v.nombre, wrong: `${wrong.brand} · ${wrong.address} · ${wrong.locality ?? ''}` });
-    }
-  }
-  return { list: { ...list, stations: next }, removed, moved };
-}
+// La revisión vive en el servidor (se aplica sola con cada descarga del Ministerio).
+export const review = reviewOfficial;
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const list = JSON.parse(await readFile(OUT, 'utf8'));

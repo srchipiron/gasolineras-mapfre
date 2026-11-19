@@ -34,6 +34,7 @@ function officialSection(ctx) {
     <p class="small ${Object.keys(server.stations).length ? '' : 'warn'}">${Object.keys(server.stations).length
       ? html`🌐 <b>Lista para todos</b> (en el servidor): ${Object.keys(server.stations).length} gasolineras, actualizada el ${date(server.updatedAt)}. Importadas solo en este dispositivo: ${Object.keys(local.stations).length}.`
       : html`🌐 La lista para todos (en el servidor) está <b>vacía</b>: las adheridas solo se ven en el dispositivo donde se importaron (aquí: ${Object.keys(local.stations).length}). Usa «Publicar para todos» para que cualquiera las vea.`}</p>
+    ${revisionHtml(server)}
 
     <label class="chip"><input type="checkbox" data-k="markMode" ${state.settings.markMode ? 'checked' : ''}> Modo marcar: botón «＋ Adherida» / «✓ Adherida» en cada gasolinera de la lista</label>
 
@@ -146,6 +147,25 @@ function dataStatus(st) {
   return html`Precios del <b>${st.fecha}</b> · ${NF0.format(st.count)} gasolineras.
     ${st.prevDate ? html`<br>Comparación con ayer: precios del ${date(st.prevDate)}.` : ''}
     ${st.trendDays != null ? html`<br>Precio medio de la provincia: ${st.trendDays >= 14 ? 'últimos 14 días' : html`${st.trendDays} de 14 días descargados (se completa solo)`}.` : ''}`;
+}
+
+/** Días desde una fecha «aaaa-mm-dd». */
+const daysSince = (iso) => (iso ? Math.floor((Date.now() - new Date(`${iso}T12:00:00`).getTime()) / 86400000) : null);
+
+/**
+ * Revisión automática de la lista (el servidor la hace con cada descarga del
+ * Ministerio) y aviso si la lista del mapa oficial es vieja.
+ */
+function revisionHtml(server) {
+  const r = server?.revision;
+  const age = daysSince(server?.updatedAt);
+  const changes = r ? r.corregidas + r.quitadas : 0;
+  return html`
+    ${r ? html`<p class="small">🔎 <b>Revisión automática</b> con los precios del Ministerio del ${r.fecha}: ${changes
+      ? html`${r.corregidas ? `${r.corregidas} pasadas a su Repsol de verdad` : ''}${r.corregidas && r.quitadas ? ' y ' : ''}${r.quitadas ? `${r.quitadas} quitadas porque hoy tienen el rótulo de otra cadena` : ''}.`
+      : 'todo en orden, ninguna adherida ha cambiado de cadena.'}</p>
+      ${r.ejemplos?.length ? html`<details class="small"><summary>Ver cambios</summary><ul>${r.ejemplos.map((e) => html`<li>${e}</li>`)}</ul></details>` : ''}` : ''}
+    ${age != null && age > 60 ? html`<p class="small warn">La lista del mapa oficial tiene ${age} días: conviene volver a importarla (abajo, «Importar del mapa oficial») por si MAPFRE ha añadido o quitado gasolineras.</p>` : ''}`;
 }
 
 const VERSION_TEXT = {

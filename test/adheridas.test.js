@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseLocatorPayload } from '../shared/locator.js';
-import { matchEntries, provinceSummary, normalizeOfficial, createOfficialSource, similarity, brandConflict } from '../server/adheridas.js';
+import { matchEntries, provinceSummary, normalizeOfficial, createOfficialSource, similarity, brandConflict, createReviewedSource } from '../server/adheridas.js';
 import { review } from '../scripts/revisar-adheridas.mjs';
 import { parseResponse } from '../server/minetur.js';
 
@@ -90,6 +90,33 @@ test('la revisión pasa la Repsol de otra cadena a la Repsol de la misma calle',
   assert.deepEqual(Object.keys(res.list.stations), ['R']);
   assert.equal(res.moved.length, 1);
   assert.equal(res.removed.length, 1);
+});
+
+test('el servidor revisa solo la lista con cada descarga del Ministerio', async () => {
+  const base = { version: 1, updatedAt: '2026-11-19', stations: { P: { tipo: 'repsol', nombre: 'CRED AVDA. DEL MEDITERRANEO' }, C: { tipo: 'colaboradora', nombre: 'X' } } };
+  const source = { get: async () => base };
+  const store = {
+    ready: true, fecha: '19/11/2026 18:00:00', fetchedAt: 'a',
+    stations: [
+      { id: 'P', brand: 'REPSOL', address: 'Avenida Mediterraneo, 184', lat: 36.8378, lon: -2.4471 },
+      { id: 'C', brand: 'PLENERGY', address: 'Calle Y', lat: 36.9, lon: -2.4 },
+    ],
+  };
+  const reviewed = createReviewedSource(source, store);
+  let o = await reviewed.get();
+  assert.deepEqual(Object.keys(o.stations).sort(), ['C', 'P'], 'todo en orden: no cambia nada (las colaboradoras pueden ser de cualquier cadena)');
+  assert.equal(o.revision.quitadas, 0);
+  assert.equal(await reviewed.get(), o, 'sin datos nuevos, misma respuesta');
+  // Media hora después, la Repsol aparece con rótulo de otra cadena.
+  store.stations = [{ ...store.stations[0], brand: 'PETROPRIX' }, store.stations[1]];
+  store.fetchedAt = 'b';
+  o = await reviewed.get();
+  assert.deepEqual(Object.keys(o.stations), ['C']);
+  assert.equal(o.revision.quitadas, 1);
+  assert.match(o.revision.ejemplos[0], /PETROPRIX/);
+  assert.equal(Object.keys(base.stations).length, 2, 'la lista original no se toca');
+  // Sin precios todavía, la lista se sirve tal cual.
+  assert.equal(await createReviewedSource(source, { ready: false, stations: [] }).get(), base);
 });
 
 test('valida la lista compartida', () => {

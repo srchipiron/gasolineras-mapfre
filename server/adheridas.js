@@ -173,6 +173,74 @@ export function normalizeOfficial(data) {
   return out;
 }
 
+const REPSOL_FAMILY = /\b(REPSOL|CAMPSA|PETRONOR)\b/i;
+// Palabras del nombre oficial que no dicen nada de la calle.
+const NOISE = new Set(['CRED', 'AVDA', 'AVENIDA', 'CALLE', 'CTRA', 'CARRETERA', 'GASOLINERA', 'ESTACION', 'SERVICIO']);
+
+/**
+ * Revisa la lista de adheridas con las estaciones actuales del Ministerio:
+ * las «Gasolinera Repsol» que hoy tienen el rótulo de otra cadena (cambió de
+ * bandera o se emparejó con la de al lado) se pasan a la Repsol cercana de la
+ * misma calle si la hay (≤ 1,5 km) y, si no, se quitan.
+ * Devuelve { list, removed, moved } sin tocar la lista original.
+ */
+export function reviewOfficial(list, stations) {
+  const byId = new Map(stations.map((s) => [String(s.id), s]));
+  const next = { ...list.stations };
+  const removed = [];
+  const moved = [];
+  for (const [id, v] of Object.entries(list.stations ?? {})) {
+    const wrong = byId.get(id);
+    if (!wrong || !brandConflict(v.tipo, wrong.brand)) continue;
+    delete next[id];
+    const nameWords = new Set(words(v.nombre).filter((w) => !NOISE.has(w)));
+    let best = null;
+    for (const s of stations) {
+      if (!REPSOL_FAMILY.test(s.brand ?? '') || next[s.id] || list.stations[s.id]) continue;
+      const d = haversineKm(wrong.lat, wrong.lon, s.lat, s.lon);
+      if (d > 1.5) continue;
+      if (!words(s.address).some((w) => nameWords.has(w))) continue;
+      if (!best || d < best.d) best = { s, d };
+    }
+    if (best) {
+      next[String(best.s.id)] = v;
+      moved.push({ nombre: v.nombre, from: `${wrong.brand} · ${wrong.address}`, to: `${best.s.brand} · ${best.s.address}`, km: best.d });
+    } else {
+      removed.push({ nombre: v.nombre, wrong: `${wrong.brand} · ${wrong.address} · ${wrong.locality ?? ''}` });
+    }
+  }
+  return { list: { ...list, stations: next }, removed, moved };
+}
+
+/**
+ * La lista que sirve el servidor, revisada sola con cada descarga del
+ * Ministerio (cada 30 min). Se recalcula solo si cambia la lista o los datos.
+ * Añade `revision`: { fecha, corregidas, quitadas, ejemplos } para Ajustes.
+ */
+export function createReviewedSource(source, store) {
+  let cache = { base: null, fetchedAt: null, data: null };
+  return {
+    async get() {
+      const base = await source.get();
+      const stations = store?.stations ?? [];
+      if (!store?.ready || !stations.length) return base; // aún sin precios: tal cual
+      if (cache.base === base && cache.fetchedAt === store.fetchedAt) return cache.data;
+      const { list, removed, moved } = reviewOfficial(base, stations);
+      const data = {
+        ...list,
+        revision: {
+          fecha: store.fecha,
+          corregidas: moved.length,
+          quitadas: removed.length,
+          ejemplos: [...moved.map((m) => `${m.nombre}: ahora ${m.to}`), ...removed.map((r) => `${r.nombre}: hoy es ${r.wrong}`)].slice(0, 20),
+        },
+      };
+      cache = { base, fetchedAt: store.fetchedAt, data };
+      return data;
+    },
+  };
+}
+
 /** Lee config/adheridas.json y lo vuelve a leer si cambia. */
 export function createOfficialSource(file) {
   let cache = { mtimeMs: -1, data: emptyOfficial() };

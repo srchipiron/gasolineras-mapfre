@@ -178,6 +178,8 @@ node scripts/revisar-adheridas.mjs             # lo guarda en config/adheridas.j
 
 Las que se pueden pasar a la Repsol de verdad (cerca y en la misma calle) se pasan; el resto se quitan.
 
+**El servidor lo hace solo**: con cada descarga de precios del Ministerio (cada 30 min) revisa la lista que sirve a la app, sin tocar `config/adheridas.json`. En Ajustes se ve qué ha cambiado y un aviso si la lista del mapa oficial tiene más de 2 meses (para volver a importarla). La lista del mapa oficial no se descarga sola: su servicio está protegido con credenciales de MAPFRE y no hay permiso para usarlo desde otra web.
+
 ### La lista va empaquetada con la app
 
 El localizador devuelve **todas las adheridas de España en cada búsqueda**, así que un solo HAR basta para toda la lista:
