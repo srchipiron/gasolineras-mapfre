@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.4.4',
+    date: '2026-11-19',
+    changes: [
+      'A simple vista, bajo los filtros: hace cuánto son los precios que ves («⏱ Precios: hace 12 min») y de cuándo es la lista de adheridas, con cuántas hay. Si los precios tienen más de 3 horas, se avisa en ámbar.',
+    ],
+  },
+  {
     version: '1.4.3',
     date: '2026-11-19',
     changes: [
