@@ -14,6 +14,13 @@ export const SORTS = {
   distance: 'Distancia',
 };
 
+// Coche de empresa: el carburante lo paga la empresa y los tréboles son tuyos.
+export const COMPANY_SORTS = {
+  treboles: 'Más tréboles para ti',
+  price: 'Surtidor (paga la empresa)',
+  distance: 'Distancia',
+};
+
 /**
  * Enriquece cada estación con los datos del carburante elegido.
  * @param {object[]} stations estaciones con `prices` y `distanceKm` (o `offRouteKm`)
@@ -57,10 +64,15 @@ export function enrich(stations, opts) {
       percent: pct,
       effective: eff,
       treboles: rule ? treblesFor(eligible, pct) : 0,
+      // % del repostaje que vuelve en tréboles, ya con el tope (para ordenar).
+      trebolShare: pct * share,
       cappedBy: eligible < amount ? amount - eligible : 0,
       detourKm,
       detourCost,
       totalCost: fillCost + detourCost,
+      // Lo que paga quien paga el surtidor (sin descontar tréboles): en el
+      // coche de empresa, la empresa.
+      pumpCost: amount + detourCost,
       open: isOpenAt(week, now),
       change,
     });
@@ -94,6 +106,9 @@ const COMPARATORS = {
   total: (a, b) => a.totalCost - b.totalCost || dist(a) - dist(b),
   distance: (a, b) => dist(a) - dist(b) || a.effective - b.effective,
   along: (a, b) => (a.station.alongKm ?? 0) - (b.station.alongKm ?? 0),
+  // Coche de empresa: primero las que más % te devuelven en tréboles; entre
+  // iguales, la que menos le cuesta a la empresa (surtidor y desvío).
+  treboles: (a, b) => (b.trebolShare ?? 0) - (a.trebolShare ?? 0) || a.totalCost - b.totalCost || dist(a) - dist(b),
 };
 
 export function sortResults(list, sort = 'effective') {
@@ -174,6 +189,25 @@ export function compareFilter(list, { tipo = 'all' } = {}) {
     saving: bestIn && bestOut ? bestOut.totalCost - bestIn.totalCost : null,
     insideCount: inside.length,
     outsideCount: outside.length,
+  };
+}
+
+/**
+ * Coche de empresa: la empresa paga el surtidor (sin descontar tréboles, que
+ * son tuyos). La mejor para ti es la del filtro que más tréboles te da; se
+ * compara con la que menos le costaría a la empresa para ver la diferencia.
+ */
+export function compareCompany(list, { tipo = 'all' } = {}) {
+  const inside = list.filter((r) => inOfficialFilter(r, tipo) && r.treboles > 0)
+    .sort(COMPARATORS.treboles);
+  const best = inside[0] ?? null;
+  const cheapest = minBy(list, 'pumpCost');
+  return {
+    best,
+    cheapest,
+    // Lo que paga de más la empresa por ir a la tuya en vez de a la más barata.
+    extraForCompany: best && cheapest ? best.pumpCost - cheapest.pumpCost : null,
+    insideCount: inside.length,
   };
 }
 

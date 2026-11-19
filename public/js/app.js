@@ -16,7 +16,10 @@ import { renderLog, exportLogCsv } from './views/log.js';
 import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
 import { openCard } from './views/card.js';
-import { enrich, filterResults, sortResults, summarize, compareFilter, byBrand, SORTS, OFFICIAL_FILTERS } from '/shared/ranking.js';
+import {
+  enrich, filterResults, sortResults, summarize, compareFilter, compareCompany, byBrand, SORTS, COMPANY_SORTS, OFFICIAL_FILTERS,
+} from '/shared/ranking.js';
+import { MODES, isCompany, sortKey, routeSortKey, routeSorts, switchMode } from '/shared/modo.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
 import {
   isBoostDay, percentFor, daysUntilBoost, programExpired, activePromos, mergeOfficial, emptyOfficial, DEFAULT_PROGRAM,
@@ -112,13 +115,28 @@ function computeList(stations, sort) {
   const all = filterResults(enriched, { openNow: s.openNow, hideRestricted: s.hideRestricted });
   const tipo = s.officialFilter ?? 'all';
   const filtered = filterResults(all, { onlyMapfre: s.onlyMapfre, tipo, hideRestricted: false });
-  return { results: sortResults(filtered, sort), summary: summarize(filtered), comparison: compareFilter(all, { tipo }) };
+  return {
+    results: sortResults(filtered, sort),
+    summary: summarize(filtered),
+    comparison: compareFilter(all, { tipo }),
+    companyCmp: isCompany(s) ? compareCompany(all, { tipo }) : null,
+  };
+}
+
+/** Opciones comunes del resumen (cambian con el modo mi coche / empresa). */
+function summaryOpts(comparison, companyCmp, extra = {}) {
+  const s = state.settings;
+  return {
+    litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
+    onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(), comparison, tipo: s.officialFilter ?? 'all',
+    company: isCompany(s), companyCmp, ...extra,
+  };
 }
 
 function renderList(el, results, mode) {
   const s = state.settings;
   const shown = results.slice(0, 150);
-  el.innerHTML = html`${shown.map((r, i) => resultItem(r, i, { litres: s.litres, mode, markMode: s.markMode, favorite: isFavorite(state.favorites, r.station.id), note: state.notes[r.station.id] }))}${
+  el.innerHTML = html`${shown.map((r, i) => resultItem(r, i, { litres: s.litres, mode, markMode: s.markMode, company: isCompany(s), favorite: isFavorite(state.favorites, r.station.id), note: state.notes[r.station.id] }))}${
     results.length > shown.length ? html`<li class="muted small more">Y ${results.length - shown.length} más… acerca el mapa o reduce el radio.</li>` : ''}`;
 }
 
@@ -164,12 +182,9 @@ function bindSummaryLinks(root, results) {
 function recompute({ fit = false } = {}) {
   const s = state.settings;
   if (state.nearby) {
-    const { results, summary, comparison } = computeList(state.nearby.stations, s.sort);
+    const { results, summary, comparison, companyCmp } = computeList(state.nearby.stations, s[sortKey(s)]);
     state.computed.nearby = results;
-    $('#summary').innerHTML = summaryHtml(summary, {
-      litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
-      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(), comparison, tipo: s.officialFilter ?? 'all', radiusKm: state.nearby.radiusKm,
-    });
+    $('#summary').innerHTML = summaryHtml(summary, summaryOpts(comparison, companyCmp, { radiusKm: state.nearby.radiusKm }));
     renderAdvice(summary);
     renderTrend(ctx);
     renderFavStrip(ctx);
@@ -212,6 +227,13 @@ function tripCostHtml(distanceKm, summary) {
   if (!distanceKm || !s.consumption || !best) return '';
   const litres = (distanceKm * s.consumption) / 100;
   const v = s.vehicles?.find((x) => x.id === s.vehicleId);
+  if (isCompany(s)) {
+    // La empresa paga el surtidor; los tréboles del repostaje son tuyos.
+    const cost = litres * best.price;
+    return html`<p class="trip-cost small">💼 <b>Gasto del viaje (lo paga la empresa)</b>${v ? ` (${v.icon} ${v.name}, ${String(s.consumption).replace('.', ',')} L/100 km)` : ''}:
+      unos ${Math.round(litres)} L de ${fuelLabel(s.fuel)} ≈ <b>${eur(cost)}</b> en ${best.station.brand} · ida y vuelta ${eur(cost * 2)}.
+      ${best.treboles > 0 ? `Tú te llevas unos ${eur(cost * best.percent / 100 * (s.program.trebolValue ?? 1))} en tréboles.` : ''}</p>`;
+  }
   const cost = litres * best.effective;
   return html`<p class="trip-cost small">⛽ <b>Gasto del viaje</b>${v ? ` (${v.icon} ${v.name}, ${String(s.consumption).replace('.', ',')} L/100 km)` : ''}:
     unos ${Math.round(litres)} L de ${fuelLabel(s.fuel)} ≈ <b>${eur(cost)}</b> al precio de ${best.station.brand}${summary.bestMapfre ? ' con tréboles' : ''}
@@ -221,16 +243,13 @@ function tripCostHtml(distanceKm, summary) {
 function renderRoute({ fit }) {
   const s = state.settings;
   const r = state.route;
-  const { results, summary, comparison } = computeList(r.stations, s.routeSort === 'along' ? 'along' : s.routeSort);
+  const { results, summary, comparison, companyCmp } = computeList(r.stations, s[routeSortKey(s)]);
   state.computed.route = results;
   $('#route-summary').innerHTML = html`
     <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
     ${tripCostHtml(r.route.distanceKm, summary)}
-    ${summaryHtml(summary, {
-      litres: s.litres, fuel: s.fuel, program: s.program, capLeft: capLeftToday(),
-      onlyMapfre: s.onlyMapfre, officialCount: countableOfficial(), comparison, tipo: s.officialFilter ?? 'all',
-    })}`;
+    ${summaryHtml(summary, summaryOpts(comparison, companyCmp))}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
   bindSummaryLinks($('#route-summary'), results);
@@ -635,18 +654,22 @@ function fillVehicleSelect() {
 function syncControls() {
   const s = state.settings;
   fillVehicleSelect();
+  const company = isCompany(s);
+  document.querySelectorAll('.mode-switch [data-mode]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === (s.mode ?? 'personal'))));
+  document.body.classList.toggle('mode-company', company);
+  $('#sort').innerHTML = html`${Object.entries(company ? COMPANY_SORTS : SORTS).map(([k, v]) => html`<option value="${k}">${v}</option>`)}`;
+  $('#route-sort').innerHTML = html`${Object.entries(routeSorts(s)).map(([k, v]) => html`<option value="${k}">${v}</option>`)}`;
   $('#fuel').value = s.fuel;
   $('#radius').value = String(s.radiusKm);
-  $('#sort').value = s.sort;
+  $('#sort').value = s[sortKey(s)];
   $('#only-mapfre').checked = s.onlyMapfre;
   $('#official-filter').value = s.officialFilter ?? 'all';
   $('#open-now').checked = s.openNow;
   $('#route-corridor').value = String(s.corridorKm);
-  $('#route-sort').value = s.routeSort;
+  $('#route-sort').value = s[routeSortKey(s)];
 }
 
 function bindControls() {
-  $('#sort').innerHTML = html`${Object.entries(SORTS).map(([k, v]) => html`<option value="${k}">${v}</option>`)}`;
   $('#official-filter').innerHTML = html`${Object.entries(OFFICIAL_FILTERS).map(([k, v]) => html`<option value="${k}">${v}</option>`)}`;
   $('#search-form').addEventListener('submit', onSearch);
   $('#locate').addEventListener('click', () => { selectTab('results'); locate(); });
@@ -666,19 +689,29 @@ function bindControls() {
   $('#fuel').addEventListener('change', (e) => { s().fuel = e.target.value; syncActiveVehicle(s()); fillVehicleSelect(); refetch(); });
   $('#vehicle').addEventListener('change', (e) => {
     const before = s().fuel;
-    selectVehicle(s(), e.target.value);
+    selectVehicle(s(), e.target.value); // y lo recuerda para el modo actual
     syncControls();
     if (s().fuel !== before) refetch();
     else { persist(); recompute(); }
     toast(`Vehículo: ${$('#vehicle').selectedOptions[0]?.textContent ?? ''}`);
   });
   $('#radius').addEventListener('change', (e) => { s().radiusKm = Number(e.target.value); persist(); loadNearby({ fit: true }); });
-  $('#sort').addEventListener('change', (e) => { s().sort = e.target.value; persist(); recompute(); });
+  document.querySelectorAll('.mode-switch [data-mode]').forEach((b) => b.addEventListener('click', () => {
+    if ((s().mode ?? 'personal') === b.dataset.mode) return;
+    const before = s().fuel;
+    switchMode(s(), b.dataset.mode);
+    syncControls();
+    if (s().fuel !== before) refetch();
+    else { persist(); recompute(); }
+    refreshTab('log');
+    toast(`${MODES[s().mode].icon} ${MODES[s().mode].long}${isCompany(s()) ? ': paga la empresa, los tréboles son tuyos' : ': pagas tú'}`);
+  }));
+  $('#sort').addEventListener('change', (e) => { s()[sortKey(s())] = e.target.value; persist(); recompute(); });
   $('#only-mapfre').addEventListener('change', (e) => { s().onlyMapfre = e.target.checked; persist(); recompute(); });
   $('#official-filter').addEventListener('change', (e) => { s().officialFilter = e.target.value; persist(); recompute(); });
   $('#open-now').addEventListener('change', (e) => { s().openNow = e.target.checked; persist(); recompute(); });
   $('#route-corridor').addEventListener('change', (e) => { s().corridorKm = Number(e.target.value); persist(); });
-  $('#route-sort').addEventListener('change', (e) => { s().routeSort = e.target.value; persist(); if (state.route) renderRoute({ fit: false }); });
+  $('#route-sort').addEventListener('change', (e) => { s()[routeSortKey(s())] = e.target.value; persist(); if (state.route) renderRoute({ fit: false }); });
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));
   $('#log-add').addEventListener('click', () => openRefuel(ctx, null));
   $('#open-card').addEventListener('click', () => openCard(ctx));

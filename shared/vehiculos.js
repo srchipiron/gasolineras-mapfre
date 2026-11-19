@@ -26,6 +26,8 @@ export function activeVehicle(s) {
 export function selectVehicle(s, id) {
   if (!s.vehicles.some((v) => v.id === id)) return s;
   s.vehicleId = id;
+  // Cada modo (mi coche / coche de empresa) recuerda su vehículo.
+  s.vehicleByMode = { ...(s.vehicleByMode ?? {}), [s.mode ?? 'personal']: id };
   const v = activeVehicle(s);
   s.fuel = v.fuel;
   s.litres = v.litres;

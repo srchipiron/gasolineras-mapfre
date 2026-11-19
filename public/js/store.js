@@ -35,6 +35,12 @@ export const DEFAULT_SETTINGS = {
   fuel: 'gasoleoA',
   radiusKm: 10,
   sort: 'effective',
+  // «Voy en mi coche» (pagas tú) o «Voy en el coche de empresa» (paga la
+  // empresa y los tréboles son tuyos). Ver shared/modo.js.
+  mode: 'personal',
+  companySort: 'treboles',
+  companyRouteSort: 'treboles',
+  vehicleByMode: {}, // { personal: idVehículo, company: idVehículo }
   onlyMapfre: false, // por defecto se ven todas; «Solo Club MAPFRE» deja solo las del filtro
   officialFilter: 'all', // 'all' | 'colaboradora' | 'repsol', como el mapa oficial
   openNow: false,
@@ -79,6 +85,8 @@ export function resetSettings(current) {
   // Se conservan tus vehículos.
   s.vehicles = current?.vehicles ?? [];
   s.vehicleId = current?.vehicleId ?? null;
+  s.mode = current?.mode ?? 'personal';
+  s.vehicleByMode = current?.vehicleByMode ?? {};
   ensureVehicles(s);
   const v = s.vehicles.find((x) => x.id === s.vehicleId);
   if (v) Object.assign(s, { fuel: v.fuel, litres: v.litres, consumption: v.consumption });

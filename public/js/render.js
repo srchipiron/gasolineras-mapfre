@@ -34,7 +34,14 @@ function noteBadges(note) {
     note.note ? html`<span class="note-icon" title="${note.note}">📝</span>` : ''}`;
 }
 
-export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, markMode = false, note = null }) {
+/** Columna de precio en el coche de empresa: lo que importa son tus tréboles. */
+function companyPrice(r) {
+  return r.treboles > 0
+    ? html`<div class="gain">+${num2(r.treboles)} 🍀</div><div class="pump">surtidor ${eurL(r.price)}</div>`
+    : html`<div class="gain none">0 🍀</div><div class="pump">surtidor ${eurL(r.price)}</div>`;
+}
+
+export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, markMode = false, note = null, company = false }) {
   const st = r.station;
   const where = mode === 'route'
     ? `km ${Math.round(st.alongKm)} de la ruta · desvío ${km(st.offRouteKm)}`
@@ -52,11 +59,13 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, ma
         ${noteBadges(note)}
       </div>
       <div class="addr">${st.address} · ${st.locality}</div>
-      <div class="meta">${where} · ${litres} L: ${eur(r.totalCost)}${r.detourCost > 0.005 ? html` <span class="muted">(desvío ${eur(r.detourCost)})</span>` : ''}</div>
+      <div class="meta">${company
+        ? html`${where} · ${litres} L: la empresa paga ${eur(r.pumpCost)}`
+        : html`${where} · ${litres} L: ${eur(r.totalCost)}${r.detourCost > 0.005 ? html` <span class="muted">(desvío ${eur(r.detourCost)})</span>` : ''}`}</div>
     </div>
     <div class="price">
-      <div class="eff">${eurL(r.effective)}</div>
-      ${r.mapfre ? html`<div class="pump">surtidor ${eurL(r.price)}</div>` : html`<div class="pump">sin tréboles</div>`}
+      ${company ? companyPrice(r) : html`<div class="eff">${eurL(r.effective)}</div>
+      ${r.mapfre ? html`<div class="pump">surtidor ${eurL(r.price)}</div>` : html`<div class="pump">sin tréboles</div>`}`}
       ${r.change ? changeChip(r.change) : ''}
       ${markMode ? html`<button type="button" class="btn small mark ${r.adherida ? 'on' : ''}" data-mark="${st.id}" aria-pressed="${r.adherida}">${r.adherida ? '✓ Adherida' : '＋ Adherida'}</button>` : ''}
     </div>
@@ -82,6 +91,7 @@ function statsHtml(s) {
 
 export function summaryHtml(s, {
   litres, fuel, program, capLeft = Infinity, onlyMapfre = false, officialCount = 0, comparison = null, tipo = 'all', radiusKm = null,
+  company = false, companyCmp = null,
 }) {
   if (!fuelEligible(program, fuel)) {
     return html`<p class="verdict bad">El ${fuelLabel(fuel)} no da tréboles en Club MAPFRE: la lista está ordenada por precio en surtidor.</p>
@@ -93,9 +103,10 @@ export function summaryHtml(s, {
       ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>
       ${s.count ? statsHtml(s) : ''}`;
   }
+  const tv = program?.trebolValue ?? 1;
+  if (company) return companySummaryHtml(s, { litres, fuel, capLeft, onlyMapfre, cmp: companyCmp ?? {}, tv, radiusKm });
   const c = comparison ?? {};
   const [inTitle, outTitle] = FILTER_TITLES[tipo] ?? FILTER_TITLES.all;
-  const tv = program?.trebolValue ?? 1;
   const card = (r, title, cls) => r
     ? html`<button class="best ${cls}" data-open="${r.station.id}">
         <span class="label">${title}</span>
@@ -132,6 +143,47 @@ export function summaryHtml(s, {
       ? html`<p class="small warn">Hoy solo te quedan ${eur(capLeft)} con tréboles por el tope de 100 € al día y 300 € a la semana: los precios con tréboles ya lo tienen en cuenta.</p>`
       : ''}
     ${s.count ? statsHtml(s) : html`<div class="empty">Ninguna gasolinera de la lista oficial en esta zona con ${fuelLabel(fuel)} (o con el tipo elegido).
+      ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>`}`;
+}
+
+/**
+ * Resumen en el coche de empresa: el carburante no sale de tu bolsillo, así
+ * que la mejor para ti es la que más tréboles te da. Se enseña también cuánto
+ * le cuesta a la empresa frente a la más barata, para no pasarse.
+ */
+function companySummaryHtml(s, { litres, fuel, capLeft, onlyMapfre, cmp, tv, radiusKm }) {
+  const b = cmp.best, ch = cmp.cheapest;
+  const card = (r, title, cls, big, line) => r
+    ? html`<button class="best ${cls}" data-open="${r.station.id}">
+        <span class="label">${title}</span>
+        <strong>${r.station.brand}</strong>
+        <span class="small">${r.station.address} · ${km(r.station.offRouteKm ?? r.station.distanceKm)}</span>
+        <span class="big">${big}</span>
+        <span class="small">${line}</span>
+      </button>`
+    : html`<div class="best ${cls} none"><span class="label">${title}</span><span class="small">Ninguna en la zona</span></div>`;
+  let verdict;
+  if (b) {
+    const extra = cmp.extraForCompany ?? 0;
+    verdict = html`<p class="verdict good">💼 <b>Paga la empresa:</b> reposta en ${b.station.brand} y te llevas <b>${num2(b.treboles)} tréboles</b>
+      (${eur(b.treboles * tv)} de descuento en tu seguro) sin poner un euro.
+      ${extra > 0.005 && ch
+        ? html`A la empresa le cuesta ${eur(extra)} más que ${ch.station.brand} (${eur(b.pumpCost)} frente a ${eur(ch.pumpCost)}, desvío incluido).`
+        : 'Además es la que menos le cuesta a la empresa.'}</p>`;
+  } else {
+    verdict = html`<p class="verdict bad">No hay ninguna adherida que dé tréboles en ${radiusKm ? html`${km(radiusKm)} a la redonda` : 'esta zona'}: hoy no ganas nada. Amplía el radio o ve a la que te venga mejor.</p>`;
+  }
+  return html`
+    <div class="best-grid">
+      ${card(b, 'Mejor para ti (más tréboles)', 'mapfre', b ? `+${num2(b.treboles)} 🍀` : '', b ? html`surtidor ${eurL(b.price)} · ${pct(b.percent)} en tréboles` : '')}
+      ${card(ch, 'Más barata para la empresa', 'other', ch ? eurL(ch.price) : '', ch ? (ch.treboles > 0 ? html`+${num2(ch.treboles)} tréboles para ti` : 'sin tréboles para ti') : '')}
+    </div>
+    ${verdict}
+    <p class="small muted">Coche de empresa: el carburante no sale de tu bolsillo. La lista pone primero las que más tréboles te dan y, entre iguales, la que menos le cuesta a la empresa (${litres} L más el desvío).</p>
+    ${Number.isFinite(capLeft) && b && !b.rule?.noCap && capLeft < b.price * litres
+      ? html`<p class="small warn">El tope de 100 € al día y 300 € a la semana es de tu carnet, también con el coche de empresa: hoy solo te quedan ${eur(capLeft)} con tréboles.</p>`
+      : ''}
+    ${s.count ? statsHtml(s) : html`<div class="empty">Ninguna gasolinera en esta zona con ${fuelLabel(fuel)}.
       ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>`}`;
 }
 
