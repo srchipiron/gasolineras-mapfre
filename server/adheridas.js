@@ -4,7 +4,7 @@
 
 import { readFile, stat } from 'node:fs/promises';
 import { haversineKm } from '../shared/geo.js';
-import { emptyOfficial, normalizeBrand } from '../shared/treboles.js';
+import { emptyOfficial, normalizeBrand, brandConflict } from '../shared/treboles.js';
 export { parseLocatorPayload } from '../shared/locator.js';
 
 function grid(stations, cell = 0.01) {
@@ -74,16 +74,8 @@ export function similarity(e, s) {
   return { street, number, name };
 }
 
-// Cadenas que no son de Repsol: una «Gasolinera Repsol» del mapa oficial nunca
-// puede ser una de estas (p. ej. una Plenergy en la misma avenida que la Repsol).
-// Los rótulos con el nombre del dueño («E.S. SANTA RITA») sí pueden ser Repsol,
-// y Petrocat (vinculada a Repsol: sus «CRED …» salen en el mapa oficial) también.
-const OTHER_CHAINS = /\b(AQUAVEL|BALLENOIL|BASIC|BEROIL|BIGASOIL|BONAREA|CEPSA|MOEVE|GALP|SHELL|BP|NATURGY|PETROLIS|PETROPRIX|PLENERGY|SPL|SET ?& ?GO|LOW ?COST|LOWCOST|H2GO|H2EXAGON|ALCAMPO|CARREFOUR|EROSKI|DISA|AVIA|ESCLATOIL|MEROIL|VALCARCE|TAMOIL|Q8|GASEXPRESS|AGLA|MASOIL|PATEROIL|MAROIL|ANDAMUR|STAROIL|ROCK ?& ?OIL)\b/i;
-
-/** ¿La gasolinera del Ministerio es de otra cadena que la del mapa oficial? */
-export function brandConflict(tipo, brand) {
-  return tipo === 'repsol' && OTHER_CHAINS.test(String(brand ?? ''));
-}
+// brandConflict (shared/treboles.js): una «Gasolinera Repsol» nunca es otra cadena.
+export { brandConflict };
 
 // Solo se acepta un emparejado si es seguro.
 function acceptable(sim, d) {

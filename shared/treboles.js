@@ -133,11 +133,24 @@ export function mergeOfficial(...lists) {
  * @param {object} overrides { idEstacion: 'in' | 'out' }
  * @param {object} official lista oficial importada
  */
+// Cadenas que no son de Repsol: una «Gasolinera Repsol» del mapa oficial nunca
+// puede ser una de estas (p. ej. una Plenergy en la misma avenida que la Repsol,
+// o una antigua Repsol que ahora es Petroprix). Los rótulos con el nombre del
+// dueño («E.S. SANTA RITA») y Petrocat (vinculada a Repsol) sí pueden serlo.
+const OTHER_CHAINS = /\b(AQUAVEL|BALLENOIL|BASIC|BEROIL|BIGASOIL|BONAREA|CEPSA|MOEVE|GALP|SHELL|BP|NATURGY|PETROLIS|PETROPRIX|PLENERGY|SPL|SET ?& ?GO|LOW ?COST|LOWCOST|H2GO|H2EXAGON|ALCAMPO|CARREFOUR|EROSKI|DISA|AVIA|ESCLATOIL|MEROIL|VALCARCE|TAMOIL|Q8|GASEXPRESS|AGLA|MASOIL|PATEROIL|MAROIL|ANDAMUR|STAROIL|ROCK ?& ?OIL)\b/i;
+
+/** ¿La gasolinera (por su rótulo) es de otra cadena que la del mapa oficial? */
+export function brandConflict(tipo, brand) {
+  return tipo === 'repsol' && OTHER_CHAINS.test(String(brand ?? ''));
+}
+
 export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, official = null) {
   const ov = overrides?.[station.id];
   if (ov === 'out') return null;
   if (ov === 'in') return { ...(program.manual ?? DEFAULT_PROGRAM.manual), source: 'manual' };
-  const hit = official?.stations?.[station.id];
+  let hit = official?.stations?.[station.id];
+  // Una lista vieja importada en el móvil puede traer cruces erróneos: no cuentan.
+  if (hit && brandConflict(hit.tipo, station.brand)) hit = null;
   const types = program.officialTypes ?? DEFAULT_PROGRAM.officialTypes;
   // Las añadidas a mano en una lista exportada («manual») cuentan siempre.
   if (hit && hit.tipo !== 'manual' && !types.includes(hit.tipo)) return null;
