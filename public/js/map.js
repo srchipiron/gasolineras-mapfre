@@ -78,7 +78,9 @@ export function createMap(el, { onSelect }) {
     // Se dibujan de cara a barata para que las baratas queden encima.
     for (let i = byPrice.length - 1; i >= 0; i--) {
       const r = byPrice[i];
-      const best = r.station.id === bestId || r.station.id === bestMapfreId;
+      // Se destaca la que te aconseja la app (según el modo); si no hay, las mejores.
+      const recId = summary?.recommended?.station.id;
+      const best = recId ? r.station.id === recId : r.station.id === bestId || r.station.id === bestMapfreId;
       const labelled = labelAll || i < LABEL_LIMIT || best;
       const m = L.marker([r.station.lat, r.station.lon], {
         icon: icon(r, summary, { best, labelled }),

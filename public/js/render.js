@@ -187,6 +187,60 @@ function companySummaryHtml(s, { litres, fuel, capLeft, onlyMapfre, cmp, tv, rad
       ${onlyMapfre ? html`<button type="button" class="btn small" data-show-all="1">Ver todas las gasolineras</button>` : ''}</div>`}`;
 }
 
+/**
+ * Tarjeta «Te aconsejo»: una sola gasolinera, la mejor para ti según el modo,
+ * con el porqué en una frase y botones para verla o ir.
+ */
+export function recommendHtml(rec, { litres, tv = 1, route = false } = {}) {
+  if (!rec?.best) return '';
+  const b = rec.best;
+  const st = b.station;
+  const where = route
+    ? `km ${Math.round(st.alongKm ?? 0)} de la ruta · desvío ${km(st.offRouteKm ?? 0)}`
+    : km(st.distanceKm ?? 0);
+  let why;
+  if (rec.company) {
+    why = b.treboles > 0
+      ? html`Paga la empresa y tú te llevas <b>${num2(b.treboles)} tréboles</b> (${eur(b.treboles * tv)}) con ${litres} L.
+        ${rec.extraForCompany > 0.005
+          ? html`A la empresa le cuesta ${eur(rec.extraForCompany)} más que la más barata (${rec.cheapestForCompany.station.brand}).`
+          : 'Y es la que menos le cuesta a la empresa.'}`
+      : html`Ninguna abierta da tréboles por aquí: esta es la que menos le cuesta a la empresa (${eur(b.pumpCost)} con ${litres} L).`;
+  } else {
+    const nearestIsBest = rec.nearest.station.id === st.id;
+    const rv = rec.rival;
+    // Tréboles sí o no: lo que de verdad te ahorras frente a la mejor del otro lado.
+    const vsTreboles = rv && rec.savingVsRival > 0.005
+      ? (b.treboles > 0
+        ? html`<b>Con tréboles compensa:</b> te ahorras ${eur(rec.savingVsRival)} frente a la mejor sin tréboles (${rv.station.brand}, ${eur(rv.totalCost)}).`
+        : html`<b>Aquí no hay tréboles, pero no te compensan:</b> aunque cuentes los ${eur(rv.treboles * tv)} en tréboles de ${rv.station.brand}, allí pagarías ${eur(rv.totalCost)}. Te ahorras <b>${eur(rec.savingVsRival)}</b>.`)
+      : '';
+    why = html`Te cuesta <b>${eur(b.totalCost)}</b> con ${litres} L${b.treboles > 0 ? html`, con ${eur(b.treboles * tv)} en tréboles ya descontados` : ''}${
+      b.detourCost > 0.005 ? html` y el desvío incluido` : ''}.
+      ${vsTreboles}
+      ${nearestIsBest
+        ? 'Además es la más cercana.'
+        : rec.savingVsNearest > 0.005
+          ? html`Ahorras <b>${eur(rec.savingVsNearest)}</b> frente a la más cercana (${rec.nearest.station.brand}, ${km(rec.nearest.station.offRouteKm ?? rec.nearest.station.distanceKm)}).`
+          : ''}
+      ${rec.savingVsNext != null && rec.savingVsNext < 0.3 && rec.next ? html`<span class="muted">${rec.next.station.brand} sale casi igual (${eur(rec.savingVsNext)} más).</span>` : ''}`;
+  }
+  return html`
+  <div class="advise ${rec.company ? 'company' : ''}">
+    <span class="label">${rec.company ? '💼 Te aconsejo (coche de empresa)' : '🚗 Te aconsejo (tu coche)'}</span>
+    <button type="button" class="advise-main" data-open="${st.id}">
+      <strong>${b.mapfre ? '🍀 ' : ''}${st.brand}</strong>
+      <span class="small">${st.address} · ${st.locality ?? ''} · ${where}${b.open === true ? ' · abierta' : ''}</span>
+      <span class="big">${rec.company && b.treboles > 0 ? `+${num2(b.treboles)} 🍀` : eurL(rec.company ? b.price : b.effective)}</span>
+    </button>
+    <p class="small">${why}</p>
+    <div class="row wrap">
+      <button type="button" class="btn small" data-open="${st.id}">Ver ficha</button>
+      <a class="btn small primary" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${st.lat},${st.lon}">Cómo llegar</a>
+    </div>
+  </div>`;
+}
+
 /** Tarjeta «La más barata de cada marca». */
 export function brandsHtml(groups, { open = false, max = 6 } = {}) {
   if (groups.length < 2) return '';

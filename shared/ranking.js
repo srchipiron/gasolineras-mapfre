@@ -8,15 +8,15 @@ import { isOpenAt, parseSchedule } from './horario.js';
 export const ROAD_FACTOR = 1.3;
 
 export const SORTS = {
+  total: 'Lo mejor para ti (coste real)',
   effective: 'Con tréboles',
   price: 'Surtidor',
-  total: 'Coste real',
   distance: 'Distancia',
 };
 
 // Coche de empresa: el carburante lo paga la empresa y los tréboles son tuyos.
 export const COMPANY_SORTS = {
-  treboles: 'Más tréboles para ti',
+  treboles: 'Lo mejor para ti (más tréboles)',
   price: 'Surtidor (paga la empresa)',
   distance: 'Distancia',
 };
@@ -108,7 +108,7 @@ const COMPARATORS = {
   along: (a, b) => (a.station.alongKm ?? 0) - (b.station.alongKm ?? 0),
   // Coche de empresa: primero las que más % te devuelven en tréboles; entre
   // iguales, la que menos le cuesta a la empresa (surtidor y desvío).
-  treboles: (a, b) => (b.trebolShare ?? 0) - (a.trebolShare ?? 0) || a.totalCost - b.totalCost || dist(a) - dist(b),
+  treboles: (a, b) => (b.trebolShare ?? 0) - (a.trebolShare ?? 0) || a.pumpCost - b.pumpCost || dist(a) - dist(b),
 };
 
 export function sortResults(list, sort = 'effective') {
@@ -208,6 +208,46 @@ export function compareCompany(list, { tipo = 'all' } = {}) {
     // Lo que paga de más la empresa por ir a la tuya en vez de a la más barata.
     extraForCompany: best && cheapest ? best.pumpCost - cheapest.pumpCost : null,
     insideCount: inside.length,
+  };
+}
+
+/**
+ * La gasolinera que te aconseja la app, según quién paga.
+ * - Mi coche: la que menos te cuesta de verdad (tus litros con los tréboles
+ *   descontados, el tope incluido, más el carburante de ir y volver).
+ * - Coche de empresa: la que más tréboles te da; entre iguales, la que menos
+ *   le cuesta a la empresa (surtidor y desvío).
+ * Solo cuenta las que no están cerradas. `list` debe traer todas las
+ * gasolineras (no solo las del filtro «Solo Club MAPFRE»): se busca lo mejor.
+ */
+export function recommend(list, { company = false } = {}) {
+  const open = list.filter((r) => r.open !== false);
+  if (!open.length) return null;
+  const sorted = sortResults(open, company ? 'treboles' : 'total');
+  const best = sorted[0];
+  const next = sorted[1] ?? null;
+  const nearest = sortResults(open, 'distance')[0];
+  const cheapestForCompany = minBy(open, 'pumpCost');
+  // Mi coche: los tréboles cuentan (ya descontados en el coste real), pero si
+  // una sin tréboles sale más barata, gana ella. Se guarda la rival para explicarlo.
+  const withTreboles = sortResults(open.filter((r) => r.treboles > 0), 'total')[0] ?? null;
+  const withoutTreboles = sortResults(open.filter((r) => !(r.treboles > 0)), 'total')[0] ?? null;
+  const rival = best.treboles > 0 ? withoutTreboles : withTreboles;
+  return {
+    best,
+    // La mejor del otro lado (con tréboles si la aconsejada no los da, y al revés)
+    // y lo que te ahorras con la aconsejada frente a ella.
+    rival: company ? null : rival,
+    savingVsRival: company || !rival ? null : rival.totalCost - best.totalCost,
+    next,
+    nearest,
+    company,
+    // Mi coche: lo que te ahorras frente a la más cercana y frente a la segunda.
+    savingVsNearest: company ? null : nearest.totalCost - best.totalCost,
+    savingVsNext: company || !next ? null : next.totalCost - best.totalCost,
+    // Coche de empresa: lo que paga de más la empresa por ir a la tuya.
+    cheapestForCompany,
+    extraForCompany: company ? best.pumpCost - cheapestForCompany.pumpCost : null,
   };
 }
 

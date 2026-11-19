@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '1.4.0',
+    date: '2026-11-19',
+    changes: [
+      'Tarjeta «Te aconsejo» arriba del todo (cerca y en la ruta): una sola gasolinera, la mejor para ti según el modo, con el porqué y el botón «Cómo llegar». En tu coche, la que menos te cuesta de verdad (tréboles, tope y desvío incluidos); en el de empresa, la que más tréboles te da.',
+      'En tu coche los tréboles cuentan, pero si una sin tréboles te sale más barata, es la aconsejada; la tarjeta dice cuánto ahorras frente a la mejor con (o sin) tréboles.',
+      'Busca entre todas las gasolineras abiertas, aunque tengas puesto «Solo Club MAPFRE», y se destaca en el mapa.',
+      'La lista se ordena por defecto por «Lo mejor para ti», igual que la recomendación.',
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-11-19',
     changes: [
