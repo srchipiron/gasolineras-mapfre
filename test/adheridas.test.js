@@ -77,6 +77,11 @@ test('una «Gasolinera Repsol» nunca se empareja con otra cadena (Galp, Plenerg
   assert.ok(!brandConflict('repsol', 'E.S. SANTA RITA'));
   assert.ok(!brandConflict('repsol', 'PETROCAT'));
   assert.ok(!brandConflict('colaboradora', 'PLENERGY'));
+  // Colaboradoras: si el nombre oficial dice una cadena y el rótulo es de otra.
+  assert.ok(brandConflict('colaboradora', 'BALLENOIL', 'ENILIVE OP. RIVAS 2'));
+  assert.ok(brandConflict('colaboradora', 'CEPSA ATALAYA 365', 'SHELL ATALAYA 365'));
+  assert.ok(!brandConflict('colaboradora', 'MOEVE', 'CEPSA LA PAZ'), 'Moeve es la antigua Cepsa');
+  assert.ok(!brandConflict('colaboradora', 'REPSOL', 'E.S. VALCARCE S.L.'), 'nombre de empresa, no cadena');
 });
 
 test('la revisión pasa la Repsol de otra cadena a la Repsol de la misma calle', () => {

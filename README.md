@@ -40,6 +40,7 @@ No basta con mirar el precio del surtidor: en las gasolineras adheridas al progr
 **Ruta**
 - Gasolineras a lo largo de un viaje (p. ej. Madrid → Valencia), con desvío máximo de 1 a 10 km.
 - Ordenadas por precio con tréboles, por coste real o por el orden en que te las encuentras.
+- **«Te quedan (L)»**: con los litros que te quedan y el consumo del vehículo, hasta qué km llegas (con un 15 % de margen); «Te aconsejo» elige la mejor gasolinera antes de ese punto.
 
 **Lo tuyo**
 - **«Te aconsejo»**: arriba del todo (cerca y en la ruta), una sola gasolinera, la mejor para ti según el modo, con el porqué y «Cómo llegar». En tu coche, la que menos te cuesta de verdad: los tréboles cuentan (ya descontados, con el tope), pero si una sin tréboles sale más barata, gana ella, y la tarjeta dice cuánto ahorras frente a la mejor con (o sin) tréboles. En el de empresa, la que más tréboles te da. Busca entre todas las abiertas, aunque tengas «Solo Club MAPFRE», y se destaca en el mapa. La lista se ordena igual por defecto («Lo mejor para ti»).

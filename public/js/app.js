@@ -17,7 +17,7 @@ import { renderSettings } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
 import { openCard } from './views/card.js';
 import {
-  enrich, filterResults, sortResults, summarize, compareFilter, compareCompany, recommend, byBrand, SORTS, COMPANY_SORTS, OFFICIAL_FILTERS,
+  enrich, filterResults, sortResults, summarize, compareFilter, compareCompany, recommend, reachable, usableRangeKm, byBrand, SORTS, COMPANY_SORTS, OFFICIAL_FILTERS,
 } from '/shared/ranking.js';
 import { MODES, isCompany, sortKey, routeSortKey, routeSorts, switchMode } from '/shared/modo.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
@@ -247,17 +247,49 @@ function tripCostHtml(distanceKm, summary) {
     · ${eur(litres * summary.avg)} a precio medio de la ruta · ida y vuelta ${eur(cost * 2)}.</p>`;
 }
 
+/**
+ * Autonomía en la ruta: con los litros que te quedan (y el consumo del
+ * vehículo), hasta qué km llegas con margen y cuál es la mejor gasolinera
+ * antes de ese punto. Sin litros indicados, null (se aconseja entre todas).
+ */
+function routeRange(r, all) {
+  const s = state.settings;
+  const rangeKm = usableRangeKm(s.fuelLeft, s.consumption);
+  if (rangeKm == null) return null;
+  const total = r.route.distanceKm;
+  if (rangeKm >= total) {
+    return { rangeKm, note: html`<p class="small range-note ok">⛽ Con ${s.fuelLeft} L te llega para todo el viaje (unos ${Math.round(rangeKm)} km con margen): reposta donde más te convenga.</p>` };
+  }
+  const reach = reachable(all, rangeKm);
+  if (!reach.length) {
+    return {
+      rangeKm,
+      recommendation: null,
+      note: html`<p class="small range-note warn">⚠️ Con ${s.fuelLeft} L (unos ${Math.round(rangeKm)} km con margen) no llegas a ninguna gasolinera de la ruta: reposta antes de salir o amplía el desvío máximo.</p>`,
+    };
+  }
+  return {
+    rangeKm,
+    recommendation: recommend(reach, { company: isCompany(s), tipo: s.officialFilter ?? 'all' }),
+    note: html`<p class="small range-note">⛽ Con ${s.fuelLeft} L llegas hasta el <b>km ${Math.round(rangeKm)}</b> de ${Math.round(total)} (con margen): te aconsejo entre las ${reach.length} gasolineras antes de ese punto.</p>`,
+  };
+}
+
 function renderRoute({ fit }) {
   const s = state.settings;
   const r = state.route;
   const { results, summary, comparison, companyCmp, recommendation, all } = computeList(r.stations, s[routeSortKey(s)]);
-  summary.recommended = recommendation?.best ?? null;
+  // Con lo que te queda en el depósito: solo las gasolineras a las que llegas.
+  const range = routeRange(r, all);
+  const advice = range?.recommendation !== undefined ? range.recommendation : recommendation;
+  summary.recommended = advice?.best ?? null;
   state.computed.route = results;
   $('#route-summary').innerHTML = html`
     <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
       <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
     ${tripCostHtml(r.route.distanceKm, summary)}
-    ${recommendHtml(recommendation, { litres: s.litres, tv: s.program.trebolValue ?? 1, route: true })}
+    ${range?.note ?? ''}
+    ${recommendHtml(advice, { litres: s.litres, tv: s.program.trebolValue ?? 1, route: true, rangeKm: range?.recommendation !== undefined ? range.rangeKm : null })}
     ${summaryHtml(summary, summaryOpts(comparison, companyCmp))}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
@@ -705,6 +737,7 @@ function syncControls() {
   $('#open-now').checked = s.openNow;
   $('#route-corridor').value = String(s.corridorKm);
   $('#route-sort').value = s[routeSortKey(s)];
+  $('#route-fuel-left').value = s.fuelLeft ?? '';
 }
 
 function bindControls() {
@@ -749,6 +782,12 @@ function bindControls() {
   $('#official-filter').addEventListener('change', (e) => { s().officialFilter = e.target.value; persist(); recompute(); });
   $('#open-now').addEventListener('change', (e) => { s().openNow = e.target.checked; persist(); recompute(); });
   $('#route-corridor').addEventListener('change', (e) => { s().corridorKm = Number(e.target.value); persist(); });
+  $('#route-fuel-left').addEventListener('input', (e) => {
+    const v = Number(e.target.value);
+    s().fuelLeft = v > 0 ? v : null;
+    persist();
+    if (state.route) renderRoute({ fit: false });
+  });
   $('#route-sort').addEventListener('change', (e) => { s()[routeSortKey(s())] = e.target.value; persist(); if (state.route) renderRoute({ fit: false }); });
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));
   $('#log-add').addEventListener('click', () => openRefuel(ctx, null));

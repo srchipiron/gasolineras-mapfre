@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { enrich, sortResults, compareCompany, recommend } from '../shared/ranking.js';
+import { enrich, sortResults, compareCompany, recommend, reachable, usableRangeKm } from '../shared/ranking.js';
 import { cloneProgram } from '../shared/treboles.js';
 import { switchMode, splitByPayer, payerOf, sortKey, routeSortKey, isCompany } from '../shared/modo.js';
 import { ensureVehicles, addVehicle, selectVehicle } from '../shared/vehiculos.js';
@@ -69,6 +69,21 @@ test('una lista vieja con una «Gasolinera Repsol» en una Plenergy no da trébo
   assert.equal(r.treboles, 0);
   const [ok] = enrich([{ ...st('P', 1.5, 1), brand: 'REPSOL' }], { ...opts, overrides: {}, official });
   assert.ok(ok.treboles > 0);
+});
+
+test('ruta: con lo que queda en el depósito solo cuentan las gasolineras a las que llegas', () => {
+  // 10 L a 5 L/100 km = 200 km; con margen (85 %) = 170 km.
+  assert.equal(usableRangeKm(10, 5), 170);
+  assert.equal(usableRangeKm(0, 5), null);
+  assert.equal(usableRangeKm(null, 5), null);
+  const along = (id, price, alongKm, offRouteKm = 0) => ({ ...st(id, price, 0), alongKm, offRouteKm });
+  const list = enrich([along('cerca', 1.6, 50), along('justo', 1.5, 160, 2), along('lejos', 1.3, 300)], opts);
+  // «justo»: 160 km + 2 km de desvío × 1,3 = 162,6 km ≤ 170.
+  assert.deepEqual(reachable(list, 170).map((r) => r.station.id), ['cerca', 'justo']);
+  assert.equal(recommend(reachable(list, 170)).best.station.id, 'justo');
+  assert.equal(recommend(list).best.station.id, 'lejos', 'sin límite, la más barata aunque no llegues');
+  assert.deepEqual(reachable(list, 40), []);
+  assert.equal(reachable(list, null).length, 3);
 });
 
 test('sin adheridas en la zona no hay «mejor para ti»', () => {
