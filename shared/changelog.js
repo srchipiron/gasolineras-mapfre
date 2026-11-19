@@ -8,6 +8,14 @@
 
 export const CHANGELOG = [
   {
+    version: '1.4.2',
+    date: '2026-11-19',
+    changes: [
+      '«Tus favoritas hoy» sigue el modo: en tu coche, las que menos te cuestan; en el de empresa, las que más tréboles te dan («+X 🍀»).',
+      'El gasto del viaje en la ruta se calcula al precio de la gasolinera que te aconseja la app.',
+    ],
+  },
+  {
     version: '1.4.1',
     date: '2026-11-19',
     changes: [

@@ -228,7 +228,8 @@ function renderBrands(el, results) {
 /** Gasto en carburante del viaje con el consumo del vehículo en uso. */
 function tripCostHtml(distanceKm, summary) {
   const s = state.settings;
-  const best = summary.bestMapfre ?? summary.bestEffective;
+  // Al precio de la gasolinera que te aconseja la app (según el modo).
+  const best = summary.recommended ?? summary.bestMapfre ?? summary.bestEffective;
   if (!distanceKm || !s.consumption || !best) return '';
   const litres = (distanceKm * s.consumption) / 100;
   const v = s.vehicles?.find((x) => x.id === s.vehicleId);
@@ -241,7 +242,7 @@ function tripCostHtml(distanceKm, summary) {
   }
   const cost = litres * best.effective;
   return html`<p class="trip-cost small">⛽ <b>Gasto del viaje</b>${v ? ` (${v.icon} ${v.name}, ${String(s.consumption).replace('.', ',')} L/100 km)` : ''}:
-    unos ${Math.round(litres)} L de ${fuelLabel(s.fuel)} ≈ <b>${eur(cost)}</b> al precio de ${best.station.brand}${summary.bestMapfre ? ' con tréboles' : ''}
+    unos ${Math.round(litres)} L de ${fuelLabel(s.fuel)} ≈ <b>${eur(cost)}</b> al precio de ${best.station.brand}${best.treboles > 0 ? ' con tréboles' : ''}
     · ${eur(litres * summary.avg)} a precio medio de la ruta · ida y vuelta ${eur(cost * 2)}.</p>`;
 }
 
