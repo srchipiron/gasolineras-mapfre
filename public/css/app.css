@@ -308,6 +308,9 @@ input:focus-visible, select:focus-visible, button:focus-visible, .result:focus-v
 .pin.mapfre { border-color: #ffd84d; }
 .pin.top { transform: scale(1.18); box-shadow: 0 0 0 3px rgb(20 128 74 / 0.45), 0 2px 8px rgb(0 0 0 / 0.4); }
 .pin.closed { opacity: 0.55; }
+/* Apartado para no tapar a otra gasolinera pegada: su pico ya no señala el punto. */
+.pin.moved::after { display: none; }
+.pin.moved { border-style: dotted; }
 .dot {
   width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
 }

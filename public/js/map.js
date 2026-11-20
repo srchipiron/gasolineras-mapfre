@@ -1,6 +1,7 @@
 // Mapa con Leaflet + OpenStreetMap.
 
 import { priceLevel } from '/shared/ranking.js';
+import { spreadPins } from '/shared/pins.js';
 import { num3, esc } from './format.js';
 
 export function createMap(el, { onSelect }) {
@@ -47,23 +48,31 @@ export function createMap(el, { onSelect }) {
   const LABEL_LIMIT = window.innerWidth < 600 ? 15 : 30;
   const LABEL_ALL_ZOOM = 15;
 
-  function icon(r, summary, { best, labelled }) {
+  // Tamaño y ancla [ancho, alto, ancla vertical] de cada tipo de pin.
+  const PIN = [64, 26, 30];
+  const DOT = [14, 14, 7];
+
+  function icon(r, summary, { best, labelled, dy = 0 }) {
     const level = priceLevel(r.price, summary);
-    const flags = [level, r.mapfre ? 'mapfre' : '', r.mapfre && r.approx ? 'approx' : '', best ? 'top' : '', r.open === false ? 'closed' : ''];
+    const flags = [level, r.mapfre ? 'mapfre' : '', r.mapfre && r.approx ? 'approx' : '', best ? 'top' : '', r.open === false ? 'closed' : '', dy ? 'moved' : ''];
+    const [w, h, ay] = labelled ? PIN : DOT;
+    // Si se ha apartado para no tapar a otra muy cercana, el ancla se corre
+    // (dy > 0: el pin se dibuja más abajo de su punto).
+    const anchor = [w / 2, ay - dy];
     if (!labelled) {
       return L.divIcon({
         className: 'pin-wrap',
         html: `<div class="${['dot', ...flags].filter(Boolean).join(' ')}"></div>`,
-        iconSize: [14, 14],
-        iconAnchor: [7, 7],
+        iconSize: [w, h],
+        iconAnchor: anchor,
       });
     }
     const label = num3(r.mapfre ? r.effective : r.price);
     return L.divIcon({
       className: 'pin-wrap',
       html: `<div class="${['pin', ...flags].filter(Boolean).join(' ')}">${r.mapfre ? '<i aria-hidden="true">🍀</i>' : ''}${esc(label)}</div>`,
-      iconSize: [64, 26],
-      iconAnchor: [32, 30],
+      iconSize: [w, h],
+      iconAnchor: anchor,
     });
   }
 
@@ -75,15 +84,26 @@ export function createMap(el, { onSelect }) {
     const bestMapfreId = summary?.bestMapfre?.station.id;
     const byPrice = results.slice().sort((a, b) => a.effective - b.effective);
     const labelAll = map.getZoom() >= LABEL_ALL_ZOOM;
+    // Se destaca la que te aconseja la app (según el modo); si no hay, las mejores.
+    const recId = summary?.recommended?.station.id;
+    const isBest = (r) => (recId ? r.station.id === recId : r.station.id === bestId || r.station.id === bestMapfreId);
+    const info = byPrice.map((r, i) => ({ r, i, best: isBest(r), labelled: labelAll || i < LABEL_LIMIT || isBest(r) }));
+    // Las gasolineras casi pegadas (una a cada lado de la autovía…) se apartan
+    // para que no quede ninguna escondida debajo de otra. Se colocan primero
+    // la aconsejada, luego las que llevan precio y luego los puntos.
+    const zoom = map.getZoom();
+    const order = info.slice().sort((a, b) => b.best - a.best || b.labelled - a.labelled || a.i - b.i);
+    const dys = spreadPins(order.map(({ r, labelled }) => {
+      const p = map.project([r.station.lat, r.station.lon], zoom);
+      const [w, h, ay] = labelled ? PIN : DOT;
+      return { x: p.x, y: p.y, w, h, ay, lat: r.station.lat, lon: r.station.lon };
+    }));
+    order.forEach((o, k) => { o.dy = dys[k]; });
     // Se dibujan de cara a barata para que las baratas queden encima.
-    for (let i = byPrice.length - 1; i >= 0; i--) {
-      const r = byPrice[i];
-      // Se destaca la que te aconseja la app (según el modo); si no hay, las mejores.
-      const recId = summary?.recommended?.station.id;
-      const best = recId ? r.station.id === recId : r.station.id === bestId || r.station.id === bestMapfreId;
-      const labelled = labelAll || i < LABEL_LIMIT || best;
+    for (let i = info.length - 1; i >= 0; i--) {
+      const { r, best, labelled, dy } = info[i];
       const m = L.marker([r.station.lat, r.station.lon], {
-        icon: icon(r, summary, { best, labelled }),
+        icon: icon(r, summary, { best, labelled, dy }),
         title: `${r.station.brand} · ${num3(r.mapfre ? r.effective : r.price)} €`,
         riseOnHover: true,
         zIndexOffset: best ? 2000 : labelled ? 1000 - i : 0,
@@ -94,14 +114,8 @@ export function createMap(el, { onSelect }) {
     }
   }
 
-  let lastLabelAll = null;
-  map.on('zoomend', () => {
-    const labelAll = map.getZoom() >= LABEL_ALL_ZOOM;
-    if (labelAll !== lastLabelAll) {
-      lastLabelAll = labelAll;
-      drawMarkers();
-    }
-  });
+  // Con cada zoom cambia qué pines se tocan: se vuelven a colocar.
+  map.on('zoomend', () => drawMarkers());
 
   return {
     showResults(results, summary, { center, radiusKm, fit = true } = {}) {

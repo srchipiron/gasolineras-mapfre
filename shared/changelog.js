@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.7.2',
+    date: '2026-11-20',
+    changes: [
+      'Ya no se esconden gasolineras en el mapa: si dos están casi pegadas (p. ej. la Easygas y la Gueroil de Cajiz, una a cada lado de la A-7) y su pin caía en el mismo sitio, la de debajo no se veía. Ahora se aparta un poco (con borde punteado) para que se vean las dos.',
+    ],
+  },
+  {
     version: '1.7.1',
     date: '2026-11-20',
     changes: [
