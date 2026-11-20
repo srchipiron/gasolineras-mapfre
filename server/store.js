@@ -102,6 +102,22 @@ export class StationStore {
     return this.refreshing;
   }
 
+  /**
+   * Descarga de nuevo si los datos tienen más de `minAgeMs` (botón «Actualizar»
+   * de la app). Como mucho una descarga cada `minAgeMs`, aunque falle, para no
+   * martillear al Ministerio. Devuelve true si se intentó.
+   */
+  async refreshIfOlder(minAgeMs = 5 * 60 * 1000, now = Date.now()) {
+    const last = Math.max(
+      this.fetchedAt ? Date.parse(this.fetchedAt) : 0,
+      this.lastAttemptAt ?? 0,
+    );
+    if (!this.refreshing && now - last < minAgeMs) return false;
+    this.lastAttemptAt = now;
+    await this.refresh().catch(() => {});
+    return true;
+  }
+
   async init() {
     const hadCache = await this.loadCache();
     const first = this.refresh().catch(() => {});

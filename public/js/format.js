@@ -29,6 +29,15 @@ export function duration(min) {
   return h ? `${h} h ${m} min` : `${m} min`;
 }
 
+/**
+ * Fecha del Ministerio («19/11/2026 18:33:27», hora de Madrid) -> Date.
+ * Antes de las 10 escribe la hora con una sola cifra: «20/11/2026 6:39:42».
+ */
+export function parseFecha(fecha) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/.exec(fecha ?? '');
+  return m ? new Date(+m[3], m[2] - 1, +m[1], +(m[4] ?? 0), +(m[5] ?? 0)) : null;
+}
+
 export function date(iso) {
   if (!iso) return '';
   const d = new Date(iso.length === 10 ? `${iso}T12:00:00` : iso);
