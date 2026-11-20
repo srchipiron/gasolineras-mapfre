@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '1.7.1',
+    date: '2026-11-20',
+    changes: [
+      'Arreglado: antes de las 10 de la mañana la línea «⏱ Precios» decía «hace 7 h» aunque los precios fueran de hace un momento (la hora del Ministerio viene con una sola cifra y se leía como medianoche).',
+      'Precios en vivo: «🔄 Actualizar» pide al servidor que descargue ya los precios del Ministerio si los suyos tienen más de 5 minutos, y el aviso dice de qué hora son.',
+      'Con la app abierta, cada 2 minutos (y al volver a ella) se comprueba si hay precios más nuevos y la lista se recarga sola, sin mover el mapa.',
+    ],
+  },
+  {
     version: '1.7.0',
     date: '2026-11-19',
     changes: [

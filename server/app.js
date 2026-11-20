@@ -335,6 +335,12 @@ export function createApp({
     if (routes[key]) return routes[key](url.searchParams);
     if (key === 'POST /api/adheridas/match') return matchOfficial(req);
     if (key === 'POST /api/adheridas/publish') return publishOfficial(req);
+    if (key === 'POST /api/refresh') {
+      // Botón «Actualizar»: precios recién descargados del Ministerio (como
+      // mucho una descarga cada 5 min; si no, los que ya hay).
+      const refreshed = demo ? false : await store.refreshIfOlder?.();
+      return { refreshed: !!refreshed, ...store.status() };
+    }
 
     let m = /^\/api\/adheridas\/captura\/([\w-]{8,40})$/.exec(url.pathname);
     if (m && req.method === 'GET') {

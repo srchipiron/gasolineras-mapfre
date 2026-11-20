@@ -17,6 +17,13 @@ async function get(path, params = {}) {
 
 export const api = {
   status: () => get('/api/status'),
+  /** Pide al servidor precios recién descargados del Ministerio (botón «Actualizar»). */
+  refresh: async () => {
+    const res = await fetch('/api/refresh', { method: 'POST', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(45000) });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(body.error || `Error ${res.status}`), { status: res.status });
+    return body;
+  },
   program: () => get('/api/program'),
   fuels: () => get('/api/fuels'),
   stations: ({ lat, lon, radius, fuel, publicOnly }) =>

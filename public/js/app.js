@@ -2,7 +2,7 @@
 
 import { api } from './api.js';
 import { createMap } from './map.js';
-import { html, eurL, eur, km, duration, todayISO, date } from './format.js';
+import { html, eurL, eur, km, duration, todayISO, date, parseFecha } from './format.js';
 import { resultItem, summaryHtml, detailHtml, adviceHtml, brandsHtml, recommendHtml } from './render.js';
 import { lineChart } from './chart.js';
 import {
@@ -446,20 +446,33 @@ async function syncNow() {
     state.serverOfficial = await api.adheridas();
     setOfficial();
   } catch { /* sin conexión: se queda la lista que hubiera */ }
+  // Que el servidor descargue ahora los precios del Ministerio si los suyos
+  // tienen más de 5 minutos (tarda unos segundos).
+  try { await api.refresh(); } catch { /* despertándose o sin conexión */ }
   await refreshStatus();
   await loadNearby({ fit: false });
   refreshTab(state.tab);
   btn.disabled = false;
   btn.textContent = '🔄 Actualizar';
-  if (state.nearby && !state.staleSince && !retries) toast(`✓ Precios actualizados (Ministerio, ${state.nearby.fecha ?? 'ahora'})`);
-  else toast('El servidor se está despertando: la lista se actualizará sola en cuanto responda', 5000);
+  const d = parseFecha(state.nearby?.fecha);
+  if (state.nearby && !state.staleSince && !retries) {
+    toast(d ? `✓ Precios del Ministerio de las ${d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} (${agoText(d)})` : '✓ Precios actualizados');
+  } else toast('El servidor se está despertando: la lista se actualizará sola en cuanto responda', 5000);
 }
 
-/** Vuelve a pedir el estado del servidor (nº de gasolineras, fecha, errores). */
-/** «19/11/2026 18:33:27» (hora de Madrid, del Ministerio) -> Date. */
-function parseFecha(fecha) {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})(?: (\d{2}):(\d{2}))?/.exec(fecha ?? '');
-  return m ? new Date(+m[3], m[2] - 1, +m[1], +(m[4] ?? 0), +(m[5] ?? 0)) : null;
+/**
+ * Precios en vivo: cada 2 minutos (y al volver a la app) se pregunta al
+ * servidor de cuándo son sus precios; si tiene unos más nuevos que los que se
+ * ven, se vuelve a cargar la lista sin mover el mapa.
+ */
+async function checkLive() {
+  if (document.hidden || !state.nearby || state.nearbyKey == null) return;
+  try {
+    const s = await api.status();
+    state.status = { ...state.status, ...s };
+    if (s.fecha && s.fecha !== state.nearby.fecha) await loadNearby({ fit: false });
+    else renderFreshness();
+  } catch { /* sin conexión: se sigue viendo lo que hay */ }
 }
 
 /**
@@ -910,6 +923,8 @@ async function init() {
 
 init();
 setInterval(renderFreshness, 60_000); // «hace X min» se mantiene al día
+setInterval(checkLive, 2 * 60_000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkLive(); });
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const hadController = !!navigator.serviceWorker.controller;
