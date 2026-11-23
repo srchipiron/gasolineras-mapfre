@@ -10,7 +10,7 @@ import {
   loadLastNearby, saveLastNearby, loadTracks, saveTracks, newId,
 } from './store.js';
 import { parseTrack } from '/shared/track.js';
-import { planStops, locateOnRoute, routeProgress } from '/shared/plan.js';
+import { planStops, locateOnRoute, routeProgress, stopAlertKey } from '/shared/plan.js';
 import { cumulativeKm } from '/shared/geo.js';
 import { renderFavorites, renderFavStrip, checkAlerts } from './views/favorites.js';
 import { renderTrend } from './views/trend.js';
@@ -53,6 +53,7 @@ const state = {
   plan: null, // último plan de repostaje calculado en la ruta
   planFromStart: false, // ignorar el último llenado y planificar desde el km 0
   progress: null, // dónde estás en la ruta abierta: { lat, lon, km, offKm, at }
+  follow: null, // modo «Seguir»: { id, wake, lastAt, lastKm, alerted }
   tab: 'results',
   computed: { nearby: [], route: [] },
 };
@@ -277,8 +278,10 @@ function planStart(r) {
 /** «📍 Dónde estoy»: por qué km de la ruta vas y cuánto falta para la próxima parada. */
 function progressHtml(plan, r, tankL, consumption) {
   const p = state.progress;
-  const btn = html`<button type="button" class="btn small" data-where>📍 ${p ? 'Actualizar' : 'Dónde estoy'}</button>`;
-  if (!p) return html`<p class="small plan-where">${btn} <span class="muted">Con la ruta en marcha, te dice por qué km vas y cuánto te falta para la próxima parada.</span></p>`;
+  const btn = state.follow
+    ? html`<button type="button" class="btn small following" data-follow>⏹ Dejar de seguir</button>`
+    : html`<button type="button" class="btn small" data-where>📍 ${p ? 'Actualizar' : 'Dónde estoy'}</button> <button type="button" class="btn small" data-follow>▶️ Seguir</button>`;
+  if (!p) return html`<p class="small plan-where">${btn} <span class="muted">${state.follow ? 'Buscando tu GPS…' : 'Con la ruta en marcha, te dice por qué km vas y cuánto falta para la próxima parada. «Seguir» lo va actualizando solo, deja la pantalla encendida y te avisa 5 km antes de cada parada.'}</span></p>`;
   const when = new Date(p.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   if (p.offKm > 3) return html`<p class="small plan-where range-note warn">${btn} Estás a ${km(p.offKm)} de la ruta (${when}).</p>`;
   const g = routeProgress(plan, p.km, { tankL, consumption, totalKm: r.route.distanceKm });
@@ -350,6 +353,7 @@ function renderRoute({ fit }) {
   $('#route-summary [data-plan-start]')?.addEventListener('click', () => { state.planFromStart = true; renderRoute({ fit: false }); });
   $('#route-summary [data-plan-fill]')?.addEventListener('click', () => { state.planFromStart = false; renderRoute({ fit: false }); });
   $('#route-summary [data-where]')?.addEventListener('click', whereAmI);
+  $('#route-summary [data-follow]')?.addEventListener('click', () => (state.follow ? stopFollow() : startFollow()));
   $('#route-summary').insertAdjacentHTML('beforeend', '<div class="route-brands"></div>');
   renderBrands($('#route-summary .route-brands'), results);
   state.routeSummary = summary;
@@ -591,12 +595,7 @@ function whereAmI(e) {
     (pos) => {
       btn?.classList.remove('busy');
       if (state.route !== r) return;
-      const { latitude: lat, longitude: lon } = pos.coords;
-      r.cum ??= cumulativeKm(r.route.polyline);
-      const prev = state.progress?.km ?? null;
-      state.progress = { lat, lon, ...locateOnRoute(lat, lon, r.route.polyline, r.cum, prev), at: Date.now() };
-      renderRoute({ fit: false });
-      map.showUser(lat, lon);
+      applyPosition(pos.coords.latitude, pos.coords.longitude);
     },
     (err) => {
       btn?.classList.remove('busy');
@@ -604,6 +603,69 @@ function whereAmI(e) {
     },
     { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
   );
+}
+
+/** Coloca una posición del GPS en la ruta abierta, avisa de la parada y repinta. */
+function applyPosition(lat, lon, { live = false } = {}) {
+  const r = state.route;
+  if (!r?.route?.polyline?.length) return;
+  r.cum ??= cumulativeKm(r.route.polyline);
+  const prev = state.progress?.km ?? null;
+  state.progress = { lat, lon, ...locateOnRoute(lat, lon, r.route.polyline, r.cum, prev), at: Date.now() };
+  const f = state.follow;
+  if (f && state.plan?.ok && state.progress.offKm <= 3) {
+    const s = state.settings;
+    const g = routeProgress(state.plan, state.progress.km, { tankL: Number(s.litres), consumption: Number(s.consumption), totalKm: r.route.distanceKm });
+    const key = stopAlertKey(g, f.alerted);
+    if (key) {
+      f.alerted.add(key);
+      navigator.vibrate?.([300, 150, 300]);
+      toast(`⛽ Parada en ${km(g.toNextKm)}: ${g.next.r.station.brand} (km ${Math.round(g.next.km)})`);
+    }
+  }
+  // En marcha se repinta como mucho cada 10 s o cada 300 m, para no gastar batería.
+  if (live && f && Date.now() - f.lastAt < 10000 && Math.abs(state.progress.km - (f.lastKm ?? -99)) < 0.3) return;
+  if (f) { f.lastAt = Date.now(); f.lastKm = state.progress.km; }
+  renderRoute({ fit: false });
+  map.showUser(lat, lon);
+}
+
+/** Pantalla siempre encendida mientras sigues la ruta (si el navegador lo permite). */
+async function keepAwake() {
+  const f = state.follow;
+  if (!f || document.hidden || f.wake) return;
+  try {
+    f.wake = await navigator.wakeLock?.request('screen');
+    f.wake?.addEventListener?.('release', () => { if (state.follow === f) f.wake = null; });
+  } catch { /* sin permiso o sin soporte: se sigue igual */ }
+}
+
+/** Modo «Seguir»: el GPS va actualizando por qué km vas. */
+function startFollow() {
+  if (!navigator.geolocation) return toast('Tu navegador no permite obtener la ubicación');
+  const r = state.route;
+  const f = { id: null, wake: null, lastAt: 0, lastKm: null, alerted: new Set() };
+  state.follow = f;
+  f.id = navigator.geolocation.watchPosition(
+    (pos) => { if (state.follow === f && state.route === r) applyPosition(pos.coords.latitude, pos.coords.longitude, { live: true }); },
+    (err) => {
+      if (state.follow !== f) return;
+      if (err.code === 1) { toast('Permiso de ubicación denegado.'); stopFollow(); }
+    },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 },
+  );
+  keepAwake();
+  renderRoute({ fit: false });
+  toast('Siguiendo tu ruta: la pantalla se queda encendida.');
+}
+
+function stopFollow({ render = true } = {}) {
+  const f = state.follow;
+  if (!f) return;
+  state.follow = null;
+  if (f.id != null) navigator.geolocation?.clearWatch(f.id);
+  f.wake?.release?.().catch(() => {});
+  if (render && state.route) renderRoute({ fit: false });
 }
 
 function setCenter(lat, lon, label) {
@@ -695,6 +757,7 @@ async function onRoute(e) {
     const res = await api.route({ from, to, corridor: s.corridorKm, fuel: s.fuel, publicOnly: s.hideRestricted });
     state.route = { ...res, fromLabel: (from.label ?? 'Origen').split(',')[0], toLabel: to.label.split(',')[0] };
     state.progress = null;
+    stopFollow({ render: false });
     renderRoute({ fit: true });
   } catch (err) {
     $('#route-summary').innerHTML = html`<p class="error">${err.message}</p>`;
@@ -759,6 +822,7 @@ async function openTrack(t, { reverse = false } = {}) {
     state.route = { ...res, fromLabel: `${t.name}${reverse ? ' (al revés)' : ''}`, toLabel: null, track: t, reversed: reverse };
     state.planFromStart = false;
     state.progress = null;
+    stopFollow({ render: false });
     renderTracks();
     renderRoute({ fit: true });
   } catch (err) {
@@ -939,6 +1003,7 @@ function bindControls() {
       openTrack(state.route.track, { reverse: state.route.reversed });
     } else if (state.route) {
       // La ruta se filtró en el servidor por carburante: hay que repetirla.
+      stopFollow({ render: false });
       state.route = null;
       map.clearRoute();
       $('#route-summary').innerHTML = html`<p class="muted small">Vuelve a buscar la ruta con el nuevo carburante.</p>`;
@@ -1085,7 +1150,7 @@ async function init() {
 init();
 setInterval(renderFreshness, 60_000); // «hace X min» se mantiene al día
 setInterval(checkLive, 2 * 60_000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) checkLive(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkLive(); keepAwake(); } });
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   const hadController = !!navigator.serviceWorker.controller;
