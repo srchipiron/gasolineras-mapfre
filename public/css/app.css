@@ -504,4 +504,8 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 .plan-stop { width: 100%; text-align: left; background: var(--surface); color: var(--text); border: 1px solid var(--border, #ccc3); border-radius: 10px; padding: 8px 10px; font: inherit; cursor: pointer; }
 .plan-stop.done { opacity: .6; }
 .plan-where .btn.small { margin-right: 6px; }
+.plan-time input { font: inherit; padding: 2px 4px; border-radius: 6px; border: 1px solid var(--border, #ccc3); background: var(--surface); color: var(--text); }
+.plan-time input { width: auto; display: inline-block; margin: 0 2px; min-height: 0; }
+.plan-time input[type=time] { width: 6.6em; }
+.plan-time input[type=number] { width: 4.2em; }
 .btn.following { background: var(--accent); color: #fff; }

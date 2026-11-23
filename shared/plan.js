@@ -34,17 +34,19 @@ function median(nums) {
  * @param {number} [o.startOffKm] desvío de ese punto a la ruta (si es una gasolinera)
  * @param {number} [o.startLitres] lo que llevas al salir (por defecto, lleno)
  * @param {(r) => number} [o.priceOf] precio que cuenta (por defecto r.effective)
+ * @param {(r) => boolean} [o.isOpen] si estará abierta cuando pases (por defecto, si lo está ahora)
  */
-export function planStops(list, { totalKm, tankL, consumption, startKm = 0, startOffKm = 0, startLitres = null, priceOf = (r) => r.effective, stopPenalty = STOP_PENALTY, minFill = MIN_FILL } = {}) {
+export function planStops(list, { totalKm, tankL, consumption, startKm = 0, startOffKm = 0, startLitres = null, priceOf = (r) => r.effective, isOpen = (r) => r.open !== false, stopPenalty = STOP_PENALTY, minFill = MIN_FILL } = {}) {
   if (!(tankL > 0) || !(consumption > 0) || !(totalKm > 0)) return null;
   const perKm = consumption / 100;
   const reserve = tankL * (1 - RANGE_MARGIN);
   const fuel0 = Math.min(tankL, startLitres ?? tankL);
   const pos = (r) => r.station.alongKm ?? 0;
   const off = (r) => (r.station.offRouteKm ?? 0) * ROAD_FACTOR;
-  const cands = list
-    .filter((r) => r.open !== false && Number.isFinite(priceOf(r)) && priceOf(r) > 0 && pos(r) > startKm + 0.5 && pos(r) < totalKm)
-    .sort((a, b) => pos(a) - pos(b));
+  const usable = list.filter((r) => Number.isFinite(priceOf(r)) && priceOf(r) > 0 && pos(r) > startKm + 0.5 && pos(r) < totalKm);
+  const cands = usable.filter((r) => isOpen(r)).sort((a, b) => pos(a) - pos(b));
+  // Las que se descartan por estar cerradas cuando pases.
+  const closedSkipped = usable.length - cands.length;
   const refPrice = median(cands.map(priceOf)) || median(list.map(priceOf).filter((p) => p > 0)) || 0;
 
   // Nodo 0 = salida; 1..n = gasolineras.
@@ -82,7 +84,7 @@ export function planStops(list, { totalKm, tankL, consumption, startKm = 0, star
     // No se llega: hasta dónde se puede llegar encadenando paradas.
     let far = startKm + rangeKm;
     for (let i = 1; i <= n; i++) if (best[i] < Infinity) far = Math.max(far, at[i] + (tankL - reserve) / perKm - detour[i]);
-    return { ok: false, stops: [], emptyKm, rangeKm: round1(rangeKm), reachKm: round1(Math.min(far, totalKm)), endLitres: 0, cost: 0, litres: 0, refPrice };
+    return { ok: false, stops: [], emptyKm, rangeKm: round1(rangeKm), reachKm: round1(Math.min(far, totalKm)), endLitres: 0, cost: 0, litres: 0, refPrice, closedSkipped };
   }
   const path = [];
   for (let k = end; k > 0; k = prev[k]) path.unshift(k);
@@ -100,6 +102,7 @@ export function planStops(list, { totalKm, tankL, consumption, startKm = 0, star
     cost: stops.reduce((s, x) => s + x.cost, 0),
     litres: stops.reduce((s, x) => s + x.fillL, 0),
     refPrice,
+    closedSkipped,
   };
 }
 
@@ -169,4 +172,27 @@ export function stopAlertKey(progress, alerted, aheadKm = STOP_ALERT_KM) {
   if (!n || progress.toNextKm == null || progress.toNextKm > aheadKm) return null;
   const key = `${n.km}:${n.r?.station?.id ?? ''}`;
   return alerted.has(key) ? null : key;
+}
+
+/** Velocidad media por defecto en un track propio (moto por carreteras de curvas). */
+export const DEFAULT_RIDE_KMH = 60;
+
+/** Hora a la que pasas por el km `km` saliendo a `depart` desde `startKm`. */
+export function arrivalAt(depart, km, { startKm = 0, kmh = DEFAULT_RIDE_KMH } = {}) {
+  const h = Math.max(0, km - startKm) / (kmh > 0 ? kmh : DEFAULT_RIDE_KMH);
+  return new Date(depart.getTime() + h * 3600000);
+}
+
+/**
+ * Fecha de salida a partir de «HH:MM». Si esa hora ya pasó hace más de una
+ * hora, es la de mañana (planificas la salida de mañana la noche antes).
+ */
+export function departureDate(hhmm, now = new Date()) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm ?? '').trim());
+  if (!m) return { date: new Date(now), tomorrow: false };
+  const d = new Date(now);
+  d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+  let tomorrow = false;
+  if (d.getTime() < now.getTime() - 3600000) { d.setDate(d.getDate() + 1); tomorrow = true; }
+  return { date: d, tomorrow };
 }

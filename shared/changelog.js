@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.8.4',
+    date: '2026-11-23',
+    changes: [
+      'El plan de repostaje solo te manda a gasolineras abiertas a la hora a la que pasas (las de pueblo que cierran a mediodía, de noche o el domingo ya no salen). Pones a qué hora sales (si es una hora que ya pasó, entiende que sales mañana) y, en tus tracks, tu velocidad media (60 km/h por defecto). Cada parada dice a qué hora pasas, y en marcha, a qué hora llegas a la siguiente.',
+    ],
+  },
+  {
     version: '1.8.3',
     date: '2026-11-23',
     changes: [

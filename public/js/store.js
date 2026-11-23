@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS = {
   consumption: 6.5,
   corridorKm: 2,
   fuelLeft: null, // litros que te quedan (ruta: hasta dónde llegas)
+  rideKmh: 60, // velocidad media en tus tracks (hora de paso por las gasolineras)
   routeSort: 'total',
   program: cloneProgram(),
   overrides: {}, // { idEstacion: 'in' | 'out' }
