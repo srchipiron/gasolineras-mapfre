@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTrack, shrinkTrack } from '../shared/track.js';
-import { planStops, locateOnRoute, routeProgress, stopAlertKey } from '../shared/plan.js';
+import { planStops, locateOnRoute, routeProgress, stopAlertKey, arrivalAt, departureDate } from '../shared/plan.js';
 import { cumulativeKm } from '../shared/geo.js';
 import { StationStore } from '../server/store.js';
 import { createHttpServer } from '../server/app.js';
@@ -177,4 +177,25 @@ test('«Seguir»: avisa una sola vez, 5 km antes de cada parada', () => {
   assert.equal(stopAlertKey(routeProgress(plan, 118, o), alerted), null);
   assert.equal(stopAlertKey(routeProgress(plan, 246, o), alerted), '250:b');
   assert.equal(stopAlertKey(routeProgress(plan, 290, o), alerted), null);
+});
+
+test('hora de paso: salida, velocidad media y salida de mañana', () => {
+  const now = new Date(2026, 10, 23, 20, 0);
+  const d = departureDate('09:30', now);
+  assert.equal(d.tomorrow, true);
+  assert.equal(d.date.getDate(), 24);
+  assert.equal(departureDate('19:30', now).tomorrow, false); // hace media hora: hoy
+  assert.equal(departureDate('', now).date.getTime(), now.getTime());
+  const t = arrivalAt(new Date(2026, 10, 24, 9, 0), 150, { startKm: 30, kmh: 60 });
+  assert.equal(t.getHours(), 11);
+});
+
+test('el plan descarta las gasolineras cerradas cuando pasas', () => {
+  const mk = (id, km, price, closed) => ({ station: { id, brand: id, alongKm: km, offRouteKm: 0, closed }, effective: price, price, open: true });
+  const list = [mk('cerrada', 100, 1.2, true), mk('abierta', 110, 1.5, false)];
+  const o = { totalKm: 250, tankL: 12, consumption: 6 };
+  assert.equal(planStops(list, o).stops[0].r.station.id, 'cerrada');
+  const p = planStops(list, { ...o, isOpen: (r) => !r.station.closed });
+  assert.equal(p.stops[0].r.station.id, 'abierta');
+  assert.equal(p.closedSkipped, 1);
 });
