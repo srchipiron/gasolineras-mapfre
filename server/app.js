@@ -16,6 +16,8 @@ import { dayAverages, trendSummary } from './tendencia.js';
 import { createCaptureStore } from './capturas.js';
 import { parseLocatorPayload } from '../shared/locator.js';
 import { isMapfreOrigin } from '../shared/capturar.js';
+import { cumulativeKm } from '../shared/geo.js';
+import { MAX_TRACK_POINTS } from '../shared/track.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const STATIC_DIRS = [
@@ -282,6 +284,31 @@ export function createApp({
 
   routes['GET /api/adheridas'] = () => official.get();
 
+  // Gasolineras a lo largo de un track propio (GPX/KML leído en el móvil, ver
+  // shared/track.js): como /api/route, pero la ruta la pone el usuario.
+  async function stationsOnTrack(req) {
+    requireData();
+    const body = await readJson(req, 512 * 1024);
+    const raw = Array.isArray(body?.points) ? body.points : null;
+    if (!raw || raw.length < 2 || raw.length > MAX_TRACK_POINTS) throw new HttpError(400, `El track debe tener entre 2 y ${MAX_TRACK_POINTS} puntos`);
+    const polyline = [];
+    for (const p of raw) {
+      const lat = Number(p?.[0]), lon = Number(p?.[1]);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new HttpError(400, 'Punto del track no válido');
+      polyline.push([lat, lon]);
+    }
+    const corridorKm = Math.min(20, Math.max(0.2, Number(body.corridor) || 2));
+    const cum = cumulativeKm(polyline);
+    const distanceKm = Math.round(cum[cum.length - 1] * 10) / 10;
+    const stations = alongRoute(store.stations, polyline, {
+      corridorKm,
+      fuel: fuelParam(body.fuel ? String(body.fuel) : null),
+      publicOnly: body.public === 1 || body.public === true,
+      limit: 1500,
+    });
+    return { fecha: store.fecha, route: { polyline, distanceKm, durationMin: null }, corridorKm, stations: stations.map(withPrev) };
+  }
+
   // Empareja estaciones del localizador oficial (ya extraídas en el navegador)
   // con las del Ministerio. No guarda nada: solo devuelve el resultado.
   async function matchOfficial(req) {
@@ -333,6 +360,7 @@ export function createApp({
   async function handleApi(req, url) {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${url.pathname}`;
     if (routes[key]) return routes[key](url.searchParams);
+    if (key === 'POST /api/track') return stationsOnTrack(req);
     if (key === 'POST /api/adheridas/match') return matchOfficial(req);
     if (key === 'POST /api/adheridas/publish') return publishOfficial(req);
     if (key === 'POST /api/refresh') {

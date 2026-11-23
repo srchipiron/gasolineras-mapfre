@@ -11,6 +11,7 @@ export const KEYS = {
   notes: 'gm.notes.v1',
   card: 'gm.card.v1',
   lastNearby: 'gm.lastNearby.v1',
+  tracks: 'gm.tracks.v1',
 };
 
 function read(key, fallback) {
@@ -153,6 +154,10 @@ export function toggleFavorite(favs, st) {
 }
 
 // ---- Repostajes ----
+/** Rutas propias (tracks GPX/KML): [{ id, name, points, distanceKm, loop, addedAt }]. */
+export const loadTracks = () => read(KEYS.tracks, []);
+export const saveTracks = (t) => write(KEYS.tracks, t);
+
 export const loadLog = () => read(KEYS.log, []);
 export const saveLog = (l) => write(KEYS.log, l);
 

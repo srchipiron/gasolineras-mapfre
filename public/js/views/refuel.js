@@ -124,6 +124,7 @@ export function openRefuel(ctx, station = null) {
     ctx.toast(entry.mapfre ? `Repostaje guardado${who}: +${num2(entry.treboles)} tréboles 🍀 para ti` : `Repostaje guardado${who}`);
     ctx.refreshTab('log');
     ctx.recompute(); // el tope diario/semanal cambia los precios con tréboles
+    ctx.afterRefuel?.(entry); // plan de repostaje de la ruta desde este llenado
   });
 
   if (!dlg.open) dlg.showModal();

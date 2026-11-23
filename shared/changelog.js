@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '1.8.0',
+    date: '2026-11-23',
+    changes: [
+      'Mis rutas (pestaña Ruta): carga el track GPX o KML de tu ruta en moto (Wikiloc, Calimoto, Kurviger, Google My Maps…). Se queda guardada en el móvil para repetirla con un toque, también al revés.',
+      'Plan de repostaje «tipo Tesla»: con el depósito y el consumo de tu vehículo, te dice en qué km entras en reserva y en qué gasolineras parar a llenar para gastar lo menos posible sin bajar nunca de la reserva (cuánto llegas, cuánto echas y cuánto pagas en cada una). Las paradas se destacan en el mapa.',
+      'Si registras un repostaje (hoy o ayer) en una gasolinera de la ruta abierta, el plan sale de ahí con el depósito lleno y te avisa de dónde toca el siguiente llenado.',
+      'En Ajustes, los litros del vehículo pasan a llamarse «Depósito (L)»: es lo que cabe al llenar.',
+    ],
+  },
+  {
     version: '1.7.2',
     date: '2026-11-20',
     changes: [
