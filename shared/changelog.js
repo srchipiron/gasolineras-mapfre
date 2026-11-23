@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.8.2',
+    date: '2026-11-23',
+    changes: [
+      '«📍 Dónde estoy» en el plan de repostaje: con la ruta en marcha, un toque y te dice por qué km vas, cuánto falta para la próxima parada y los litros que llevarás si has llenado donde decía el plan (en ámbar si ya vas en reserva). Las paradas hechas se marcan con ✔️. En las rutas circulares distingue la salida de la llegada.',
+    ],
+  },
+  {
     version: '1.8.1',
     date: '2026-11-23',
     changes: [

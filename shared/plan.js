@@ -102,3 +102,56 @@ export function planStops(list, { totalKm, tankL, consumption, startKm = 0, star
     refPrice,
   };
 }
+
+/**
+ * Dónde estás en la ruta: km recorridos hasta el punto más cercano y a cuánto
+ * queda. En las rutas circulares (o que pasan dos veces por el mismo sitio)
+ * hay varios tramos igual de cerca: se elige el más cercano a `prevKm` (la
+ * última posición conocida) o, si no hay, el primero.
+ */
+export function locateOnRoute(lat, lon, poly, cum, prevKm = null) {
+  const kx = 111.32 * Math.cos((lat * Math.PI) / 180);
+  const ky = 110.574;
+  const segs = [];
+  let best = Infinity;
+  for (let i = 1; i < poly.length; i++) {
+    const ax = (poly[i - 1][1] - lon) * kx, ay = (poly[i - 1][0] - lat) * ky;
+    const bx = (poly[i][1] - lon) * kx, by = (poly[i][0] - lat) * ky;
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = len2 > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2)) : 0;
+    const d = Math.hypot(ax + t * dx, ay + t * dy);
+    segs.push({ d, along: cum[i - 1] + t * (cum[i] - cum[i - 1]) });
+    if (d < best) best = d;
+  }
+  if (!segs.length) return { offKm: Infinity, km: 0 };
+  const near = segs.filter((s) => s.d <= best + 0.5);
+  const pick = prevKm == null
+    ? near.reduce((a, b) => (b.along < a.along ? b : a))
+    : near.reduce((a, b) => (Math.abs(b.along - prevKm) < Math.abs(a.along - prevKm) ? b : a));
+  return { offKm: round1(pick.d), km: round1(pick.along) };
+}
+
+/**
+ * Cómo vas con el plan en el km `posKm`: paradas hechas, la siguiente, a
+ * cuántos km está y los litros que llevarás si has llenado donde decía el plan.
+ */
+export function routeProgress(plan, posKm, { tankL, consumption, totalKm }) {
+  const startKm = plan?.start?.startKm ?? 0;
+  const stops = plan?.stops ?? [];
+  if (posKm < startKm - 0.5) return { before: true, posKm, startKm };
+  const passed = stops.filter((s) => s.km <= posKm + 0.3);
+  const refKm = Math.max(startKm, passed.length ? passed[passed.length - 1].km : 0);
+  const fuelL = round1(Math.max(0, tankL - ((posKm - refKm) * consumption) / 100));
+  const next = stops.find((s) => s.km > posKm + 0.3) ?? null;
+  return {
+    before: false,
+    posKm,
+    passed: passed.length,
+    next,
+    toNextKm: next ? round1(next.km - posKm) : null,
+    toEndKm: round1(Math.max(0, totalKm - posKm)),
+    fuelL,
+    low: fuelL <= tankL * (1 - RANGE_MARGIN),
+  };
+}
