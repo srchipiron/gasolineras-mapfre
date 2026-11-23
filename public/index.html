@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Repostar con Tréboles</title>
   <meta name="description" content="Encuentra la gasolinera más barata teniendo en cuenta los tréboles de Club MAPFRE.">
-  <meta name="theme-color" content="#f5f7fa" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#101923" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#11573c" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#10452f" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -21,25 +21,23 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
-      <img src="icons/icon.svg" alt="" width="28" height="28">
-      <div>
-        <h1>Repostar con Tréboles</h1>
-        <p class="subtitle">Gasolineras más baratas para socios de Club MAPFRE</p>
+    <div class="hero-row">
+      <div class="brand">
+        <span class="logo"><img src="icons/icon.svg" alt="" width="30" height="30"></span>
+        <div>
+          <h1><small>Repostar con</small> <b>Tréboles</b></h1>
+          <p class="subtitle">La gasolinera que menos te cuesta con Club MAPFRE</p>
+        </div>
       </div>
-    </div>
-    <div class="top-actions">
-      <button type="button" id="open-card" class="btn round card-btn" title="Mi carnet de Club MAPFRE" aria-label="Mi carnet"><span class="ico" aria-hidden="true">🪪</span><span class="lbl">Mi carnet</span></button>
-      <button type="button" id="sync" class="btn round card-btn" title="Volver a descargar los precios" aria-label="Actualizar"><span class="ico" aria-hidden="true">🔄</span><span class="lbl">Actualizar</span></button>
-      <button type="button" id="theme-btn" class="btn round" title="Tema" aria-label="Tema">🌗</button>
+      <div class="top-actions">
+        <button type="button" id="open-card" class="btn round card-btn" title="Mi carnet de Club MAPFRE" aria-label="Mi carnet"><span class="ico" aria-hidden="true">🪪</span><span class="lbl">Mi carnet</span></button>
+        <button type="button" id="sync" class="btn round card-btn" title="Volver a descargar los precios" aria-label="Actualizar"><span class="ico" aria-hidden="true">🔄</span><span class="lbl">Actualizar</span></button>
+        <button type="button" id="theme-btn" class="btn round" title="Tema" aria-label="Tema">🌗</button>
+      </div>
     </div>
     <div id="boost-banner" class="boost" role="status"></div>
   </header>
 
-  <div id="demo-banner" class="demo-banner" hidden>Modo demostración: los precios son inventados.</div>
-  <div id="promo-banner" class="promo-banner" role="status" hidden></div>
-  <div id="install-banner" class="install-banner" role="status" hidden></div>
-  <div id="update-banner" class="update-banner" role="status" hidden>Hay una versión nueva de la app. <button type="button" class="btn small">Recargar</button></div>
 
   <section class="controls" aria-label="Búsqueda">
     <div class="mode-switch" role="radiogroup" aria-label="¿Quién paga el carburante?">
@@ -73,15 +71,20 @@
     <p id="freshness" class="freshness small" aria-live="polite"></p>
   </section>
 
+  <div id="demo-banner" class="demo-banner" hidden>Modo demostración: los precios son inventados.</div>
+  <div id="promo-banner" class="promo-banner" role="status" hidden></div>
+  <div id="install-banner" class="install-banner" role="status" hidden></div>
+  <div id="update-banner" class="update-banner" role="status" hidden>Hay una versión nueva de la app. <button type="button" class="btn small">Recargar</button></div>
+
   <main class="layout">
     <div id="map" class="map" aria-label="Mapa de gasolineras"></div>
     <aside class="panel">
       <nav class="tabs" role="tablist">
-        <button role="tab" data-tab="results" aria-selected="true">Cerca</button>
-        <button role="tab" data-tab="route" aria-selected="false">Ruta</button>
-        <button role="tab" data-tab="favorites" aria-selected="false">Favoritas</button>
-        <button role="tab" data-tab="log" aria-selected="false">Repostajes</button>
-        <button role="tab" data-tab="settings" aria-selected="false">Ajustes</button>
+        <button role="tab" data-tab="results" aria-selected="true"><span class="ti ti-near" aria-hidden="true"></span><span>Cerca</span></button>
+        <button role="tab" data-tab="route" aria-selected="false"><span class="ti ti-route" aria-hidden="true"></span><span>Ruta</span></button>
+        <button role="tab" data-tab="favorites" aria-selected="false"><span class="ti ti-star" aria-hidden="true"></span><span>Favoritas</span></button>
+        <button role="tab" data-tab="log" aria-selected="false"><span class="ti ti-fuel" aria-hidden="true"></span><span>Repostajes</span></button>
+        <button role="tab" data-tab="settings" aria-selected="false"><span class="ti ti-tune" aria-hidden="true"></span><span>Ajustes</span></button>
       </nav>
 
       <section class="tab" data-tab="results">

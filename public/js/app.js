@@ -1,6 +1,7 @@
 // Aplicación principal: búsqueda, mapa, lista y pestañas.
 
 import { api } from './api.js';
+import './pump.js';
 import { createMap } from './map.js';
 import { html, eurL, eur, km, duration, todayISO, date, parseFecha } from './format.js';
 import { resultItem, summaryHtml, detailHtml, adviceHtml, brandsHtml, recommendHtml } from './render.js';

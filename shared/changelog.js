@@ -8,6 +8,17 @@
 
 export const CHANGELOG = [
   {
+    version: '1.10.0',
+    date: '2026-11-23',
+    changes: [
+      'Diseño nuevo «Trébol»: cabecera verde bosque con un trébol, la búsqueda en una tarjeta encima y colores de papel cálido con verde lima. En oscuro, verde casi negro.',
+      'Las pestañas pasan abajo, al alcance del pulgar, con iconos como en una app de Android (Cerca, Ruta, Favoritas, Repostajes, Ajustes).',
+      '«Te aconsejo» es ahora la tarjeta protagonista, en verde oscuro con el precio grande en lima (en azul con el coche de empresa).',
+      'Precios como en el surtidor: la tercera cifra, pequeña y en alto (1,62⁹ €).',
+      'Los filtros son píldoras que se rellenan al activarlos, y el plan de repostaje de la ruta se ve como una línea de tiempo.',
+    ],
+  },
+  {
     version: '1.9.0',
     date: '2026-11-23',
     changes: [

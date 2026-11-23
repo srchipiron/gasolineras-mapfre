@@ -18,8 +18,8 @@
     var root = document.documentElement;
     if (mode === 'auto') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', mode);
-    // La barra del sistema del móvil, del color del fondo.
-    var color = isDark(mode) ? '#101923' : '#f5f7fa';
+    // La barra del sistema del móvil, del verde de la cabecera.
+    var color = isDark(mode) ? '#10452f' : '#11573c';
     var metas = document.querySelectorAll('meta[name="theme-color"]');
     for (var i = 0; i < metas.length; i++) metas[i].setAttribute('content', color);
     var btn = document.getElementById('theme-btn');
@@ -35,13 +35,6 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     apply(mode);
-    // Alto de la cabecera flotante, para pegar las pestañas justo debajo.
-    var bar = document.querySelector('.topbar');
-    if (bar && window.ResizeObserver) {
-      new ResizeObserver(function () {
-        document.documentElement.style.setProperty('--topbar-h', Math.ceil(bar.getBoundingClientRect().height) + 'px');
-      }).observe(bar);
-    }
     var btn = document.getElementById('theme-btn');
     if (btn) btn.addEventListener('click', function () {
       mode = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
