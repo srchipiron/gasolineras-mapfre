@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '1.9.0',
+    date: '2026-11-23',
+    changes: [
+      'Diseño nuevo, inspirado en ClaraRed: cabecera flotante de cristal, filtros en píldoras que se deslizan en una fila, mapa en una tarjeta redondeada, pestañas en píldora que se quedan arriba al bajar y fichas que suben desde abajo. Colores azul pizarra con el verde de los tréboles.',
+      'Botón de tema arriba (🌗 automático, ☀️ claro, 🌙 oscuro): por defecto sigue al móvil. El mapa también se oscurece en el tema oscuro.',
+      'Arriba, «Mi carnet» y «Actualizar» pasan a ser iconos (🪪 y 🔄, que gira mientras actualiza) y el aviso de tréboles va en su propia línea. Los modos se llaman «Mi coche» y «Coche de empresa».',
+    ],
+  },
+  {
     version: '1.8.4',
     date: '2026-11-23',
     changes: [
