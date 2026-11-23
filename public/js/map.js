@@ -86,7 +86,8 @@ export function createMap(el, { onSelect }) {
     const labelAll = map.getZoom() >= LABEL_ALL_ZOOM;
     // Se destaca la que te aconseja la app (según el modo); si no hay, las mejores.
     const recId = summary?.recommended?.station.id;
-    const isBest = (r) => (recId ? r.station.id === recId : r.station.id === bestId || r.station.id === bestMapfreId);
+    // Y las paradas del plan de repostaje de la ruta.
+    const isBest = (r) => summary?.planIds?.has(r.station.id) || (recId ? r.station.id === recId : r.station.id === bestId || r.station.id === bestMapfreId);
     const info = byPrice.map((r, i) => ({ r, i, best: isBest(r), labelled: labelAll || i < LABEL_LIMIT || isBest(r) }));
     // Las gasolineras casi pegadas (una a cada lado de la autovía…) se apartan
     // para que no quede ninguna escondida debajo de otra. Se colocan primero

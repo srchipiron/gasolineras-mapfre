@@ -262,7 +262,7 @@ export function renderSettings(ctx) {
         </div>
         <div class="row">
           <label class="field"><span>Carburante</span><select data-v="${v.id}" data-vk="fuel">${FUELS.map((f) => html`<option value="${f.key}" ${f.key === v.fuel ? 'selected' : ''}>${f.label}</option>`)}</select></label>
-          <label class="field"><span>Litros</span><input type="number" min="1" max="1000" step="1" data-v="${v.id}" data-vk="litres" value="${v.litres}"></label>
+          <label class="field"><span>Depósito (L)</span><input type="number" min="1" max="1000" step="1" data-v="${v.id}" data-vk="litres" value="${v.litres}"></label>
           <label class="field"><span>L/100 km</span><input type="number" min="1" max="50" step="0.1" data-v="${v.id}" data-vk="consumption" value="${v.consumption}"></label>
         </div>
         ${s.vehicles.length > 1 ? html`<button type="button" class="btn small" data-vdel="${v.id}">Eliminar</button>` : ''}

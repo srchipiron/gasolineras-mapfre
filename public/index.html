@@ -112,6 +112,12 @@
           </div>
           <button class="btn primary" type="submit">Buscar gasolineras en la ruta</button>
         </form>
+        <details id="tracks-box" class="tracks" open>
+          <summary>🏍️ <b>Mis rutas</b> <span class="muted small">· carga el track (GPX o KML) de tu ruta</span></summary>
+          <p class="muted small">Exporta el GPX desde Wikiloc, Calimoto, Kurviger, Google My Maps… La app busca las gasolineras del recorrido y te dice dónde llenar según tu depósito. Las rutas se quedan guardadas en este móvil.</p>
+          <label class="btn track-pick">📂 Cargar track<input type="file" id="track-file" hidden></label>
+          <ul id="tracks-list" class="tracks-list"></ul>
+        </details>
         <div id="route-summary"></div>
         <ol id="route-results" class="results"></ol>
       </section>

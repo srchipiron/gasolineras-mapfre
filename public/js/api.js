@@ -38,6 +38,18 @@ export const api = {
       fuel,
       public: publicOnly ? 1 : 0,
     }),
+  /** Gasolineras a lo largo de un track propio (GPX/KML). */
+  track: async ({ points, corridor, fuel, publicOnly }) => {
+    const res = await fetch('/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ points, corridor, fuel, public: publicOnly ? 1 : 0 }),
+      signal: AbortSignal.timeout(45000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(body.error || `Error ${res.status}`), { status: res.status });
+    return body;
+  },
   geocode: async (q) => {
     // Primero desde el móvil, con su propia IP: Nominatim limita la IP
     // compartida del servidor (Render gratuito) y responde 429. Si falla,

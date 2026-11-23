@@ -7,8 +7,10 @@ import { resultItem, summaryHtml, detailHtml, adviceHtml, brandsHtml, recommendH
 import { lineChart } from './chart.js';
 import {
   loadSettings, saveSettings, loadFavorites, loadLog, isFavorite, toggleFavorite, loadLocalOfficial, loadNotes, saveNotes,
-  loadLastNearby, saveLastNearby,
+  loadLastNearby, saveLastNearby, loadTracks, saveTracks, newId,
 } from './store.js';
+import { parseTrack } from '/shared/track.js';
+import { planStops } from '/shared/plan.js';
 import { renderFavorites, renderFavStrip, checkAlerts } from './views/favorites.js';
 import { renderTrend } from './views/trend.js';
 import { setupInstallBanner, onInstallChange } from './install.js';
@@ -45,7 +47,10 @@ const state = {
   nearby: null, // respuesta de /api/stations
   nearbyKey: null, // búsqueda a la que corresponde nearby
   staleSince: null, // si nearby es la lista guardada de otra vez, cuándo se guardó
-  route: null, // respuesta de /api/route + etiquetas
+  route: null, // respuesta de /api/route (o /api/track) + etiquetas
+  tracks: loadTracks(), // rutas propias (GPX/KML)
+  plan: null, // último plan de repostaje calculado en la ruta
+  planFromStart: false, // ignorar el último llenado y planificar desde el km 0
   tab: 'results',
   computed: { nearby: [], route: [] },
 };
@@ -275,6 +280,60 @@ function routeRange(r, all) {
   };
 }
 
+/**
+ * Desde dónde se planifica: con «Te quedan (L)», desde el inicio con eso; si
+ * no, desde tu último llenado (de hoy o ayer) si fue en una gasolinera de la
+ * ruta, con el depósito lleno; si no, desde el inicio con el depósito lleno.
+ */
+function planStart(r) {
+  const s = state.settings;
+  if (s.fuelLeft > 0) return { startKm: 0, startLitres: s.fuelLeft, text: `Sales del inicio con ${s.fuelLeft} L` };
+  if (!state.planFromStart) {
+    const since = todayISO(new Date(Date.now() - 86400000));
+    const fill = state.log.find((e) => e.stationId && e.date >= since);
+    const st = fill && r.stations.find((x) => x.id === fill.stationId);
+    if (st) {
+      return {
+        startKm: st.alongKm ?? 0, startOffKm: st.offRouteKm ?? 0, entryId: fill.id,
+        text: `Has llenado ${fill.date === todayISO() ? 'hoy' : 'ayer'} en ${st.brand} (km ${Math.round(st.alongKm ?? 0)} de la ruta): sales de ahí con el depósito lleno`,
+        fromFill: true,
+      };
+    }
+  }
+  return { startKm: 0, text: 'Sales del inicio con el depósito lleno' };
+}
+
+/** Plan de repostaje «tipo Tesla» en la ruta (ver shared/plan.js). */
+function routePlan(r, all) {
+  const s = state.settings;
+  const tankL = Number(s.litres), consumption = Number(s.consumption);
+  if (!(tankL > 0) || !(consumption > 0)) return { plan: null, html: '' };
+  const start = planStart(r);
+  const plan = planStops(all, {
+    totalKm: r.route.distanceKm, tankL, consumption, ...start,
+    priceOf: isCompany(s) ? (x) => x.price : (x) => x.effective,
+  });
+  if (!plan) return { plan: null, html: '' };
+  plan.start = start;
+  const v = s.vehicles?.find((x) => x.id === s.vehicleId);
+  const head = html`<h3>${v?.icon ?? '⛽'} Plan de repostaje <span class="muted small">(${v ? `${v.name}: ` : ''}depósito ${tankL} L · ${String(consumption).replace('.', ',')} L/100 km)</span></h3>
+    <p class="small">${start.text}. Con la reserva (15 %) te da para unos <b>${Math.round(plan.rangeKm)} km</b>: entras en reserva hacia el <b>km ${Math.round(plan.emptyKm)}</b>${plan.emptyKm >= r.route.distanceKm ? ' (después del final)' : ''}.
+      ${start.fromFill ? html`<button type="button" class="link small" data-plan-start>Planificar desde el inicio</button>` : state.planFromStart ? html`<button type="button" class="link small" data-plan-fill>Desde mi último llenado</button>` : ''}</p>`;
+  let body;
+  if (!plan.ok) {
+    body = html`<p class="small range-note warn">⚠️ No llegas al final: hay un tramo sin gasolineras a tu alcance y te quedarías hacia el km ${Math.round(plan.reachKm)}. Amplía el «Desvío máximo» o lleva una garrafa.</p>`;
+  } else if (!plan.stops.length) {
+    body = html`<p class="small range-note ok">✅ No necesitas parar: llegas al final con unos ${String(plan.endLitres).replace('.', ',')} L.</p>`;
+  } else {
+    body = html`<ol class="plan-stops">${plan.stops.map((p, i) => html`<li><button type="button" class="plan-stop" data-open="${p.r.station.id}">
+        <span><b>${i + 1}. km ${Math.round(p.km)} · ${p.r.mapfre ? '🍀 ' : ''}${p.r.station.brand}</b> <span class="muted small">${p.r.station.locality ?? ''}${p.r.station.offRouteKm > 0.3 ? ` · desvío ${km(p.r.station.offRouteKm)}` : ''}</span><br>
+        <span class="small">Llegas con ~${String(p.arriveL).replace('.', ',')} L · llenas ~${String(p.fillL).replace('.', ',')} L a ${eurL(p.price)} ≈ <b>${eur(p.cost)}</b>${p.r.open === false ? ' · ⚠️ ahora cerrada' : ''}</span></span>
+      </button></li>`)}</ol>
+      <p class="small muted">Total en la ruta: ~${Math.round(plan.litres)} L ≈ ${eur(plan.cost)}${plan.refPrice ? ` (a precio típico de la ruta serían ${eur(plan.litres * plan.refPrice)})` : ''}. Llegas al final con ~${String(plan.endLitres).replace('.', ',')} L. Paradas elegidas para gastar menos con el depósito siempre por encima de la reserva.</p>`;
+  }
+  return { plan, html: html`<div class="plan-card">${head}${body}</div>` };
+}
+
 function renderRoute({ fit }) {
   const s = state.settings;
   const r = state.route;
@@ -283,19 +342,30 @@ function renderRoute({ fit }) {
   const range = routeRange(r, all);
   const advice = range?.recommendation !== undefined ? range.recommendation : recommendation;
   summary.recommended = advice?.best ?? null;
+  const planned = routePlan(r, all);
+  state.plan = planned.plan;
+  // Si hay que parar, el plan ya es el consejo: no se aconseja otra gasolinera suelta.
+  const planRules = !!planned.plan?.ok && planned.plan.stops.length > 0;
+  if (planRules) summary.recommended = null;
+  // Las paradas del plan se destacan en el mapa.
+  summary.planIds = new Set((planned.plan?.stops ?? []).map((p) => p.r.station.id));
   state.computed.route = results;
   $('#route-summary').innerHTML = html`
-    <p class="route-head"><b>${r.fromLabel}</b> → <b>${r.toLabel}</b><br>
-      <span class="small">${km(r.route.distanceKm)} · ${duration(r.route.durationMin)} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
+    <p class="route-head">${r.toLabel ? html`<b>${r.fromLabel}</b> → <b>${r.toLabel}</b>` : html`🏍️ <b>${r.fromLabel}</b>`}<br>
+      <span class="small">${km(r.route.distanceKm)}${r.route.durationMin ? ` · ${duration(r.route.durationMin)}` : ''} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
+    ${planned.html}
     ${tripCostHtml(r.route.distanceKm, summary)}
     ${range?.note ?? ''}
-    ${recommendHtml(advice, { litres: s.litres, tv: s.program.trebolValue ?? 1, route: true, rangeKm: range?.recommendation !== undefined ? range.rangeKm : null })}
+    ${planRules ? '' : recommendHtml(advice, { litres: s.litres, tv: s.program.trebolValue ?? 1, route: true, rangeKm: range?.recommendation !== undefined ? range.rangeKm : null })}
     ${summaryHtml(summary, summaryOpts(comparison, companyCmp))}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
   bindSummaryLinks($('#route-summary'), all);
+  $('#route-summary [data-plan-start]')?.addEventListener('click', () => { state.planFromStart = true; renderRoute({ fit: false }); });
+  $('#route-summary [data-plan-fill]')?.addEventListener('click', () => { state.planFromStart = false; renderRoute({ fit: false }); });
   $('#route-summary').insertAdjacentHTML('beforeend', '<div class="route-brands"></div>');
   renderBrands($('#route-summary .route-brands'), results);
+  state.routeSummary = summary;
   if (state.tab === 'route') {
     map.showResults(results, summary, { fit: false });
     if (fit) map.showRoute(r.route.polyline);
@@ -619,6 +689,84 @@ async function onRoute(e) {
   }
 }
 
+// ---------------------------------------------------------------- mis rutas (GPX/KML)
+function renderTracks() {
+  const el = $('#tracks-list');
+  if (!el) return;
+  const cur = state.route?.track;
+  el.innerHTML = html`${state.tracks.map((t) => html`<li class="${cur?.id === t.id ? 'is-current' : ''}">
+    <span class="track-name"><b>${t.name}</b> <span class="muted small">${km(t.distanceKm)}${t.loop ? ' · circular' : ''}</span></span>
+    <span class="track-actions">
+      <button type="button" class="btn small primary" data-track-open="${t.id}">⛽ Planificar</button>
+      ${t.loop ? '' : html`<button type="button" class="btn small" data-track-rev="${t.id}" title="Recorrerla en sentido contrario">⇄</button>`}
+      <button type="button" class="btn small" data-track-del="${t.id}" aria-label="Borrar ${t.name}">🗑</button>
+    </span></li>`)}`;
+  const byId = (id) => state.tracks.find((t) => t.id === id);
+  el.querySelectorAll('[data-track-open]').forEach((b) => b.addEventListener('click', () => openTrack(byId(b.dataset.trackOpen))));
+  el.querySelectorAll('[data-track-rev]').forEach((b) => b.addEventListener('click', () => openTrack(byId(b.dataset.trackRev), { reverse: !(cur?.id === b.dataset.trackRev && state.route?.reversed) })));
+  el.querySelectorAll('[data-track-del]').forEach((b) => b.addEventListener('click', () => {
+    const t = byId(b.dataset.trackDel);
+    if (!t || !confirm(`¿Borrar la ruta «${t.name}» de este móvil?`)) return;
+    state.tracks = state.tracks.filter((x) => x.id !== t.id);
+    saveTracks(state.tracks);
+    renderTracks();
+  }));
+}
+
+async function onTrackFile(e) {
+  const file = e.target.files?.[0];
+  e.target.value = ''; // para poder volver a elegir el mismo fichero
+  if (!file) return;
+  try {
+    if (file.size > 30 * 1024 * 1024) throw new Error('El fichero es demasiado grande (más de 30 MB).');
+    const t = parseTrack(await file.text(), file.name);
+    // Si ya estaba (mismo nombre y distancia), se sustituye.
+    const same = state.tracks.find((x) => x.name === t.name && Math.abs(x.distanceKm - t.distanceKm) < 0.5);
+    const track = { id: same?.id ?? newId(), ...t, addedAt: new Date().toISOString() };
+    state.tracks = [track, ...state.tracks.filter((x) => x.id !== track.id)].slice(0, 30);
+    if (!saveTracks(state.tracks)) toast('No se pudo guardar la ruta en el móvil (¿sin espacio?), pero se planifica igual.');
+    renderTracks();
+    toast(`🏍️ Ruta «${track.name}» cargada: ${km(track.distanceKm)}`);
+    await openTrack(track);
+  } catch (err) {
+    $('#route-summary').innerHTML = html`<p class="error">${err.message}</p>`;
+  }
+}
+
+/** Busca las gasolineras del track y pinta el plan de repostaje. */
+async function openTrack(t, { reverse = false } = {}) {
+  if (!t) return;
+  const s = state.settings;
+  $('#route-summary').innerHTML = html`<p class="muted">Buscando gasolineras en «${t.name}»…</p>`;
+  $('#route-results').innerHTML = '';
+  try {
+    const points = reverse ? t.points.slice().reverse() : t.points;
+    const res = await api.track({ points, corridor: s.corridorKm, fuel: s.fuel, publicOnly: s.hideRestricted });
+    state.route = { ...res, fromLabel: `${t.name}${reverse ? ' (al revés)' : ''}`, toLabel: null, track: t, reversed: reverse };
+    state.planFromStart = false;
+    renderTracks();
+    renderRoute({ fit: true });
+  } catch (err) {
+    $('#route-summary').innerHTML = html`<p class="error">${err.message}</p>`;
+  }
+}
+
+/**
+ * Tras registrar un repostaje: si fue en una gasolinera de la ruta abierta, el
+ * plan sale de ahí con el depósito lleno y se dice dónde toca el siguiente.
+ */
+function afterRefuel(entry) {
+  if (!state.route || !entry.stationId) return;
+  state.planFromStart = false;
+  renderRoute({ fit: false });
+  const plan = state.plan;
+  if (plan?.start?.entryId !== entry.id) return;
+  const next = plan.stops[0];
+  if (!plan.ok) toast('⚠️ Desde aquí no llegas al final de la ruta: mira el plan de repostaje.', 6000);
+  else if (next) toast(`⛽ Próximo llenado: km ${Math.round(next.km)} en ${next.r.station.brand} (${eurL(next.price)}), llegarás con ~${String(next.arriveL).replace('.', ',')} L.`, 7000);
+  else toast(`✅ Con este depósito acabas la ruta (te sobran ~${String(plan.endLitres).replace('.', ',')} L).`, 6000);
+}
+
 // ---------------------------------------------------------------- ficha
 async function openDetailById(id) {
   try {
@@ -703,7 +851,7 @@ function selectTab(tab) {
   document.querySelectorAll('section.tab').forEach((sec) => { sec.hidden = sec.dataset.tab !== tab; });
   if (tab === 'route') {
     if (state.route) {
-      map.showResults(state.computed.route, summarize(state.computed.route), { fit: false });
+      map.showResults(state.computed.route, state.routeSummary ?? summarize(state.computed.route), { fit: false });
       map.showRoute(state.route.route.polyline);
     }
   } else {
@@ -766,11 +914,16 @@ function bindControls() {
   $('#search-form').addEventListener('submit', onSearch);
   $('#locate').addEventListener('click', () => { selectTab('results'); locate(); });
   $('#route-form').addEventListener('submit', onRoute);
+  $('#track-file').addEventListener('change', onTrackFile);
+  renderTracks();
   const s = () => state.settings;
   const refetch = () => {
     persist();
     loadNearby({ fit: true });
-    if (state.route) {
+    if (state.route?.track) {
+      // Un track propio se vuelve a pedir solo, con el nuevo carburante.
+      openTrack(state.route.track, { reverse: state.route.reversed });
+    } else if (state.route) {
       // La ruta se filtró en el servidor por carburante: hay que repetirla.
       state.route = null;
       map.clearRoute();
@@ -832,7 +985,7 @@ function bindControls() {
 const map = createMap($('#map'), { onSelect: (r) => openDetail(r.station) });
 
 const ctx = {
-  state, api, toast, persist, recompute, renderBoost, refreshTab, openDetailById, syncControls,
+  state, api, toast, persist, recompute, renderBoost, refreshTab, openDetailById, syncControls, afterRefuel,
   setOfficial: () => { setOfficial(); recompute(); },
   setVerdict: (st, v) => setVerdict(st, v),
   selectTab: (t) => selectTab(t),
