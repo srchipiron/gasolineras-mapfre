@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.8.1',
+    date: '2026-11-23',
+    changes: [
+      'En las rutas siempre sales con el depósito lleno: el plan de repostaje parte lleno desde el inicio (o desde la gasolinera de la ruta donde hayas llenado hoy). Se quita el campo «Te quedan (L)».',
+    ],
+  },
+  {
     version: '1.8.0',
     date: '2026-11-23',
     changes: [

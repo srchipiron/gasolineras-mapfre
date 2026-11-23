@@ -19,7 +19,7 @@ import { renderSettings, importEntries } from './views/settings.js';
 import { openRefuel } from './views/refuel.js';
 import { openCard } from './views/card.js';
 import {
-  enrich, filterResults, sortResults, summarize, compareFilter, compareCompany, recommend, reachable, usableRangeKm, byBrand, SORTS, COMPANY_SORTS, OFFICIAL_FILTERS,
+  enrich, filterResults, sortResults, summarize, compareFilter, compareCompany, recommend, byBrand, SORTS, COMPANY_SORTS, OFFICIAL_FILTERS,
 } from '/shared/ranking.js';
 import { MODES, isCompany, sortKey, routeSortKey, routeSorts, switchMode } from '/shared/modo.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
@@ -253,49 +253,18 @@ function tripCostHtml(distanceKm, summary) {
 }
 
 /**
- * Autonomía en la ruta: con los litros que te quedan (y el consumo del
- * vehículo), hasta qué km llegas con margen y cuál es la mejor gasolinera
- * antes de ese punto. Sin litros indicados, null (se aconseja entre todas).
- */
-function routeRange(r, all) {
-  const s = state.settings;
-  const rangeKm = usableRangeKm(s.fuelLeft, s.consumption);
-  if (rangeKm == null) return null;
-  const total = r.route.distanceKm;
-  if (rangeKm >= total) {
-    return { rangeKm, note: html`<p class="small range-note ok">⛽ Con ${s.fuelLeft} L te llega para todo el viaje (unos ${Math.round(rangeKm)} km con margen): reposta donde más te convenga.</p>` };
-  }
-  const reach = reachable(all, rangeKm);
-  if (!reach.length) {
-    return {
-      rangeKm,
-      recommendation: null,
-      note: html`<p class="small range-note warn">⚠️ Con ${s.fuelLeft} L (unos ${Math.round(rangeKm)} km con margen) no llegas a ninguna gasolinera de la ruta: reposta antes de salir o amplía el desvío máximo.</p>`,
-    };
-  }
-  return {
-    rangeKm,
-    recommendation: recommend(reach, { company: isCompany(s), tipo: s.officialFilter ?? 'all' }),
-    note: html`<p class="small range-note">⛽ Con ${s.fuelLeft} L llegas hasta el <b>km ${Math.round(rangeKm)}</b> de ${Math.round(total)} (con margen): te aconsejo entre las ${reach.length} gasolineras antes de ese punto.</p>`,
-  };
-}
-
-/**
- * Desde dónde se planifica: con «Te quedan (L)», desde el inicio con eso; si
- * no, desde tu último llenado (de hoy o ayer) si fue en una gasolinera de la
- * ruta, con el depósito lleno; si no, desde el inicio con el depósito lleno.
+ * Desde dónde se planifica. En las rutas siempre se sale con el depósito
+ * lleno: desde el inicio o, si hoy has llenado en una gasolinera de la ruta,
+ * desde ahí.
  */
 function planStart(r) {
-  const s = state.settings;
-  if (s.fuelLeft > 0) return { startKm: 0, startLitres: s.fuelLeft, text: `Sales del inicio con ${s.fuelLeft} L` };
   if (!state.planFromStart) {
-    const since = todayISO(new Date(Date.now() - 86400000));
-    const fill = state.log.find((e) => e.stationId && e.date >= since);
+    const fill = state.log.find((e) => e.stationId && e.date === todayISO());
     const st = fill && r.stations.find((x) => x.id === fill.stationId);
     if (st) {
       return {
         startKm: st.alongKm ?? 0, startOffKm: st.offRouteKm ?? 0, entryId: fill.id,
-        text: `Has llenado ${fill.date === todayISO() ? 'hoy' : 'ayer'} en ${st.brand} (km ${Math.round(st.alongKm ?? 0)} de la ruta): sales de ahí con el depósito lleno`,
+        text: `Has llenado hoy en ${st.brand} (km ${Math.round(st.alongKm ?? 0)} de la ruta): sales de ahí con el depósito lleno`,
         fromFill: true,
       };
     }
@@ -338,9 +307,7 @@ function renderRoute({ fit }) {
   const s = state.settings;
   const r = state.route;
   const { results, summary, comparison, companyCmp, recommendation, all } = computeList(r.stations, s[routeSortKey(s)]);
-  // Con lo que te queda en el depósito: solo las gasolineras a las que llegas.
-  const range = routeRange(r, all);
-  const advice = range?.recommendation !== undefined ? range.recommendation : recommendation;
+  const advice = recommendation;
   summary.recommended = advice?.best ?? null;
   const planned = routePlan(r, all);
   state.plan = planned.plan;
@@ -355,8 +322,7 @@ function renderRoute({ fit }) {
       <span class="small">${km(r.route.distanceKm)}${r.route.durationMin ? ` · ${duration(r.route.durationMin)}` : ''} · ${results.length} gasolineras a menos de ${km(r.corridorKm)} de la ruta</span></p>
     ${planned.html}
     ${tripCostHtml(r.route.distanceKm, summary)}
-    ${range?.note ?? ''}
-    ${planRules ? '' : recommendHtml(advice, { litres: s.litres, tv: s.program.trebolValue ?? 1, route: true, rangeKm: range?.recommendation !== undefined ? range.rangeKm : null })}
+    ${planRules ? '' : recommendHtml(advice, { litres: s.litres, tv: s.program.trebolValue ?? 1, route: true })}
     ${summaryHtml(summary, summaryOpts(comparison, companyCmp))}`;
   renderList($('#route-results'), results, 'route');
   bindOpeners($('#route-results'), results);
@@ -906,7 +872,6 @@ function syncControls() {
   $('#open-now').checked = s.openNow;
   $('#route-corridor').value = String(s.corridorKm);
   $('#route-sort').value = s[routeSortKey(s)];
-  $('#route-fuel-left').value = s.fuelLeft ?? '';
 }
 
 function bindControls() {
@@ -956,12 +921,6 @@ function bindControls() {
   $('#official-filter').addEventListener('change', (e) => { s().officialFilter = e.target.value; persist(); recompute(); });
   $('#open-now').addEventListener('change', (e) => { s().openNow = e.target.checked; persist(); recompute(); });
   $('#route-corridor').addEventListener('change', (e) => { s().corridorKm = Number(e.target.value); persist(); });
-  $('#route-fuel-left').addEventListener('input', (e) => {
-    const v = Number(e.target.value);
-    s().fuelLeft = v > 0 ? v : null;
-    persist();
-    if (state.route) renderRoute({ fit: false });
-  });
   $('#route-sort').addEventListener('change', (e) => { s()[routeSortKey(s())] = e.target.value; persist(); if (state.route) renderRoute({ fit: false }); });
   document.querySelectorAll('.tabs [role=tab]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));
   $('#log-add').addEventListener('click', () => openRefuel(ctx, null));
