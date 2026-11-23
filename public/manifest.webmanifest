@@ -7,8 +7,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f4f6f5",
-  "theme_color": "#14804a",
+  "background_color": "#f5f7fa",
+  "theme_color": "#101923",
   "shortcuts": [
     { "name": "Mi carnet Club MAPFRE", "short_name": "Carnet", "url": "/?accion=carnet", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Más barata cerca de mí", "short_name": "Cerca", "url": "/?accion=cerca", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },

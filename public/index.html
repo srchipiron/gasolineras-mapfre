@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Repostar con Tréboles</title>
   <meta name="description" content="Encuentra la gasolinera más barata teniendo en cuenta los tréboles de Club MAPFRE.">
-  <meta name="theme-color" content="#14804a">
+  <meta name="theme-color" content="#f5f7fa" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#101923" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/app.css">
+  <script src="js/theme.js"></script>
   <script src="vendor/leaflet/leaflet.js" defer></script>
   <script src="vendor/qrcode/qrcode.js" defer></script>
   <script src="vendor/jsbarcode/JsBarcode.all.min.js" defer></script>
@@ -26,10 +29,11 @@
       </div>
     </div>
     <div class="top-actions">
-      <div id="boost-banner" class="boost" role="status"></div>
-      <button type="button" id="open-card" class="btn small card-btn">🪪 Mi carnet</button>
-      <button type="button" id="sync" class="btn small card-btn" title="Volver a descargar los precios">🔄 Actualizar</button>
+      <button type="button" id="open-card" class="btn round card-btn" title="Mi carnet de Club MAPFRE" aria-label="Mi carnet"><span class="ico" aria-hidden="true">🪪</span><span class="lbl">Mi carnet</span></button>
+      <button type="button" id="sync" class="btn round card-btn" title="Volver a descargar los precios" aria-label="Actualizar"><span class="ico" aria-hidden="true">🔄</span><span class="lbl">Actualizar</span></button>
+      <button type="button" id="theme-btn" class="btn round" title="Tema" aria-label="Tema">🌗</button>
     </div>
+    <div id="boost-banner" class="boost" role="status"></div>
   </header>
 
   <div id="demo-banner" class="demo-banner" hidden>Modo demostración: los precios son inventados.</div>
@@ -39,11 +43,11 @@
 
   <section class="controls" aria-label="Búsqueda">
     <div class="mode-switch" role="radiogroup" aria-label="¿Quién paga el carburante?">
-      <button type="button" role="radio" data-mode="personal" aria-checked="true">🚗 Voy en mi coche</button>
-      <button type="button" role="radio" data-mode="company" aria-checked="false">💼 Voy en el coche de empresa</button>
+      <button type="button" role="radio" data-mode="personal" aria-checked="true" title="Voy en mi coche: pago yo">🚗 Mi coche</button>
+      <button type="button" role="radio" data-mode="company" aria-checked="false" title="Voy en el coche de empresa: paga la empresa">💼 Coche de empresa</button>
     </div>
     <form id="search-form" class="search" autocomplete="off">
-      <input id="q" type="search" placeholder="Dirección, ciudad o código postal" aria-label="Dirección, ciudad o código postal">
+      <input id="q" type="search" placeholder="Dirección, ciudad o CP" aria-label="Dirección, ciudad o código postal">
       <button type="submit" class="btn primary">Buscar</button>
       <button type="button" id="locate" class="btn icon" title="Usar mi ubicación" aria-label="Usar mi ubicación">
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path fill="currentColor" d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm8.94 3A8.99 8.99 0 0 0 13 3.06V1h-2v2.06A8.99 8.99 0 0 0 3.06 11H1v2h2.06A8.99 8.99 0 0 0 11 20.94V23h2v-2.06A8.99 8.99 0 0 0 20.94 13H23v-2h-2.06ZM12 19a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg>

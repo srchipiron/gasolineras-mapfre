@@ -528,7 +528,8 @@ let wakeSince = null;
 async function syncNow() {
   const btn = $('#sync');
   btn.disabled = true;
-  btn.textContent = '🔄 Actualizando…';
+  btn.classList.add('spinning');
+  btn.setAttribute('aria-label', 'Actualizando…');
   retries = 0;
   navigator.serviceWorker?.getRegistration?.().then((r) => r?.update()).catch(() => {});
   try {
@@ -542,7 +543,8 @@ async function syncNow() {
   await loadNearby({ fit: false });
   refreshTab(state.tab);
   btn.disabled = false;
-  btn.textContent = '🔄 Actualizar';
+  btn.classList.remove('spinning');
+  btn.setAttribute('aria-label', 'Actualizar');
   const d = parseFecha(state.nearby?.fecha);
   if (state.nearby && !state.staleSince && !retries) {
     toast(d ? `✓ Precios del Ministerio de las ${d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })} (${agoText(d)})` : '✓ Precios actualizados');
