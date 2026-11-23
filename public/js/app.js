@@ -10,7 +10,8 @@ import {
   loadLastNearby, saveLastNearby, loadTracks, saveTracks, newId,
 } from './store.js';
 import { parseTrack } from '/shared/track.js';
-import { planStops } from '/shared/plan.js';
+import { planStops, locateOnRoute, routeProgress } from '/shared/plan.js';
+import { cumulativeKm } from '/shared/geo.js';
 import { renderFavorites, renderFavStrip, checkAlerts } from './views/favorites.js';
 import { renderTrend } from './views/trend.js';
 import { setupInstallBanner, onInstallChange } from './install.js';
@@ -51,6 +52,7 @@ const state = {
   tracks: loadTracks(), // rutas propias (GPX/KML)
   plan: null, // último plan de repostaje calculado en la ruta
   planFromStart: false, // ignorar el último llenado y planificar desde el km 0
+  progress: null, // dónde estás en la ruta abierta: { lat, lon, km, offKm, at }
   tab: 'results',
   computed: { nearby: [], route: [] },
 };
@@ -272,6 +274,22 @@ function planStart(r) {
   return { startKm: 0, text: 'Sales del inicio con el depósito lleno' };
 }
 
+/** «📍 Dónde estoy»: por qué km de la ruta vas y cuánto falta para la próxima parada. */
+function progressHtml(plan, r, tankL, consumption) {
+  const p = state.progress;
+  const btn = html`<button type="button" class="btn small" data-where>📍 ${p ? 'Actualizar' : 'Dónde estoy'}</button>`;
+  if (!p) return html`<p class="small plan-where">${btn} <span class="muted">Con la ruta en marcha, te dice por qué km vas y cuánto te falta para la próxima parada.</span></p>`;
+  const when = new Date(p.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  if (p.offKm > 3) return html`<p class="small plan-where range-note warn">${btn} Estás a ${km(p.offKm)} de la ruta (${when}).</p>`;
+  const g = routeProgress(plan, p.km, { tankL, consumption, totalKm: r.route.distanceKm });
+  if (g.before) return html`<p class="small plan-where range-note">${btn} Vas por el km <b>${Math.round(p.km)}</b>; el plan empieza en el km ${Math.round(g.startKm)}, donde llenaste (${when}).</p>`;
+  const next = g.next
+    ? html`Próxima parada: <b>${g.next.r.station.brand}</b> en <b>${km(g.toNextKm)}</b> (km ${Math.round(g.next.km)})`
+    : html`Ya no tienes que parar: quedan ${km(g.toEndKm)} hasta el final`;
+  return html`<p class="small plan-where range-note ${g.low ? 'warn' : 'ok'}">${btn} Vas por el km <b>${Math.round(p.km)}</b> de ${Math.round(r.route.distanceKm)} (${when}). ${next}.
+    Si has llenado donde decía el plan, llevas unos <b>${String(g.fuelL).replace('.', ',')} L</b>${g.low ? ' ⚠️ ya en reserva' : ''}.</p>`;
+}
+
 /** Plan de repostaje «tipo Tesla» en la ruta (ver shared/plan.js). */
 function routePlan(r, all) {
   const s = state.settings;
@@ -288,19 +306,21 @@ function routePlan(r, all) {
   const head = html`<h3>${v?.icon ?? '⛽'} Plan de repostaje <span class="muted small">(${v ? `${v.name}: ` : ''}depósito ${tankL} L · ${String(consumption).replace('.', ',')} L/100 km)</span></h3>
     <p class="small">${start.text}. Con la reserva (15 %) te da para unos <b>${Math.round(plan.rangeKm)} km</b>: entras en reserva hacia el <b>km ${Math.round(plan.emptyKm)}</b>${plan.emptyKm >= r.route.distanceKm ? ' (después del final)' : ''}.
       ${start.fromFill ? html`<button type="button" class="link small" data-plan-start>Planificar desde el inicio</button>` : state.planFromStart ? html`<button type="button" class="link small" data-plan-fill>Desde mi último llenado</button>` : ''}</p>`;
+  const where = plan.ok ? progressHtml(plan, r, tankL, consumption) : '';
+  const doneKm = state.progress && state.progress.offKm <= 3 ? state.progress.km + 0.3 : -1;
   let body;
   if (!plan.ok) {
     body = html`<p class="small range-note warn">⚠️ No llegas al final: hay un tramo sin gasolineras a tu alcance y te quedarías hacia el km ${Math.round(plan.reachKm)}. Amplía el «Desvío máximo» o lleva una garrafa.</p>`;
   } else if (!plan.stops.length) {
     body = html`<p class="small range-note ok">✅ No necesitas parar: llegas al final con unos ${String(plan.endLitres).replace('.', ',')} L.</p>`;
   } else {
-    body = html`<ol class="plan-stops">${plan.stops.map((p, i) => html`<li><button type="button" class="plan-stop" data-open="${p.r.station.id}">
-        <span><b>${i + 1}. km ${Math.round(p.km)} · ${p.r.mapfre ? '🍀 ' : ''}${p.r.station.brand}</b> <span class="muted small">${p.r.station.locality ?? ''}${p.r.station.offRouteKm > 0.3 ? ` · desvío ${km(p.r.station.offRouteKm)}` : ''}</span><br>
+    body = html`<ol class="plan-stops">${plan.stops.map((p, i) => html`<li><button type="button" class="plan-stop${p.km <= doneKm ? ' done' : ''}" data-open="${p.r.station.id}">
+        <span><b>${p.km <= doneKm ? '✔️ ' : `${i + 1}. `}km ${Math.round(p.km)} · ${p.r.mapfre ? '🍀 ' : ''}${p.r.station.brand}</b> <span class="muted small">${p.r.station.locality ?? ''}${p.r.station.offRouteKm > 0.3 ? ` · desvío ${km(p.r.station.offRouteKm)}` : ''}</span><br>
         <span class="small">Llegas con ~${String(p.arriveL).replace('.', ',')} L · llenas ~${String(p.fillL).replace('.', ',')} L a ${eurL(p.price)} ≈ <b>${eur(p.cost)}</b>${p.r.open === false ? ' · ⚠️ ahora cerrada' : ''}</span></span>
       </button></li>`)}</ol>
       <p class="small muted">Total en la ruta: ~${Math.round(plan.litres)} L ≈ ${eur(plan.cost)}${plan.refPrice ? ` (a precio típico de la ruta serían ${eur(plan.litres * plan.refPrice)})` : ''}. Llegas al final con ~${String(plan.endLitres).replace('.', ',')} L. Paradas elegidas para gastar menos con el depósito siempre por encima de la reserva.</p>`;
   }
-  return { plan, html: html`<div class="plan-card">${head}${body}</div>` };
+  return { plan, html: html`<div class="plan-card">${head}${where}${body}</div>` };
 }
 
 function renderRoute({ fit }) {
@@ -329,6 +349,7 @@ function renderRoute({ fit }) {
   bindSummaryLinks($('#route-summary'), all);
   $('#route-summary [data-plan-start]')?.addEventListener('click', () => { state.planFromStart = true; renderRoute({ fit: false }); });
   $('#route-summary [data-plan-fill]')?.addEventListener('click', () => { state.planFromStart = false; renderRoute({ fit: false }); });
+  $('#route-summary [data-where]')?.addEventListener('click', whereAmI);
   $('#route-summary').insertAdjacentHTML('beforeend', '<div class="route-brands"></div>');
   renderBrands($('#route-summary .route-brands'), results);
   state.routeSummary = summary;
@@ -559,6 +580,32 @@ async function refreshStatus() {
   if (state.tab === 'settings') renderSettings(ctx);
 }
 
+/** Sitúa tu posición (GPS) en la ruta abierta y actualiza el plan. */
+function whereAmI(e) {
+  const r = state.route;
+  if (!r?.route?.polyline?.length) return;
+  if (!navigator.geolocation) return toast('Tu navegador no permite obtener la ubicación');
+  const btn = e?.currentTarget;
+  btn?.classList.add('busy');
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      btn?.classList.remove('busy');
+      if (state.route !== r) return;
+      const { latitude: lat, longitude: lon } = pos.coords;
+      r.cum ??= cumulativeKm(r.route.polyline);
+      const prev = state.progress?.km ?? null;
+      state.progress = { lat, lon, ...locateOnRoute(lat, lon, r.route.polyline, r.cum, prev), at: Date.now() };
+      renderRoute({ fit: false });
+      map.showUser(lat, lon);
+    },
+    (err) => {
+      btn?.classList.remove('busy');
+      toast(err.code === 1 ? 'Permiso de ubicación denegado.' : 'No se pudo obtener tu ubicación.');
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+  );
+}
+
 function setCenter(lat, lon, label) {
   state.center = { lat, lon, label };
   state.settings.lastLocation = state.center;
@@ -647,6 +694,7 @@ async function onRoute(e) {
     const s = state.settings;
     const res = await api.route({ from, to, corridor: s.corridorKm, fuel: s.fuel, publicOnly: s.hideRestricted });
     state.route = { ...res, fromLabel: (from.label ?? 'Origen').split(',')[0], toLabel: to.label.split(',')[0] };
+    state.progress = null;
     renderRoute({ fit: true });
   } catch (err) {
     $('#route-summary').innerHTML = html`<p class="error">${err.message}</p>`;
@@ -710,6 +758,7 @@ async function openTrack(t, { reverse = false } = {}) {
     const res = await api.track({ points, corridor: s.corridorKm, fuel: s.fuel, publicOnly: s.hideRestricted });
     state.route = { ...res, fromLabel: `${t.name}${reverse ? ' (al revés)' : ''}`, toLabel: null, track: t, reversed: reverse };
     state.planFromStart = false;
+    state.progress = null;
     renderTracks();
     renderRoute({ fit: true });
   } catch (err) {

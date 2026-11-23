@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTrack, shrinkTrack } from '../shared/track.js';
-import { planStops } from '../shared/plan.js';
+import { planStops, locateOnRoute, routeProgress } from '../shared/plan.js';
+import { cumulativeKm } from '../shared/geo.js';
 import { StationStore } from '../server/store.js';
 import { createHttpServer } from '../server/app.js';
 import { createDemoGeocoder, createDemoRouter, createDemoHistory } from '../server/demo.js';
@@ -128,4 +129,39 @@ test('POST /api/track devuelve las gasolineras a lo largo del track', async () =
   } finally {
     server.close();
   }
+});
+
+test('«Dónde estoy»: sitúa tu posición en la ruta, también en las circulares', () => {
+  // Cuadrado de ~44 km que empieza y acaba en el mismo punto.
+  const poly = [[37, -2], [37.1, -2], [37.1, -1.875], [37, -1.875], [37, -2]];
+  const cum = cumulativeKm(poly);
+  const mid = locateOnRoute(37.1, -1.94, poly, cum);
+  assert.ok(Math.abs(mid.km - (cum[1] + (cum[2] - cum[1]) / 2)) < 0.5, `km ${mid.km}`);
+  assert.ok(mid.offKm < 0.1);
+  // En el punto de salida: al empezar es el km 0, y si ya ibas por el final, el último km.
+  assert.equal(locateOnRoute(37, -2, poly, cum).km, 0);
+  assert.ok(locateOnRoute(37, -2, poly, cum, cum[3] + 2).km > cum[4] - 0.5);
+  // Lejos de la ruta.
+  assert.ok(locateOnRoute(37.5, -2, poly, cum).offKm > 30);
+});
+
+test('«Dónde estoy»: próxima parada y litros que llevas siguiendo el plan', () => {
+  const plan = { start: { startKm: 0 }, stops: [{ km: 120, r: { station: { brand: 'A' } } }, { km: 250, r: { station: { brand: 'B' } } }] };
+  const o = { tankL: 15, consumption: 5, totalKm: 300 };
+  let g = routeProgress(plan, 60, o);
+  assert.equal(g.next.km, 120);
+  assert.equal(g.toNextKm, 60);
+  assert.equal(g.fuelL, 12); // 15 - 60 km a 5 L/100
+  assert.equal(g.low, false);
+  g = routeProgress(plan, 200, o); // ya llenó en el km 120
+  assert.equal(g.passed, 1);
+  assert.equal(g.next.km, 250);
+  assert.equal(g.fuelL, 11);
+  g = routeProgress(plan, 290, o);
+  assert.equal(g.next, null);
+  assert.equal(g.toEndKm, 10);
+  // Sin seguir el plan te quedas en reserva.
+  assert.equal(routeProgress({ start: { startKm: 0 }, stops: [] }, 270, o).low, true);
+  // Si el plan sale de donde llenaste y aún no has llegado ahí.
+  assert.equal(routeProgress({ start: { startKm: 80 }, stops: [] }, 20, o).before, true);
 });
