@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.8.3',
+    date: '2026-11-23',
+    changes: [
+      '«▶️ Seguir» en el plan de repostaje: con la tablet en el soporte, el GPS va diciendo por qué km vas y cuánto falta para la próxima parada sin tocar nada, la pantalla no se apaga y vibra con un aviso 5 km antes de cada parada.',
+    ],
+  },
+  {
     version: '1.8.2',
     date: '2026-11-23',
     changes: [

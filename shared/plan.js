@@ -155,3 +155,18 @@ export function routeProgress(plan, posKm, { tankL, consumption, totalKm }) {
     low: fuelL <= tankL * (1 - RANGE_MARGIN),
   };
 }
+
+/** Km antes de una parada del plan en que se avisa (modo «Seguir»). */
+export const STOP_ALERT_KM = 5;
+
+/**
+ * Si toca avisar de la próxima parada: está a menos de `aheadKm` y aún no se
+ * ha avisado de ella (`alerted`: claves ya avisadas, «km:id»). Devuelve la
+ * clave a recordar o null.
+ */
+export function stopAlertKey(progress, alerted, aheadKm = STOP_ALERT_KM) {
+  const n = progress?.next;
+  if (!n || progress.toNextKm == null || progress.toNextKm > aheadKm) return null;
+  const key = `${n.km}:${n.r?.station?.id ?? ''}`;
+  return alerted.has(key) ? null : key;
+}

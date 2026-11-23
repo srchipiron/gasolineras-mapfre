@@ -504,3 +504,4 @@ button.link { background: none; border: 0; padding: 0; color: var(--accent); fon
 .plan-stop { width: 100%; text-align: left; background: var(--surface); color: var(--text); border: 1px solid var(--border, #ccc3); border-radius: 10px; padding: 8px 10px; font: inherit; cursor: pointer; }
 .plan-stop.done { opacity: .6; }
 .plan-where .btn.small { margin-right: 6px; }
+.btn.following { background: var(--accent); color: #fff; }

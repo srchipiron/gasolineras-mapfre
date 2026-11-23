@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseTrack, shrinkTrack } from '../shared/track.js';
-import { planStops, locateOnRoute, routeProgress } from '../shared/plan.js';
+import { planStops, locateOnRoute, routeProgress, stopAlertKey } from '../shared/plan.js';
 import { cumulativeKm } from '../shared/geo.js';
 import { StationStore } from '../server/store.js';
 import { createHttpServer } from '../server/app.js';
@@ -164,4 +164,17 @@ test('«Dónde estoy»: próxima parada y litros que llevas siguiendo el plan', 
   assert.equal(routeProgress({ start: { startKm: 0 }, stops: [] }, 270, o).low, true);
   // Si el plan sale de donde llenaste y aún no has llegado ahí.
   assert.equal(routeProgress({ start: { startKm: 80 }, stops: [] }, 20, o).before, true);
+});
+
+test('«Seguir»: avisa una sola vez, 5 km antes de cada parada', () => {
+  const plan = { start: { startKm: 0 }, stops: [{ km: 120, r: { station: { id: 'a' } } }, { km: 250, r: { station: { id: 'b' } } }] };
+  const o = { tankL: 15, consumption: 5, totalKm: 300 };
+  const alerted = new Set();
+  assert.equal(stopAlertKey(routeProgress(plan, 100, o), alerted), null);
+  const key = stopAlertKey(routeProgress(plan, 116, o), alerted);
+  assert.equal(key, '120:a');
+  alerted.add(key);
+  assert.equal(stopAlertKey(routeProgress(plan, 118, o), alerted), null);
+  assert.equal(stopAlertKey(routeProgress(plan, 246, o), alerted), '250:b');
+  assert.equal(stopAlertKey(routeProgress(plan, 290, o), alerted), null);
 });
