@@ -19,5 +19,7 @@ Antes de guardarlos se revisan (sin scripts ni enlaces externos) y se limpian
 | q8.svg | commons: File:Q8 logo.svg |
 | leclerc.svg | commons: File:E.Leclerc logo.svg |
 | costco.svg | commons: File:Costco Wholesale logo 2010-10-26.svg |
+| disa.svg | commons: File:DISA logo.svg |
+| eroski.svg | commons: File:Eroski logo.svg |
 | plenergy.png | commons: File:Plenergy.png |
 | petroprix.png | commons: File:Logo Petroprix.svg (la imagen PNG que lleva dentro) |
