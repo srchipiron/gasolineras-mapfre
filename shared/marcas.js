@@ -70,6 +70,8 @@ export const LOGOS = {
   eni: ['eni.svg', 'wide'],
   plenergy: ['plenergy.png', 'wide'],
   petroprix: ['petroprix.png', 'wide'],
+  disa: ['disa.svg', 'sq'],
+  eroski: ['eroski.svg', 'wide'],
 };
 
 /** { key, mono, logo, logoShape } de una marca. key = 'otra' si no tiene colores propios. */

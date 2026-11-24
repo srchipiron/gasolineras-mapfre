@@ -8,6 +8,11 @@
 
 export const CHANGELOG = [
   {
+    version: '1.13.1',
+    date: '2026-11-24',
+    changes: ['Logotipos oficiales también para Disa y Eroski.'],
+  },
+  {
     version: '1.13.0',
     date: '2026-11-24',
     changes: [
