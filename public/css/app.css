@@ -833,3 +833,126 @@ dialog.sheet::backdrop { background: rgba(8, 16, 12, 0.55); -webkit-backdrop-fil
 @media (min-width: 900px) {
   .credit { flex-direction: row; justify-content: center; gap: 14px; margin: 0; padding: 10px 16px; border-radius: 0; box-shadow: none; border: 0; border-top: 1px solid var(--line); }
 }
+
+/* =====================================================================
+   Fichas con los colores de cada marca (1.12)
+   --b1 color principal · --b2 brillo/segundo color · --b3 fondo profundo
+   --bfg texto sobre la cabecera · --btile/--btext cuadradito del emblema
+   ===================================================================== */
+.brand-tile, .brand-hero {
+  --b1: #1d6b47; --b2: #c6f067; --b3: #0b3d2c; --bfg: #fff; --btile: #fff; --btext: #0b3d2c;
+}
+.b-otra { --b1: #1d6b47; --b2: #7fd6a2; --b3: #0b3d2c; --bfg: #fff; --btile: #f3f7f1; --btext: #11573c; }
+.b-repsol { --b1: #ff6b00; --b2: #ffb400; --b3: #d8002a; --bfg: #fff; --btile: #fff; --btext: #e4002b; }
+.b-campsa { --b1: #d0102e; --b2: #ffcd00; --b3: #8e0a1f; --bfg: #fff; --btile: #ffcd00; --btext: #b30d26; }
+.b-petronor { --b1: #00843d; --b2: #ff7a00; --b3: #00512a; --bfg: #fff; --btile: #fff; --btext: #00843d; }
+.b-moeve { --b1: #1f2a7a; --b2: #00c2b2; --b3: #5a2b91; --bfg: #fff; --btile: #fff; --btext: #3b2a8f; }
+.b-cepsa { --b1: #e3001b; --b2: #ff6a5c; --b3: #9c0013; --bfg: #fff; --btile: #fff; --btext: #e3001b; }
+.b-galp { --b1: #ff6a13; --b2: #ffb27a; --b3: #c9410a; --bfg: #fff; --btile: #fff; --btext: #f2580c; }
+.b-bp { --b1: #009a44; --b2: #ffe600; --b3: #00632c; --bfg: #fff; --btile: #fff; --btext: #009a44; }
+.b-shell { --b1: #ffd500; --b2: #fff3a0; --b3: #f0a800; --bfg: #4a0d0d; --btile: #dd1d21; --btext: #ffd500; }
+.b-ballenoil { --b1: #0072ce; --b2: #3fd0ff; --b3: #00418a; --bfg: #fff; --btile: #fff; --btext: #0067b8; }
+.b-plenergy { --b1: #0b2341; --b2: #ff7a00; --b3: #050f1f; --bfg: #fff; --btile: #ff7a00; --btext: #fff; }
+.b-petroprix { --b1: #00a859; --b2: #9be15d; --b3: #006a39; --bfg: #fff; --btile: #fff; --btext: #00924d; }
+.b-carrefour { --b1: #0a4ea2; --b2: #e30613; --b3: #062d63; --bfg: #fff; --btile: #fff; --btext: #0a4ea2; }
+.b-alcampo { --b1: #e2001a; --b2: #ff5a4e; --b3: #a30013; --bfg: #fff; --btile: #fff; --btext: #e2001a; }
+.b-supeco { --b1: #6cb33f; --b2: #f7a600; --b3: #3f7a1d; --bfg: #fff; --btile: #fff; --btext: #4f9a2a; }
+.b-eroski { --b1: #e30613; --b2: #ff6b6b; --b3: #9e0009; --bfg: #fff; --btile: #fff; --btext: #e30613; }
+.b-leclerc { --b1: #0066b3; --b2: #f39200; --b3: #003f73; --bfg: #fff; --btile: #f39200; --btext: #fff; }
+.b-eni { --b1: #ffd100; --b2: #fff1a6; --b3: #f2b400; --bfg: #1a1a1a; --btile: #1a1a1a; --btext: #ffd100; }
+.b-avia { --b1: #e30613; --b2: #ff5c5c; --b3: #a1000b; --bfg: #fff; --btile: #fff; --btext: #e30613; }
+.b-q8 { --b1: #00529b; --b2: #ffc20e; --b3: #00305c; --bfg: #fff; --btile: #ffc20e; --btext: #00407a; }
+.b-esso { --b1: #0b3d91; --b2: #e31837; --b3: #061f4d; --bfg: #fff; --btile: #fff; --btext: #e31837; }
+.b-disa { --b1: #003da5; --b2: #ffcc00; --b3: #00256b; --bfg: #fff; --btile: #fff; --btext: #003da5; }
+.b-star { --b1: #1b3f8b; --b2: #e4002b; --b3: #0d2250; --bfg: #fff; --btile: #e4002b; --btext: #fff; }
+.b-bonarea { --b1: #da291c; --b2: #ff8a6b; --b3: #951a10; --bfg: #fff; --btile: #fff; --btext: #da291c; }
+.b-tamoil { --b1: #f18a00; --b2: #ffc266; --b3: #b35f00; --bfg: #fff; --btile: #fff; --btext: #e07800; }
+.b-naturgy { --b1: #004571; --b2: #e57200; --b3: #002640; --bfg: #fff; --btile: #e57200; --btext: #fff; }
+.b-meroil { --b1: #00539f; --b2: #5fc3ff; --b3: #002f5e; --bfg: #fff; --btile: #fff; --btext: #00539f; }
+.b-petrocat { --b1: #c8102e; --b2: #ffd200; --b3: #800a1d; --bfg: #fff; --btile: #ffd200; --btext: #c8102e; }
+.b-valcarce { --b1: #004a99; --b2: #33b5e5; --b3: #002b5a; --bfg: #fff; --btile: #fff; --btext: #004a99; }
+.b-costco { --b1: #e31837; --b2: #005daa; --b3: #8f0c21; --bfg: #fff; --btile: #005daa; --btext: #fff; }
+.b-easygas { --b1: #00a19a; --b2: #a3e635; --b3: #00625d; --bfg: #fff; --btile: #fff; --btext: #00877f; }
+
+/* Cuadradito con el emblema de la marca */
+.brand-tile {
+  position: relative; flex: none; display: inline-grid; place-items: center;
+  width: 40px; height: 40px; border-radius: 13px;
+  background:
+    radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--b2) 70%, transparent) 0, transparent 55%),
+    linear-gradient(140deg, var(--b1), var(--b3));
+  color: var(--bfg); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  font-weight: 900; letter-spacing: -0.04em; line-height: 1; font-size: 1.05rem;
+}
+.brand-tile .mono { text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15); }
+.brand-tile.sm { width: 30px; height: 30px; border-radius: 10px; font-size: 0.82rem; }
+
+/* En la lista, el puesto va en una burbuja sobre el emblema */
+.result .rank.brand-tile { width: 42px; height: 42px; background:
+    radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--b2) 70%, transparent) 0, transparent 55%),
+    linear-gradient(140deg, var(--b1), var(--b3)); color: var(--bfg); border-radius: 14px; }
+.rank .rank-n {
+  position: absolute; right: -6px; bottom: -6px; min-width: 19px; height: 19px; padding: 0 4px; border-radius: 999px;
+  display: grid; place-items: center; font-size: 0.66rem; font-weight: 800; letter-spacing: 0;
+  background: var(--surface); color: var(--text); box-shadow: 0 0 0 2px var(--surface), 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.result:first-child .rank .rank-n { background: var(--lime); color: var(--lime-text); }
+.brand-row .brand-tile { margin-right: 2px; }
+.brand-row { justify-content: flex-start; }
+.brand-row .brand-price { margin-left: auto; }
+.advise-main .brand-tile { vertical-align: -0.55em; margin-right: 8px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25); }
+
+/* Cabecera de la ficha con los colores de la marca */
+.sheet-head.brand-hero {
+  position: sticky; top: -66px; display: block; overflow: hidden; isolation: isolate;
+  padding: 26px 16px 16px; border-bottom: 0; color: var(--bfg);
+  background:
+    radial-gradient(90% 120% at 105% -10%, color-mix(in srgb, var(--b2) 85%, transparent) 0, transparent 60%),
+    radial-gradient(70% 90% at -10% 120%, color-mix(in srgb, var(--b3) 90%, transparent) 0, transparent 70%),
+    linear-gradient(150deg, var(--b1) 0%, var(--b3) 100%);
+}
+/* Brillo diagonal y rayas suaves, como la marquesina de una gasolinera */
+.brand-hero::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.18) 46%, transparent 54%),
+    repeating-linear-gradient(-55deg, rgba(255, 255, 255, 0.06) 0 2px, transparent 2px 14px);
+}
+.brand-hero .hero-mark {
+  position: absolute; z-index: -1; right: -14px; top: -18px; pointer-events: none; user-select: none;
+  font-size: 6.4rem; font-weight: 900; letter-spacing: -0.06em; line-height: 1; white-space: nowrap;
+  color: var(--bfg); opacity: 0.13; transform: rotate(-7deg);
+}
+.brand-hero .hero-top { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; height: 30px; margin: 0 -16px 18px; padding: 0 16px; }
+.brand-hero .hero-top::-webkit-scrollbar { display: none; }
+.brand-hero .hero-pill {
+  flex: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px;
+  font-size: 0.76rem; font-weight: 700; color: var(--bfg);
+  background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+.brand-hero .hero-pill.lime { background: var(--lime); color: var(--lime-text); border-color: transparent; }
+.b-shell .hero-pill, .b-eni .hero-pill { background: rgba(0, 0, 0, 0.1); border-color: rgba(0, 0, 0, 0.15); }
+.brand-hero .hero-row { display: flex; align-items: center; gap: 12px; }
+.brand-hero .hero-tile {
+  flex: none; display: grid; place-items: center; width: 58px; height: 58px; border-radius: 18px;
+  background: var(--btile); color: var(--btext); font-size: 1.5rem; font-weight: 900; letter-spacing: -0.05em;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25), inset 0 -2px 0 rgba(0, 0, 0, 0.08);
+  transform: rotate(-4deg);
+}
+.brand-hero .hero-text { flex: 1; min-width: 0; }
+.brand-hero h2 { margin: 0; font-size: 1.45rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; color: var(--bfg); overflow-wrap: anywhere; }
+.brand-hero .small { color: var(--bfg); opacity: 0.85; margin-top: 3px; }
+.brand-hero .btn.icon {
+  flex: none; align-self: flex-start; color: var(--bfg);
+  background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.b-shell .btn.icon, .b-eni .btn.icon { background: rgba(0, 0, 0, 0.08); border-color: rgba(0, 0, 0, 0.15); }
+@media (max-width: 600px) {
+  .sheet-head.brand-hero::before { background: rgba(255, 255, 255, 0.55); z-index: 1; }
+  .b-shell.sheet-head.brand-hero::before, .b-eni.sheet-head.brand-hero::before { background: rgba(0, 0, 0, 0.25); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  dialog[open] .brand-hero .hero-tile { animation: tile-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+  @keyframes tile-in { from { transform: rotate(-20deg) scale(0.6); opacity: 0; } to { transform: rotate(-4deg) scale(1); opacity: 1; } }
+}

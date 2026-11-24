@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '1.12.0',
+    date: '2026-11-24',
+    changes: [
+      'La ficha de cada gasolinera se viste con los colores de su marca: naranja y rojo en Repsol, rojo en Cepsa y Alcampo, verde y amarillo en BP, amarillo en Shell, azul en Ballenoil y Carrefour… con su emblema, el nombre en grande de fondo y, arriba, si está abierta, el precio de tu carburante y el % en tréboles.',
+      'En la lista, cada gasolinera lleva el emblema de su marca con su puesto en una burbuja (la primera, en lima). También en «Te aconsejo» y en «La más barata de cada marca».',
+      'Al bajar por la ficha, la cabecera se encoge y se queda arriba con el nombre y el botón de cerrar.',
+    ],
+  },
+  {
     version: '1.11.0',
     date: '2026-11-24',
     changes: [
