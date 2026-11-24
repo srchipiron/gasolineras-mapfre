@@ -15,6 +15,9 @@ function brandTile(brand, cls = '', extra = '') {
   return html`<span class="brand-tile b-${b.key} ${cls}" aria-hidden="true"><span class="mono">${b.mono}</span>${raw(extra)}</span>`;
 }
 
+// Primera palabra del rótulo, para el nombre en grande de fondo («BP GETAFE» → «BP»).
+const brandWord = (brand) => String(brand ?? '').trim().split(/[\s\-–·]+/)[0];
+
 function openBadge(r) {
   if (r.open === true) return html`<span class="badge ok">Abierta</span>`;
   if (r.open === false) return html`<span class="badge off">Cerrada</span>`;
@@ -115,9 +118,9 @@ export function summaryHtml(s, {
   const c = comparison ?? {};
   const [inTitle, outTitle] = FILTER_TITLES[tipo] ?? FILTER_TITLES.all;
   const card = (r, title, cls) => r
-    ? html`<button class="best ${cls}" data-open="${r.station.id}">
+    ? html`<button class="best ${cls} branded b-${brandStyle(r.station.brand).key}" data-open="${r.station.id}">
         <span class="label">${title}</span>
-        <strong>${r.station.brand}</strong>
+        <strong>${brandTile(r.station.brand, 'xs')}${r.station.brand}</strong>
         <span class="small">${r.station.address} · ${km(r.station.offRouteKm ?? r.station.distanceKm)}</span>
         <span class="big">${eurL(r.effective)}</span>
         <span class="small">${r.mapfre ? html`surtidor ${eurL(r.price)} · ${pct(r.percent)} en tréboles` : 'precio en surtidor, sin tréboles'}</span>
@@ -161,9 +164,9 @@ export function summaryHtml(s, {
 function companySummaryHtml(s, { litres, fuel, capLeft, onlyMapfre, cmp, tv, radiusKm }) {
   const b = cmp.best, ch = cmp.cheapest;
   const card = (r, title, cls, big, line) => r
-    ? html`<button class="best ${cls}" data-open="${r.station.id}">
+    ? html`<button class="best ${cls} branded b-${brandStyle(r.station.brand).key}" data-open="${r.station.id}">
         <span class="label">${title}</span>
-        <strong>${r.station.brand}</strong>
+        <strong>${brandTile(r.station.brand, 'xs')}${r.station.brand}</strong>
         <span class="small">${r.station.address} · ${km(r.station.offRouteKm ?? r.station.distanceKm)}</span>
         <span class="big">${big}</span>
         <span class="small">${line}</span>
@@ -233,7 +236,8 @@ export function recommendHtml(rec, { litres, tv = 1, route = false, rangeKm = nu
       ${rec.savingVsNext != null && rec.savingVsNext < 0.3 && rec.next ? html`<span class="muted">${rec.next.station.brand} sale casi igual (${eur(rec.savingVsNext)} más).</span>` : ''}`;
   }
   return html`
-  <div class="advise ${rec.company ? 'company' : ''}">
+  <div class="advise branded b-${brandStyle(st.brand).key} ${rec.company ? 'company' : ''}">
+    <span class="hero-mark" aria-hidden="true">${brandWord(st.brand)}</span>
     <span class="label">${rec.company ? '💼 Te aconsejo (coche de empresa)' : '🚗 Te aconsejo (tu coche)'}${rangeKm != null && route ? ` · antes del km ${Math.round(rangeKm)}` : ''}</span>
     <button type="button" class="advise-main" data-open="${st.id}">
       <strong>${brandTile(st.brand, 'sm')}${b.mapfre ? '🍀 ' : ''}${st.brand}</strong>
@@ -322,7 +326,7 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
   const capped = rule?.noCap ? amount : Math.max(0, Math.min(eligibleAmount(amount, program), capLeft));
   return html`
   <form method="dialog" class="sheet-head brand-hero b-${bs.key}">
-    <span class="hero-mark" aria-hidden="true">${String(st.brand ?? '').split(/[s-–]+/)[0]}</span>
+    <span class="hero-mark" aria-hidden="true">${brandWord(st.brand)}</span>
     <div class="hero-top">
       <span class="hero-pill">${status.open === true ? '● ' : ''}${status.label}</span>
       ${price != null ? html`<span class="hero-pill">⛽ ${fuelLabel(fuel)} · ${eurL(price)}</span>` : ''}
