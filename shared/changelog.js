@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '1.15.0',
+    date: '2026-11-24',
+    changes: [
+      'Mapa más limpio: los precios ya no se amontonan unos encima de otros. Con poco zoom solo sale el de la más barata de cada zona y el resto queda como punto; al acercar el mapa aparecen los demás.',
+      'El orden de la lista tiene nombres cortos («Mejor para ti», «Con tréboles», «Más tréboles») y ya no sale cortado en el móvil.',
+      'La fila de filtros se difumina a la derecha para que se note que hay más deslizando.',
+    ],
+  },
+  {
     version: '1.14.0',
     date: '2026-11-24',
     changes: [

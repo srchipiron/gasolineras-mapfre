@@ -19,8 +19,8 @@ export const sortKey = (s) => (isCompany(s) ? 'companySort' : 'sort');
 
 /** Órdenes de la ruta en cada modo, y la clave de ajustes donde se guarda. */
 const ROUTE_SORTS = {
-  personal: { total: 'Lo mejor para ti (coste real)', effective: 'Precio con tréboles', along: 'Orden en la ruta' },
-  company: { treboles: 'Más tréboles para ti', along: 'Orden en la ruta' },
+  personal: { total: 'Mejor para ti', effective: 'Con tréboles', along: 'Orden en la ruta' },
+  company: { treboles: 'Más tréboles', along: 'Orden en la ruta' },
 };
 export const routeSorts = (s) => ROUTE_SORTS[isCompany(s) ? 'company' : 'personal'];
 export const routeSortKey = (s) => (isCompany(s) ? 'companyRouteSort' : 'routeSort');

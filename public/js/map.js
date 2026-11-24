@@ -1,7 +1,7 @@
 // Mapa con Leaflet + OpenStreetMap.
 
 import { priceLevel } from '/shared/ranking.js';
-import { spreadPins } from '/shared/pins.js';
+import { spreadPins, declutterLabels } from '/shared/pins.js';
 import { num3, esc } from './format.js';
 
 export function createMap(el, { onSelect }) {
@@ -94,11 +94,16 @@ export function createMap(el, { onSelect }) {
     // la aconsejada, luego las que llevan precio y luego los puntos.
     const zoom = map.getZoom();
     const order = info.slice().sort((a, b) => b.best - a.best || b.labelled - a.labelled || a.i - b.i);
-    const dys = spreadPins(order.map(({ r, labelled }) => {
-      const p = map.project([r.station.lat, r.station.lon], zoom);
+    const pts = order.map(({ r }) => map.project([r.station.lat, r.station.lon], zoom));
+    const geom = (o, k, labelled) => {
       const [w, h, ay] = labelled ? PIN : DOT;
-      return { x: p.x, y: p.y, w, h, ay, lat: r.station.lat, lon: r.station.lon };
-    }));
+      return { x: pts[k].x, y: pts[k].y, w, h, ay, lat: o.r.station.lat, lon: o.r.station.lon };
+    };
+    // Con poco zoom muchas etiquetas caen unas encima de otras: solo se deja
+    // la de la más barata de cada grupo y el resto queda como punto.
+    const shown = declutterLabels(order.map((o, k) => ({ ...geom(o, k, true), labelled: o.labelled, keep: o.best })));
+    order.forEach((o, k) => { o.labelled = shown[k]; });
+    const dys = spreadPins(order.map((o, k) => geom(o, k, o.labelled)));
     order.forEach((o, k) => { o.dy = dys[k]; });
     // Se dibujan de cara a barata para que las baratas queden encima.
     for (let i = info.length - 1; i >= 0; i--) {
