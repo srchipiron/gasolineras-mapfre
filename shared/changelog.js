@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.10.1',
+    date: '2026-11-24',
+    changes: [
+      'Al final de la página: «Creado por Javier Álvarez», con un botón a su LinkedIn.',
+    ],
+  },
+  {
     version: '1.10.0',
     date: '2026-11-23',
     changes: [
