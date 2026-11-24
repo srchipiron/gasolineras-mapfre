@@ -1,5 +1,6 @@
 // Plantillas HTML de resultados, resumen y ficha de la gasolinera.
 
+import { brandStyle } from '/shared/marcas.js';
 import { html, raw, eurL, eur, km, num2, pct, date, cents } from './format.js';
 import { openStatus } from '/shared/horario.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
@@ -7,6 +8,12 @@ import {
   findRule, percentFor, effectivePrice, treblesFor, fuelEligible, eligibleAmount, isApprox, DEFAULT_PROGRAM,
 } from '/shared/treboles.js';
 import { provinciaName } from '/shared/provincias.js';
+
+// Cuadradito con el emblema y los colores de la marca.
+function brandTile(brand, cls = '', extra = '') {
+  const b = brandStyle(brand);
+  return html`<span class="brand-tile b-${b.key} ${cls}" aria-hidden="true"><span class="mono">${b.mono}</span>${raw(extra)}</span>`;
+}
 
 function openBadge(r) {
   if (r.open === true) return html`<span class="badge ok">Abierta</span>`;
@@ -48,7 +55,7 @@ export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, ma
     : km(st.distanceKm);
   return html`
   <li class="result ${r.mapfre ? 'is-mapfre' : ''} ${r.approx ? 'is-approx' : ''}" data-id="${st.id}" tabindex="0">
-    <div class="rank">${i + 1}</div>
+    <div class="rank brand-tile b-${brandStyle(st.brand).key}" aria-label="Puesto ${i + 1}"><span class="mono" aria-hidden="true">${brandStyle(st.brand).mono}</span><span class="rank-n">${i + 1}</span></div>
     <div class="info">
       <div class="title">
         <strong>${st.brand}</strong>
@@ -229,7 +236,7 @@ export function recommendHtml(rec, { litres, tv = 1, route = false, rangeKm = nu
   <div class="advise ${rec.company ? 'company' : ''}">
     <span class="label">${rec.company ? '💼 Te aconsejo (coche de empresa)' : '🚗 Te aconsejo (tu coche)'}${rangeKm != null && route ? ` · antes del km ${Math.round(rangeKm)}` : ''}</span>
     <button type="button" class="advise-main" data-open="${st.id}">
-      <strong>${b.mapfre ? '🍀 ' : ''}${st.brand}</strong>
+      <strong>${brandTile(st.brand, 'sm')}${b.mapfre ? '🍀 ' : ''}${st.brand}</strong>
       <span class="small">${st.address} · ${st.locality ?? ''} · ${where}${b.open === true ? ' · abierta' : ''}</span>
       <span class="big">${rec.company && b.treboles > 0 ? `+${num2(b.treboles)} 🍀` : eurL(rec.company ? b.price : b.effective)}</span>
     </button>
@@ -247,6 +254,7 @@ export function brandsHtml(groups, { open = false, max = 6 } = {}) {
   const row = (g) => {
     const r = g.best;
     return html`<li><button type="button" class="brand-row ${r.mapfre ? 'is-mapfre' : ''}" data-open="${r.station.id}">
+      ${brandTile(g.brand, 'sm')}
       <span class="brand-name"><span class="brand-title">${r.mapfre ? '🍀 ' : ''}<b>${g.brand}</b></span>
         <span class="brand-meta muted small">${g.count === 1 ? '1 gasolinera' : `${g.count} gasolineras · la más barata`} a ${km(r.station.offRouteKm ?? r.station.distanceKm)}${r.station.offRouteKm != null ? ' de la ruta' : ''}</span></span>
       <span class="brand-price">${eurL(r.effective)}</span>
@@ -310,18 +318,27 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
   }
   const covered = official?.provinces?.includes(st.idProvincia);
   const amount = price != null ? price * litres : 0;
+  const bs = brandStyle(st.brand);
   const capped = rule?.noCap ? amount : Math.max(0, Math.min(eligibleAmount(amount, program), capLeft));
   return html`
-  <form method="dialog" class="sheet-head">
-    <div>
-      <h2>${st.brand}</h2>
-      <p class="small">${st.address}, ${st.postalCode} ${st.locality} (${st.province})</p>
+  <form method="dialog" class="sheet-head brand-hero b-${bs.key}">
+    <span class="hero-mark" aria-hidden="true">${String(st.brand ?? '').split(/[s-–]+/)[0]}</span>
+    <div class="hero-top">
+      <span class="hero-pill">${status.open === true ? '● ' : ''}${status.label}</span>
+      ${price != null ? html`<span class="hero-pill">⛽ ${fuelLabel(fuel)} · ${eurL(price)}</span>` : ''}
+      ${rule && eligible ? html`<span class="hero-pill lime">🍀 ${pct(p)}</span>` : ''}
     </div>
-    <button class="btn icon" value="close" aria-label="Cerrar">✕</button>
+    <div class="hero-row">
+      <span class="hero-tile" aria-hidden="true">${bs.mono}</span>
+      <div class="hero-text">
+        <h2>${st.brand}</h2>
+        <p class="small">${st.address}, ${st.postalCode} ${st.locality} (${st.province})</p>
+      </div>
+      <button class="btn icon" value="close" aria-label="Cerrar">✕</button>
+    </div>
   </form>
   <div class="sheet-body">
-    <p><span class="badge ${status.open === true ? 'ok' : status.open === false ? 'off' : ''}">${status.label}</span>
-       <span class="small muted">${st.schedule || 'Sin horario publicado'}</span></p>
+    <p class="small muted">🕒 ${st.schedule || 'Sin horario publicado'}</p>
     ${st.saleType === 'R' ? html`<p class="warn small">Venta restringida: solo para socios o clientes de esta estación (cooperativas, flotas…).</p>` : ''}
 
     <div class="mapfre-box ${rule ? 'yes' : 'no'} ${rule?.source === 'brand' ? 'approx' : ''}">
