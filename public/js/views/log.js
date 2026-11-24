@@ -8,6 +8,7 @@ import { saveLog } from '../store.js';
 import { payerOf, splitByPayer } from '/shared/modo.js';
 import { realConsumption, roundConsumption } from '/shared/consumo.js';
 import { activeVehicle, updateVehicle } from '/shared/vehiculos.js';
+import { entrySaving, savingsSummary } from '/shared/ahorro.js';
 
 function totals(entries) {
   const t = entries.reduce(
@@ -78,6 +79,19 @@ function consumptionCard(state) {
   </div>`;
 }
 
+/** Tarjeta «Frente a la media»: lo que has pagado de menos este año eligiendo gasolinera. */
+function savingsCard(log, today) {
+  const y = savingsSummary(log.filter((e) => e.date.startsWith(today.slice(0, 4))));
+  if (!y) return '';
+  const m = savingsSummary(log.filter((e) => e.date.startsWith(today.slice(0, 7))));
+  const good = y.total >= 0;
+  return html`<div class="consumo ahorro ${good ? 'good' : 'bad'}">
+    <span class="label">💰 Frente a la media de la zona · ${today.slice(0, 4)}</span>
+    <div class="consumo-main"><strong>${eur(Math.abs(y.total))}</strong><span>${good ? 'menos' : 'más'} en el surtidor</span></div>
+    <p class="small muted">${y.n} ${y.n === 1 ? 'repostaje' : 'repostajes'} · ${num2(y.litres)} L · ${(Math.abs(y.perLitre) * 100).toLocaleString('es-ES', { maximumFractionDigits: 1 })} cts/L ${good ? 'por debajo' : 'por encima'} de la media${m ? ` · este mes ${m.total >= 0 ? '−' : '+'}${eur(Math.abs(m.total))}` : ''}. Los tréboles van aparte.</p>
+  </div>`;
+}
+
 export function renderLog(ctx) {
   const { state } = ctx;
   const today = todayISO();
@@ -105,6 +119,7 @@ export function renderLog(ctx) {
       ${capBar('Tope esta semana (lunes a domingo)', cap.week)}
     </div>
     ${pending.length ? html`<p class="verdict bad">Tienes ${pending.length} ${pending.length === 1 ? 'repostaje' : 'repostajes'} con más de 10 días: confirma abajo si te llegaron los tréboles.</p>` : ''}
+    ${raw(savingsCard(state.log, today))}
     ${raw(consumptionCard(state))}
     ${raw(monthlyChart(state.log, today))}`;
   document.getElementById('use-real')?.addEventListener('click', (ev) => {
@@ -123,6 +138,7 @@ export function renderLog(ctx) {
   }
   list.innerHTML = html`${state.log.map((e) => {
     const st = trebolStatus(e, today);
+    const sv = entrySaving(e);
     return html`
     <li class="log-item ${st?.kind === 'ask' ? 'ask' : ''}">
       <div>
@@ -140,6 +156,7 @@ export function renderLog(ctx) {
       <div class="right">
         <strong>${eur(e.amount)}</strong>
         <div class="small">${e.mapfre ? `+${num2(e.treboles)} 🍀 (${num2(e.percent)} %)` : 'sin tréboles'}</div>
+        ${sv != null && Math.abs(sv) >= 0.01 ? html`<div class="small vs-avg ${sv >= 0 ? 'good' : 'bad'}" title="Frente a la media de la zona (${eurL(e.areaAvg)})">${sv >= 0 ? '▼' : '▲'} ${eur(Math.abs(sv))} vs media</div>` : ''}
       </div>
       <button class="btn icon small" data-del="${e.id}" aria-label="Borrar repostaje">🗑</button>
     </li>`;
@@ -176,7 +193,7 @@ const csvCell = (v) => {
 const dec = (n, d) => (Number(n) || 0).toFixed(d).replace('.', ',');
 
 export function exportLogCsv(state) {
-  const header = ['fecha', 'gasolinera', 'carburante', 'litros', 'precio_litro', 'importe', 'club_mapfre', 'porcentaje', 'importe_con_treboles', 'treboles', 'treboles_recibidos', 'paga', 'cuentakilometros', 'lleno'];
+  const header = ['fecha', 'gasolinera', 'carburante', 'litros', 'precio_litro', 'importe', 'club_mapfre', 'porcentaje', 'importe_con_treboles', 'treboles', 'treboles_recibidos', 'paga', 'cuentakilometros', 'lleno', 'media_zona', 'ahorro_vs_media'];
   const rows = state.log.map((e) => [
     e.date, e.name, fuelLabel(e.fuel), dec(e.litres, 2), dec(e.price, 3), dec(e.amount, 2),
     e.mapfre ? 'sí' : 'no', dec(e.percent, 1), dec(e.eligibleAmount ?? (e.mapfre ? e.amount : 0), 2), dec(e.treboles, 2),
@@ -184,6 +201,8 @@ export function exportLogCsv(state) {
     payerOf(e) === 'company' ? 'empresa' : 'yo',
     Number(e.odometer) > 0 ? Number(e.odometer) : '',
     Number(e.odometer) > 0 ? (e.full === false ? 'no' : 'sí') : '',
+    e.areaAvg > 0 ? dec(e.areaAvg, 3) : '',
+    entrySaving(e) != null ? dec(entrySaving(e), 2) : '',
   ]);
   const csv = '﻿' + [header, ...rows].map((r) => r.map(csvCell).join(';')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));

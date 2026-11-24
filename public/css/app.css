@@ -822,6 +822,10 @@ dialog.sheet::backdrop { background: rgba(8, 16, 12, 0.55); -webkit-backdrop-fil
 .consumo { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 12px 14px; margin: 10px 0; display: flex; flex-direction: column; gap: 4px; }
 .consumo .label { font-size: 0.68rem; letter-spacing: 0.09em; font-weight: 800; text-transform: uppercase; color: var(--muted); }
 .consumo p { margin: 0; }
+.consumo.ahorro.good strong { color: var(--accent); }
+.consumo.ahorro.bad strong { color: var(--danger); }
+.vs-avg.good { color: var(--accent); font-weight: 700; }
+.vs-avg.bad { color: var(--danger); font-weight: 700; }
 .consumo.hint { background: var(--surface-2); border-style: dashed; }
 .consumo-main { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 .consumo-main strong { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; color: var(--accent); font-variant-numeric: tabular-nums; }
