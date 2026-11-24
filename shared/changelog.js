@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '1.14.0',
+    date: '2026-11-24',
+    changes: [
+      'Nuevo «💰 Frente a la media de la zona»: al registrar un repostaje desde una gasolinera, la app guarda la media de las que estabas viendo y te dice cuánto pagas de menos (o de más). En Repostajes ves lo que llevas ahorrado este año y este mes eligiendo bien, aparte de los tréboles, y cada repostaje lleva su «▼ X € vs media». También va en el CSV.',
+      'Al registrar un repostaje en una «Gasolinera Repsol» sin la Tarjeta Repsol Carburante, «Club MAPFRE» ya no sale marcado (allí no se ganan tréboles con el carnet).',
+      'Más rápida y gasta menos datos: el servidor comprime cada fichero una sola vez y, si el móvil ya lo tiene, responde «sin cambios» sin volver a mandarlo (lista de adheridas, la app…).',
+    ],
+  },
+  {
     version: '1.13.2',
     date: '2026-11-24',
     changes: [

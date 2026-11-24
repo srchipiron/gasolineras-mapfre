@@ -5,6 +5,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { join, normalize, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
 import { nearby, alongRoute } from './search.js';
 import { matchEntries, provinceSummary, normalizeOfficial } from './adheridas.js';
 import { checkAdminKey, createAttemptLimiter, writeJsonAtomic, commitToGitHub } from './publish.js';
@@ -106,8 +107,22 @@ async function readText(req, limitBytes) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-function send(req, res, status, body, headers = {}) {
-  let buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
+// Respuestas que no cambian entre peticiones (la lista de adheridas, los
+// ficheros de la app): se serializan y comprimen una sola vez y llevan ETag,
+// así el móvil que ya las tiene recibe un 304 vacío en vez de volver a bajarlas.
+const packed = new WeakMap(); // objeto devuelto por la API -> { buf, gz, etag }
+function pack(buf) {
+  return { buf, gz: null, etag: `"${createHash('sha1').update(buf).digest('base64url').slice(0, 20)}"` };
+}
+const gzOf = (p) => (p.gz ??= gzipSync(p.buf));
+
+function send(req, res, status, body, headers = {}, cached = null) {
+  let p = cached;
+  if (!p && status === 200 && body && typeof body === 'object' && !Buffer.isBuffer(body)) {
+    p = packed.get(body);
+    if (!p) packed.set(body, (p = pack(Buffer.from(JSON.stringify(body)))));
+  }
+  let buf = p ? p.buf : Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
   const h = {
     'X-Content-Type-Options': 'nosniff',
     // Los servidores de mapas de OpenStreetMap exigen saber desde qué web se
@@ -117,8 +132,16 @@ function send(req, res, status, body, headers = {}) {
   };
   if (!h['Content-Type']) h['Content-Type'] = MIME['.json'];
   const compressible = /json|text|javascript|svg|manifest/.test(h['Content-Type']);
+  if (p) {
+    h.ETag = p.etag;
+    if (req.headers['if-none-match'] === p.etag) {
+      delete h['Content-Type'];
+      res.writeHead(304, h);
+      return res.end();
+    }
+  }
   if (compressible && buf.length > 1024 && /\bgzip\b/.test(req.headers['accept-encoding'] ?? '')) {
-    buf = gzipSync(buf);
+    buf = p ? gzOf(p) : gzipSync(buf);
     h['Content-Encoding'] = 'gzip';
     h['Vary'] = 'Accept-Encoding';
   }
@@ -394,6 +417,7 @@ export function createApp({
     throw new HttpError(404, 'Ruta de API desconocida');
   }
 
+  const staticCache = new Map(); // fichero -> { mtimeMs, size, buf, gz, etag }
   async function serveStatic(req, res, url) {
     let pathname;
     try {
@@ -411,7 +435,12 @@ export function createApp({
       try {
         const s = await stat(file);
         if (!s.isFile()) continue;
-        const body = await readFile(file);
+        let c = staticCache.get(file);
+        if (!c || c.mtimeMs !== s.mtimeMs || c.size !== s.size) {
+          c = { mtimeMs: s.mtimeMs, size: s.size, ...pack(await readFile(file)) };
+          staticCache.set(file, c);
+        }
+        const body = c.buf;
         const ext = extname(file);
         const headers = {
           'Content-Type': MIME[ext] ?? 'application/octet-stream',
@@ -421,7 +450,7 @@ export function createApp({
           headers['Content-Security-Policy'] = CSP;
           headers['X-Frame-Options'] = 'DENY';
         }
-        return send(req, res, 200, body, headers);
+        return send(req, res, 200, body, headers, c);
       } catch (err) {
         if (err.code !== 'ENOENT' && err.code !== 'ENOTDIR') throw err;
       }

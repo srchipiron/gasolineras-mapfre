@@ -6,6 +6,7 @@ import { findRule, percentFor, treblesFor, fuelEligible, cappedAmount } from '/s
 import { saveLog, newId } from '../store.js';
 import { isCompany } from '/shared/modo.js';
 import { lastOdometer } from '/shared/consumo.js';
+import { entrySaving } from '/shared/ahorro.js';
 
 export function openRefuel(ctx, station = null) {
   const { state } = ctx;
@@ -51,10 +52,11 @@ export function openRefuel(ctx, station = null) {
       <label class="chip"><input type="radio" name="payer" value="company" ${company ? 'checked' : ''}> 💼 Paga la empresa</label>
     </div>
     <div class="row">
-      <label class="chip"><input type="checkbox" name="mapfre" ${rule ? 'checked' : ''}> Club MAPFRE</label>
+      <label class="chip"><input type="checkbox" name="mapfre" ${rule && !rule.needsCard ? 'checked' : ''}> Club MAPFRE</label>
       <label class="field"><span>% en tréboles</span><input type="number" name="percent" step="0.5" min="0" max="100" inputmode="decimal"></label>
     </div>
     <p class="calc" id="refuel-calc"></p>
+    <p class="small vs-avg" id="refuel-avg" hidden></p>
     <button class="btn primary" type="submit">Guardar</button>
   </form>`;
 
@@ -70,7 +72,18 @@ export function openRefuel(ctx, station = null) {
   const eligible = () => (rule?.noCap
     ? Number(el('amount').value) || 0
     : cappedAmount(Number(el('amount').value) || 0, el('date').value, state.log, s.program));
+  // Media de las gasolineras que estabas viendo (mismo carburante): para el ahorro.
+  const areaAvg = () => (station && el('fuel').value === s.fuel && state.areaAvg > 0 ? Math.round(state.areaAvg * 1000) / 1000 : null);
+  const showAvg = () => {
+    const out = dlg.querySelector('#refuel-avg');
+    const saving = entrySaving({ areaAvg: areaAvg(), price: el('price').value, litres: el('litres').value });
+    out.hidden = saving == null;
+    if (saving == null) return;
+    out.className = `small vs-avg ${saving >= 0 ? 'good' : 'bad'}`;
+    out.textContent = `💰 Media de la zona: ${String(areaAvg().toFixed(3)).replace('.', ',')} €/L → ${saving >= 0 ? `pagas ${eur(saving)} menos` : `pagas ${eur(-saving)} más`} que la media.`;
+  };
   const calc = () => {
+    showAvg();
     const amount = Number(el('amount').value) || 0;
     const base = eligible();
     const t = treblesFor(base, Number(el('percent').value) || 0);
@@ -135,6 +148,7 @@ export function openRefuel(ctx, station = null) {
       vehicleId,
       odometer: Number(el('odometer').value) > 0 ? Math.round(Number(el('odometer').value)) : null,
       full: el('full').checked,
+      areaAvg: areaAvg(),
     };
     state.log = [entry, ...state.log].sort((a, b) => b.date.localeCompare(a.date));
     saveLog(state.log);

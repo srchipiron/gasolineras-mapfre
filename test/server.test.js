@@ -108,6 +108,21 @@ test('respuestas comprimidas con gzip', async () => {
   assert.match(await res.text(), /import/); // fetch descomprime
 });
 
+test('ETag: lo que no ha cambiado se responde con un 304 vacío', async () => {
+  for (const path of ['/js/app.js', '/index.html', '/data/adheridas.json']) {
+    const a = await fetch(base + path);
+    const etag = a.headers.get('etag');
+    await a.arrayBuffer();
+    assert.ok(etag, path + ' sin ETag');
+    const b = await fetch(base + path, { headers: { 'If-None-Match': etag } });
+    assert.equal(b.status, 304, path);
+    assert.equal((await b.arrayBuffer()).byteLength, 0);
+    const c = await fetch(base + path, { headers: { 'If-None-Match': '"otro"' } });
+    assert.equal(c.status, 200);
+    await c.arrayBuffer();
+  }
+});
+
 test('no se puede salir de la carpeta pública', async () => {
   for (const path of ['/../package.json', '/%2e%2e/package.json', '/shared/../server/app.js', '/%2e%2e%2fserver%2fapp.js']) {
     const status = await new Promise((resolve, reject) => {
