@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.10.2',
+    date: '2026-11-24',
+    changes: [
+      'Al abrir la app, si la última vez buscaste «cerca de mí», mira dónde estás ahora y, si te has movido más de 1 km, te enseña las gasolineras de donde estás (antes salían las del último sitio). Si buscaste una dirección, la respeta. No pide permisos: solo funciona si ya diste permiso de ubicación.',
+    ],
+  },
+  {
     version: '1.10.1',
     date: '2026-11-24',
     changes: [

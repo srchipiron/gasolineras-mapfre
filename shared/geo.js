@@ -103,3 +103,17 @@ export function simplifyPolyline(poly, toleranceKm = 0.05) {
   }
   return poly.filter((_, i) => keep[i]);
 }
+
+/** Si la última búsqueda fue «cerca de mí» (por GPS). */
+export const isHere = (last) => !!(last && (last.gps || last.label === 'Tu ubicación'));
+
+/**
+ * Al abrir la app: buscar otra vez alrededor de `here` si la última búsqueda
+ * fue «cerca de mí» y te has movido al menos `minKm` desde entonces. Si
+ * buscaste una dirección concreta, se respeta.
+ */
+export function shouldRelocate(last, here, minKm = 1) {
+  if (!isHere(last) || !here) return false;
+  if (![last.lat, last.lon, here.lat, here.lon].every(Number.isFinite)) return false;
+  return haversineKm(last.lat, last.lon, here.lat, here.lon) >= minKm;
+}
