@@ -13,7 +13,7 @@ import {
 import { parseTrack } from '/shared/track.js';
 import { planStops, locateOnRoute, routeProgress, stopAlertKey, arrivalAt, departureDate, DEFAULT_RIDE_KMH } from '/shared/plan.js';
 import { isOpenAt } from '/shared/horario.js';
-import { cumulativeKm } from '/shared/geo.js';
+import { cumulativeKm, isHere, shouldRelocate } from '/shared/geo.js';
 import { renderFavorites, renderFavStrip, checkAlerts } from './views/favorites.js';
 import { renderTrend } from './views/trend.js';
 import { setupInstallBanner, onInstallChange } from './install.js';
@@ -699,8 +699,8 @@ function stopFollow({ render = true } = {}) {
   if (render && state.route) renderRoute({ fit: false });
 }
 
-function setCenter(lat, lon, label) {
-  state.center = { lat, lon, label };
+function setCenter(lat, lon, label, { gps = false } = {}) {
+  state.center = gps ? { lat, lon, label, gps: true } : { lat, lon, label };
   state.settings.lastLocation = state.center;
   persist();
   $('#location-label').textContent = `📍 ${label}`;
@@ -718,7 +718,7 @@ function locate({ silent = false } = {}) {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         $('#locate').classList.remove('busy');
-        await setCenter(pos.coords.latitude, pos.coords.longitude, 'Tu ubicación');
+        await setCenter(pos.coords.latitude, pos.coords.longitude, 'Tu ubicación', { gps: true });
         resolve(true);
       },
       (err) => {
@@ -733,6 +733,31 @@ function locate({ silent = false } = {}) {
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
     );
   });
+}
+
+/**
+ * Al abrir la app: si la última búsqueda fue «cerca de mí» y el móvil ya dio
+ * permiso de ubicación, mira dónde estás ahora (sin preguntar nada) y, si te
+ * has movido, busca alrededor de ti. Si buscaste una dirección, la respeta.
+ */
+async function refreshHere(last) {
+  if (!isHere(last) || !navigator.geolocation) return;
+  try {
+    const perm = await navigator.permissions?.query({ name: 'geolocation' });
+    if (!perm || perm.state !== 'granted') return;
+  } catch { return; }
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude: lat, longitude: lon } = pos.coords;
+      if (!shouldRelocate(last, { lat, lon })) return;
+      // Si mientras tanto has buscado otra cosa, no se toca.
+      if (state.center?.lat !== last.lat || state.center?.lon !== last.lon) return;
+      await setCenter(lat, lon, 'Tu ubicación', { gps: true });
+      toast('📍 Te has movido: ahora ves las gasolineras de donde estás');
+    },
+    () => {},
+    { enableHighAccuracy: false, timeout: 15000, maximumAge: 120000 },
+  );
 }
 
 async function geocodeFirst(q) {
@@ -1168,7 +1193,10 @@ async function init() {
   const last = state.settings.lastLocation;
   if (accion === 'cerca' && (await locate())) {
     /* ya buscado alrededor de tu posición */
-  } else if (last) await setCenter(last.lat, last.lon, last.label);
+  } else if (last) {
+    await setCenter(last.lat, last.lon, last.label, { gps: isHere(last) });
+    refreshHere(last);
+  }
   else if (!(await locate({ silent: true }))) {
     await setCenter(DEFAULT_CENTER.lat, DEFAULT_CENTER.lon, DEFAULT_CENTER.label);
     toast('Escribe una dirección o pulsa 📍 para buscar cerca de ti', 5000);

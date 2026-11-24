@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { haversineKm, distanceToPolyline, simplifyPolyline, cumulativeKm } from '../shared/geo.js';
+import { haversineKm, distanceToPolyline, simplifyPolyline, cumulativeKm, isHere, shouldRelocate } from '../shared/geo.js';
 import { enrich, filterResults, sortResults, summarize, priceLevel, compareFilter, byBrand } from '../shared/ranking.js';
 import { cloneProgram } from '../shared/treboles.js';
 import { parseResponse } from '../server/minetur.js';
@@ -208,4 +208,21 @@ test('la más barata de cada marca', () => {
   assert.equal(galp.best.station.id, '1001');
   for (let i = 1; i < groups.length; i++) assert.ok(groups[i - 1].best.effective <= groups[i].best.effective, 'ordenadas de más barata a más cara');
   assert.deepEqual(byBrand([]), []);
+});
+
+test('al abrir: vuelve a buscar cerca de ti solo si te has movido', () => {
+  const almeria = { lat: 36.84, lon: -2.46, label: 'Tu ubicación', gps: true };
+  // Sin moverse (unos 300 m): se queda donde estaba.
+  assert.equal(shouldRelocate(almeria, { lat: 36.8427, lon: -2.46 }), false);
+  // A 20 km (Níjar): vuelve a buscar.
+  assert.equal(shouldRelocate(almeria, { lat: 36.96, lon: -2.21 }), true);
+  // Guardado por una versión anterior, sin «gps»: cuenta por la etiqueta.
+  assert.equal(isHere({ lat: 1, lon: 2, label: 'Tu ubicación' }), true);
+  // Si buscaste una dirección, se respeta aunque estés lejos.
+  const buscada = { lat: 36.84, lon: -2.46, label: 'Calle Real, Almería' };
+  assert.equal(isHere(buscada), false);
+  assert.equal(shouldRelocate(buscada, { lat: 40.41, lon: -3.7 }), false);
+  // Datos raros: no hace nada.
+  assert.equal(shouldRelocate(null, { lat: 1, lon: 1 }), false);
+  assert.equal(shouldRelocate(almeria, { lat: NaN, lon: 1 }), false);
 });
