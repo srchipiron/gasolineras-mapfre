@@ -638,7 +638,7 @@ input[type="checkbox"], input[type="radio"] { box-shadow: none; }
   background: var(--surface-2); border: 1px solid transparent; min-height: 36px;
 }
 .chips .chip { min-height: 36px; padding: 5px 14px; }
-.chip input[type="checkbox"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.chip input[type="checkbox"], .chip input[type="radio"] { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
 .chip:has(input[type="checkbox"])::before { content: "+"; font-weight: 800; color: var(--muted); }
 .chip:has(input:checked) { background: var(--text); color: var(--bg); }
 .chip:has(input:checked)::before { content: "✓"; color: var(--lime); }
@@ -817,6 +817,19 @@ dialog.sheet::backdrop { background: rgba(8, 16, 12, 0.55); -webkit-backdrop-fil
 .credit-in:hover { border-color: #0a66c2; }
 .credit-in svg { flex: none; border-radius: 4px; }
 .credit-note { font-size: 0.75rem; color: var(--muted); }
+
+/* Consumo real (1.11) */
+.consumo { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 12px 14px; margin: 10px 0; display: flex; flex-direction: column; gap: 4px; }
+.consumo .label { font-size: 0.68rem; letter-spacing: 0.09em; font-weight: 800; text-transform: uppercase; color: var(--muted); }
+.consumo p { margin: 0; }
+.consumo.hint { background: var(--surface-2); border-style: dashed; }
+.consumo-main { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.consumo-main strong { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.consumo-eur { margin-left: auto; font-variant-numeric: tabular-nums; }
+.consumo .btn { margin-top: 6px; }
+.odo-row { align-items: flex-end; }
+.odo-row .chip { flex: none; min-height: 44px; }
+.odo-note { margin: -4px 0 0; }
 @media (min-width: 900px) {
   .credit { flex-direction: row; justify-content: center; gap: 14px; margin: 0; padding: 10px 16px; border-radius: 0; box-shadow: none; border: 0; border-top: 1px solid var(--line); }
 }

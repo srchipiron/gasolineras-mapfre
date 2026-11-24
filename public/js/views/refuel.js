@@ -5,6 +5,7 @@ import { FUELS } from '/shared/fuels.js';
 import { findRule, percentFor, treblesFor, fuelEligible, cappedAmount } from '/shared/treboles.js';
 import { saveLog, newId } from '../store.js';
 import { isCompany } from '/shared/modo.js';
+import { lastOdometer } from '/shared/consumo.js';
 
 export function openRefuel(ctx, station = null) {
   const { state } = ctx;
@@ -16,6 +17,8 @@ export function openRefuel(ctx, station = null) {
     : s.fuel;
   const price = station?.prices[fuel] ?? '';
   const company = isCompany(s);
+  const vehicleId = s.vehicleId ?? null;
+  const lastKm = vehicleId ? lastOdometer(state.log, vehicleId) : null;
   const fuels = FUELS.filter((f) => !station || station.prices[f.key] != null || f.key === fuel);
 
   dlg.innerHTML = html`
@@ -38,6 +41,11 @@ export function openRefuel(ctx, station = null) {
       <label class="field"><span>Precio €/L</span><input type="number" name="price" step="0.001" min="0" inputmode="decimal" value="${price}" required></label>
       <label class="field"><span>Importe €</span><input type="number" name="amount" step="0.01" min="0" inputmode="decimal"></label>
     </div>
+    <div class="row odo-row">
+      <label class="field"><span>Cuentakilómetros (km)</span><input type="number" name="odometer" step="1" min="0" inputmode="numeric" placeholder="${lastKm ? `Último: ${lastKm.toLocaleString('es-ES')}` : 'Opcional'}"></label>
+      <label class="chip"><input type="checkbox" name="full" checked> Lleno el depósito</label>
+    </div>
+    <p class="small muted odo-note" id="odo-note">Apunta los km al llenar y la app calcula lo que gasta de verdad tu vehículo.</p>
     <div class="payer-row" role="radiogroup" aria-label="¿Quién paga?">
       <label class="chip"><input type="radio" name="payer" value="personal" ${company ? '' : 'checked'}> 🚗 Pago yo</label>
       <label class="chip"><input type="radio" name="payer" value="company" ${company ? 'checked' : ''}> 💼 Paga la empresa</label>
@@ -94,6 +102,14 @@ export function openRefuel(ctx, station = null) {
   el('mapfre').addEventListener('change', () => { setPercent(); calc(); });
   el('date').addEventListener('change', () => { setPercent(); calc(); });
   el('percent').addEventListener('input', calc);
+  el('odometer').addEventListener('input', () => {
+    const v = Number(el('odometer').value);
+    const note = dlg.querySelector('#odo-note');
+    if (!v || !lastKm) return;
+    note.textContent = v > lastKm
+      ? `${(v - lastKm).toLocaleString('es-ES')} km desde el último repostaje apuntado.`
+      : `Ojo: es menos que la última vez (${lastKm.toLocaleString('es-ES')} km).`;
+  });
   setPercent();
   fromLitres();
 
@@ -116,6 +132,9 @@ export function openRefuel(ctx, station = null) {
       eligibleAmount,
       treboles: el('mapfre').checked ? treblesFor(eligibleAmount, percent) : 0,
       payer: f.querySelector('input[name=payer]:checked')?.value === 'company' ? 'company' : 'personal',
+      vehicleId,
+      odometer: Number(el('odometer').value) > 0 ? Math.round(Number(el('odometer').value)) : null,
+      full: el('full').checked,
     };
     state.log = [entry, ...state.log].sort((a, b) => b.date.localeCompare(a.date));
     saveLog(state.log);

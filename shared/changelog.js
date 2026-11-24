@@ -8,6 +8,16 @@
 
 export const CHANGELOG = [
   {
+    version: '1.11.0',
+    date: '2026-11-24',
+    changes: [
+      'Consumo real: al registrar un repostaje puedes apuntar los km del cuentakilómetros y si llenas el depósito. Con dos llenados, en Repostajes ves cuánto gasta de verdad tu vehículo (L/100 km y € cada 100 km), contando los repostajes a medias de en medio.',
+      'Si tu consumo real no coincide con el de Ajustes, un botón lo pone en tu vehículo para que el plan de repostaje de la ruta y el gasto del viaje usen lo que gastas de verdad.',
+      'Al apuntar los km te dice cuántos llevas desde el último repostaje, y los km salen en el historial y en el CSV.',
+      'Arreglado: en «Registrar repostaje», los botones «Pago yo» / «Paga la empresa» enseñaban un círculo grande además de la marca ✓.',
+    ],
+  },
+  {
     version: '1.10.2',
     date: '2026-11-24',
     changes: [

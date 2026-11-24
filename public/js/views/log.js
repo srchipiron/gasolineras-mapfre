@@ -6,6 +6,8 @@ import { fuelLabel } from '/shared/fuels.js';
 import { capStatus, trebolStatus } from '/shared/treboles.js';
 import { saveLog } from '../store.js';
 import { payerOf, splitByPayer } from '/shared/modo.js';
+import { realConsumption, roundConsumption } from '/shared/consumo.js';
+import { activeVehicle, updateVehicle } from '/shared/vehiculos.js';
 
 function totals(entries) {
   const t = entries.reduce(
@@ -48,6 +50,34 @@ function monthlyChart(log, today) {
   </svg>`;
 }
 
+// Consumo real del vehículo en uso, con un botón para usarlo en la ruta.
+function consumptionCard(state) {
+  const s = state.settings;
+  const v = activeVehicle(s);
+  if (!v) return '';
+  const c = realConsumption(state.log, v.id);
+  const name = `${v.icon} ${v.name}`;
+  if (!c) {
+    const withKm = state.log.filter((e) => e.vehicleId === v.id && Number(e.odometer) > 0).length;
+    return html`<div class="consumo hint">
+      <span class="label">⛽ Consumo real · ${name}</span>
+      <p class="small">${withKm
+        ? 'Ya tienes un llenado con km. En el próximo llenado apunta otra vez el cuentakilómetros y verás lo que gasta de verdad.'
+        : 'Al registrar un repostaje, apunta los km del cuentakilómetros y marca «Lleno el depósito». Con dos llenados, la app calcula lo que gasta de verdad (y el plan de ruta lo usa).'}</p>
+    </div>`;
+  }
+  const real = roundConsumption(c.l100);
+  const differs = Math.abs(real - Number(s.consumption)) >= 0.2;
+  const dec1 = (x) => x.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return html`<div class="consumo">
+    <span class="label">⛽ Consumo real · ${name}</span>
+    <div class="consumo-main"><strong>${dec1(real)}</strong><span>L/100 km</span><b class="consumo-eur">${eur(c.eur100)} / 100 km</b></div>
+    <p class="small muted">En ${c.km.toLocaleString('es-ES')} km y ${num2(c.litres)} L (${c.segments} ${c.segments === 1 ? 'tramo' : 'tramos'} de lleno a lleno). Último: ${dec1(roundConsumption(c.last.l100))} L/100 km en ${c.last.km.toLocaleString('es-ES')} km.</p>
+    ${differs ? html`<p class="small">En Ajustes tienes ${dec1(Number(s.consumption))} L/100 km.
+      <button type="button" class="btn small primary" id="use-real" data-v="${v.id}" data-c="${real}">Usar ${dec1(real)} en el plan de ruta</button></p>` : ''}
+  </div>`;
+}
+
 export function renderLog(ctx) {
   const { state } = ctx;
   const today = todayISO();
@@ -75,7 +105,16 @@ export function renderLog(ctx) {
       ${capBar('Tope esta semana (lunes a domingo)', cap.week)}
     </div>
     ${pending.length ? html`<p class="verdict bad">Tienes ${pending.length} ${pending.length === 1 ? 'repostaje' : 'repostajes'} con más de 10 días: confirma abajo si te llegaron los tréboles.</p>` : ''}
+    ${raw(consumptionCard(state))}
     ${raw(monthlyChart(state.log, today))}`;
+  document.getElementById('use-real')?.addEventListener('click', (ev) => {
+    const b = ev.currentTarget;
+    updateVehicle(state.settings, b.dataset.v, { consumption: Number(b.dataset.c) });
+    ctx.persist();
+    ctx.recompute();
+    ctx.toast(`Consumo actualizado: ${String(b.dataset.c).replace('.', ',')} L/100 km`);
+    renderLog(ctx);
+  });
 
   const list = document.getElementById('log-list');
   if (!state.log.length) {
@@ -88,7 +127,7 @@ export function renderLog(ctx) {
     <li class="log-item ${st?.kind === 'ask' ? 'ask' : ''}">
       <div>
         <strong>${e.name || 'Repostaje'}</strong>${payerOf(e) === 'company' ? html`<span class="log-payer">💼 Empresa</span>` : ''}
-        <div class="small muted">${date(e.date)} · ${fuelLabel(e.fuel)} · ${num2(e.litres)} L a ${eurL(e.price)}</div>
+        <div class="small muted">${date(e.date)} · ${fuelLabel(e.fuel)} · ${num2(e.litres)} L a ${eurL(e.price)}${Number(e.odometer) > 0 ? ` · ${Number(e.odometer).toLocaleString('es-ES')} km${e.full === false ? '' : ' (lleno)'}` : ''}</div>
         ${st?.kind === 'waiting' ? html`<div class="small muted">Los tréboles llegan antes del ${date(st.until)}.</div>` : ''}
         ${st?.kind === 'ok' ? html`<div class="small ok-text">✓ Tréboles recibidos</div>` : ''}
         ${st?.kind === 'ask' ? html`<div class="small">¿Te llegaron los ${num2(e.treboles)} tréboles?
@@ -137,12 +176,14 @@ const csvCell = (v) => {
 const dec = (n, d) => (Number(n) || 0).toFixed(d).replace('.', ',');
 
 export function exportLogCsv(state) {
-  const header = ['fecha', 'gasolinera', 'carburante', 'litros', 'precio_litro', 'importe', 'club_mapfre', 'porcentaje', 'importe_con_treboles', 'treboles', 'treboles_recibidos', 'paga'];
+  const header = ['fecha', 'gasolinera', 'carburante', 'litros', 'precio_litro', 'importe', 'club_mapfre', 'porcentaje', 'importe_con_treboles', 'treboles', 'treboles_recibidos', 'paga', 'cuentakilometros', 'lleno'];
   const rows = state.log.map((e) => [
     e.date, e.name, fuelLabel(e.fuel), dec(e.litres, 2), dec(e.price, 3), dec(e.amount, 2),
     e.mapfre ? 'sí' : 'no', dec(e.percent, 1), dec(e.eligibleAmount ?? (e.mapfre ? e.amount : 0), 2), dec(e.treboles, 2),
     e.confirmed === true ? 'sí' : e.confirmed === false ? 'no' : '',
     payerOf(e) === 'company' ? 'empresa' : 'yo',
+    Number(e.odometer) > 0 ? Number(e.odometer) : '',
+    Number(e.odometer) > 0 ? (e.full === false ? 'no' : 'sí') : '',
   ]);
   const csv = '﻿' + [header, ...rows].map((r) => r.map(csvCell).join(';')).join('\n');
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
