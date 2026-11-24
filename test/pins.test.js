@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spreadPins } from '../shared/pins.js';
+import { spreadPins, declutterLabels } from '../shared/pins.js';
 
 // Pin con precio: 64 × 26 px, ancla a 30 px.
 const pin = (x, y, lat, lon) => ({ x, y, w: 64, h: 26, ay: 30, lat, lon });
@@ -32,4 +32,13 @@ test('las que solo coinciden por estar lejos con poco zoom no se mueven', () => 
 
 test('sin solape no se mueve nada', () => {
   assert.deepEqual(spreadPins([pin(0, 0, 40, -3), pin(200, 0, 40.0005, -3)]), [0, 0]);
+});
+
+test('con poco zoom las etiquetas que se pisan pasan a ser puntos', () => {
+  const L = (x, y, lat, extra = {}) => ({ ...pin(x, y, lat, -3), labelled: true, ...extra });
+  // La 2.ª cae encima de la 1.ª pero está a 5 km: se queda como punto.
+  // La 3.ª no se pisa con nadie. La 4.ª está a 30 m de la 1.ª: se separa, no se quita.
+  // La 5.ª se pisa pero es la aconsejada: siempre con precio.
+  const shown = declutterLabels([L(100, 100, 40), L(110, 105, 40.045), L(300, 100, 40.1), L(102, 101, 40.0003), L(305, 104, 40.2, { keep: true }), { ...pin(0, 0, 41, -3), labelled: false }]);
+  assert.deepEqual(shown, [true, false, true, true, true, false]);
 });

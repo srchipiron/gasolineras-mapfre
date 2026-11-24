@@ -9,7 +9,7 @@ import { brandId } from './marcas.js';
 export const ROAD_FACTOR = 1.3;
 
 export const SORTS = {
-  total: 'Lo mejor para ti (coste real)',
+  total: 'Mejor para ti',
   effective: 'Con tréboles',
   price: 'Surtidor',
   distance: 'Distancia',
@@ -17,8 +17,8 @@ export const SORTS = {
 
 // Coche de empresa: el carburante lo paga la empresa y los tréboles son tuyos.
 export const COMPANY_SORTS = {
-  treboles: 'Lo mejor para ti (más tréboles)',
-  price: 'Surtidor (paga la empresa)',
+  treboles: 'Más tréboles',
+  price: 'Surtidor',
   distance: 'Distancia',
 };
 
