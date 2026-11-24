@@ -193,3 +193,11 @@ test('estado de los tréboles de un repostaje', () => {
   assert.equal(trebolStatus({ ...e, mapfre: false }, '2026-11-12'), null);
   assert.equal(trebolStatus({ ...e, treboles: 0 }, '2026-11-12'), null);
 });
+
+test('Tarjeta Repsol Carburante: se guarda y, sin ella, las «Gasolinera Repsol» no dan tréboles', async () => {
+  const { needsRepsolCard } = await import('../shared/treboles.js');
+  assert.equal(migrateProgram({ ...cloneProgram(), repsolCard: true }).repsolCard, true);
+  assert.equal(migrateProgram(cloneProgram()).repsolCard, false);
+  assert.ok(needsRepsolCard('6% en Tréboles. Con la tarjeta REPSOL Carburante.'));
+  assert.ok(!needsRepsolCard('3% en Tréboles. Del 1 al 5 de cada mes un 3% adicional'));
+});

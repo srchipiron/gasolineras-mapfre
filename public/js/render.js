@@ -29,6 +29,7 @@ function openBadge(r) {
 
 function mapfreBadge(r) {
   if (!r.adherida) return '';
+  if (r.rule?.needsCard) return html`<span class="badge" title="El 6 % es solo pagando con la Tarjeta Repsol Carburante">💳 solo con Tarjeta Repsol</span>`;
   if (!r.mapfre) return html`<span class="badge" title="Este carburante no da tréboles">🍀 sin tréboles</span>`;
   return html`<span class="badge mapfre" title="${r.rule.name}">🍀 ${pct(r.percent)}</span>${
     r.approx ? html`<span class="badge approx" title="Solo por la marca: compruébalo en el mapa oficial">aprox.</span>` : ''}`;
@@ -346,7 +347,7 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
       <span class="hero-pill">${status.open === true ? '● ' : ''}${status.label}</span>
       ${price != null ? html`<span class="hero-pill">⛽ ${fuelLabel(fuel)} · ${eurL(price)}</span>` : ''}
       ${vsAvg(price, areaAvg)}
-      ${rule && eligible ? html`<span class="hero-pill lime">🍀 ${pct(p)}</span>` : ''}
+      ${rule && eligible && p > 0 ? html`<span class="hero-pill lime">🍀 ${pct(p)}</span>` : ''}
     </div>
     <div class="hero-row">
       <span class="hero-tile ${bs.logo ? `has-logo ${bs.logoShape}` : ''}" aria-hidden="true">${bs.logo ? html`<img src="${bs.logo}" alt="" decoding="async">` : bs.mono}</span>
@@ -366,10 +367,12 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
         ? html`<p><b>🍀 Club MAPFRE: ${rule.name}</b></p>
                <p class="small">${isApprox(rule) ? SOURCE_TEXT.approx : SOURCE_TEXT[rule.source] ?? ''}</p>
                ${rule.ventajas ? html`<p class="small">Ventaja según el mapa oficial: <b>${rule.ventajas}</b></p>` : ''}
-               ${eligible && price != null
+               ${rule.needsCard
+                 ? html`<p class="warn small">💳 Con el carnet de socio aquí <b>no ganas tréboles</b>: el 6 % es solo pagando con la <b>Tarjeta Repsol Carburante</b> de MAPFRE. Si la tienes, actívala en Ajustes → Condiciones.</p>`
+                 : eligible && price != null
                  ? html`<p>Hoy te devuelve el <b>${pct(p)}</b> en tréboles: ${num2(treblesFor(capped, p))} tréboles por ${litres} L de ${fuelLabel(fuel)} (${eur(amount)})${capped < amount ? html` <span class="small">— solo cuentan ${eur(capped)} por el tope de 100 €/día y 300 €/semana</span>` : ''}.</p>`
                  : html`<p class="warn small">El ${fuelLabel(fuel)} no da tréboles (el GLP y el GNC están excluidos).</p>`}
-               <p class="small muted">${rule.requirement ?? program.requirement ?? DEFAULT_PROGRAM.requirement}</p>`
+               ${rule.needsCard ? '' : html`<p class="small muted">${rule.requirement ?? program.requirement ?? DEFAULT_PROGRAM.requirement}</p>`}`
         : html`<p><b>No consta como adherida a Club MAPFRE</b>${covered ? html` en la lista oficial de ${provinciaName(st.idProvincia)}` : ' con tus reglas actuales'}.</p>`}
       <div class="row wrap">
         ${ov !== 'in' && !rule ? html`<button class="btn small" data-action="mark-in">Marcar como adherida</button>` : ''}

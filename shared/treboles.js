@@ -36,6 +36,9 @@ export const DEFAULT_PROGRAM = Object.freeze({
   // Tipos del mapa oficial que cuentan: «Más EESS colaboradoras» y
   // «Gasolinera Repsol» (en la lista se filtran como en el mapa oficial).
   officialTypes: ['colaboradora', 'repsol'],
+  // En las «Gasolinera Repsol» el 6 % es solo pagando con la Tarjeta Repsol
+  // Carburante (no con el carnet): sin ella no dan tréboles.
+  repsolCard: false,
   // Regla que se aplica a las estaciones que marcas tú como adheridas.
   manual: {
     id: 'manual',
@@ -69,7 +72,8 @@ export function migrateProgram(saved) {
   if (!saved || typeof saved !== 'object') return base;
   const trebolValue = Number.isFinite(saved.trebolValue) ? saved.trebolValue : base.trebolValue;
   // Al cambiar de versión se descartan todas las reglas por marca guardadas.
-  if (saved.version !== base.version) return { ...base, trebolValue, rules: [...base.rules] };
+  const repsolCard = saved.repsolCard === true;
+  if (saved.version !== base.version) return { ...base, trebolValue, repsolCard, rules: [...base.rules] };
   const officialTypes = Array.isArray(saved.officialTypes)
     ? saved.officialTypes.filter((t) => ['colaboradora', 'repsol'].includes(t))
     : base.officialTypes;
@@ -80,7 +84,7 @@ export function migrateProgram(saved) {
     if (!s) return r;
     return { ...r, ...Object.fromEntries(editable.filter((k) => s[k] !== undefined).map((k) => [k, s[k]])) };
   });
-  return { ...base, trebolValue, officialTypes, rules: [...rules, ...custom] };
+  return { ...base, trebolValue, officialTypes, repsolCard, rules: [...rules, ...custom] };
 }
 
 /** Normaliza un rótulo: sin tildes, mayúsculas y solo letras/números. */
@@ -231,6 +235,9 @@ export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, off
     //  - «Hasta un 6 %…»: es el máximo del carnet -> condiciones del carnet.
     //  - un único porcentaje («6 % con la tarjeta…»): ese, todos los días.
     //  - dos («6 % del 1 al 5 y 3 % el resto»): el mayor los días bonificados.
+    // «6 % en Tréboles. Con la tarjeta REPSOL Carburante. No compatible con …
+    // el carnet de socio»: sin esa tarjeta, aquí no se gana nada.
+    if (needsRepsolCard(hit.ventajas) && !program.repsolCard) return { ...base, percent: 0, boostPercent: 0, promos: [], needsCard: true };
     const pcts = /hasta/i.test(hit.ventajas ?? '') ? [] : percentsIn(hit.ventajas);
     //  - «3 % en Tréboles. Del 1 al 5 de cada mes un 3 % adicional»: se suman.
     if (pcts.length === 2 && /adicional/i.test(hit.ventajas)) return { ...base, percent: pcts[0], boostPercent: pcts[0] + pcts[1], promos: [] };
@@ -246,6 +253,9 @@ export function findRule(station, program = DEFAULT_PROGRAM, overrides = {}, off
   }
   return null;
 }
+
+/** ¿La ventaja exige pagar con la Tarjeta Repsol Carburante? */
+export const needsRepsolCard = (text) => /tarjeta\s+repsol/i.test(String(text ?? ''));
 
 /** Porcentajes que aparecen en un texto («6 % en Tréboles…» -> [6]). */
 export function percentsIn(text) {
