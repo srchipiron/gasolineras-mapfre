@@ -294,6 +294,10 @@ export function renderSettings(ctx) {
 
     <h3>Filtros</h3>
     <label class="chip"><input type="checkbox" data-k="hideRestricted" ${s.hideRestricted ? 'checked' : ''}> Ocultar gasolineras de venta restringida (cooperativas, flotas)</label>
+    ${s.hiddenBrands?.length
+      ? html`<p class="small">🙈 Marcas que no quieres ver (toca una para volver a verla):</p>
+        <div class="row wrap hidden-brands">${s.hiddenBrands.map((b) => html`<button type="button" class="btn small" data-unhide="${b}">${b.toUpperCase()} ✕</button>`)}</div>`
+      : html`<p class="small muted">Para dejar de ver una marca, abre una de sus gasolineras y pulsa «🙈 Ocultar esta marca».</p>`}
 
     <h3>Datos</h3>
     <p class="small">Fuente: ${st?.source === 'demo' ? 'datos de DEMOSTRACIÓN (inventados)' : 'Ministerio para la Transición Ecológica (Geoportal de Hidrocarburos)'}.<br>
@@ -327,6 +331,12 @@ export function renderSettings(ctx) {
     renderSettings(ctx);
   };
 
+  root.querySelectorAll('[data-unhide]').forEach((b) => b.addEventListener('click', () => {
+    s.hiddenBrands = (s.hiddenBrands ?? []).filter((x) => x !== b.dataset.unhide);
+    ctx.persist();
+    ctx.recompute();
+    renderSettings(ctx);
+  }));
   root.querySelectorAll('[data-k]').forEach((el) =>
     el.addEventListener('change', () => {
       const k = el.dataset.k;

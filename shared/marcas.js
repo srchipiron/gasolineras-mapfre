@@ -53,13 +53,57 @@ function initials(name) {
   return words[0][0] + words[1][0];
 }
 
-/** { key, mono } de una marca. key = 'otra' si no tiene colores propios. */
+// Logotipos oficiales (public/img/marcas, sacados de Wikimedia). «sq» cabe en
+// un cuadradito; «wide» es un rótulo alargado que solo luce en la ficha.
+export const LOGOS = {
+  repsol: ['repsol.svg', 'sq'],
+  bp: ['bp.svg', 'sq'],
+  shell: ['shell.svg', 'sq'],
+  galp: ['galp.svg', 'sq'],
+  avia: ['avia.svg', 'sq'],
+  esso: ['esso.svg', 'sq'],
+  q8: ['q8.svg', 'sq'],
+  moeve: ['moeve.svg', 'wide'],
+  cepsa: ['cepsa.svg', 'wide'],
+  leclerc: ['leclerc.svg', 'wide'],
+  costco: ['costco.svg', 'wide'],
+  eni: ['eni.svg', 'wide'],
+  plenergy: ['plenergy.png', 'wide'],
+  petroprix: ['petroprix.png', 'wide'],
+};
+
+/** { key, mono, logo, logoShape } de una marca. key = 'otra' si no tiene colores propios. */
+const WORDS = BRANDS.map(([key, mono, words]) => [key, mono, words.map(norm)]);
+const memo = new Map(); // se llama por cada gasolinera en cada repintado
+
 export function brandStyle(brand) {
-  const name = norm(brand);
-  for (const [key, mono, words] of BRANDS) {
-    if (words.some((w) => startsWithWord(name, norm(w)))) return { key, mono };
+  const raw = String(brand ?? '');
+  const hit = memo.get(raw);
+  if (hit) return hit;
+  const name = norm(raw);
+  let out = { key: 'otra', mono: initials(name), logo: null, logoShape: null };
+  for (const [key, mono, words] of WORDS) {
+    if (words.some((w) => startsWithWord(name, w))) {
+      const l = LOGOS[key];
+      out = { key, mono, logo: l ? `/img/marcas/${l[0]}` : null, logoShape: l?.[1] ?? null };
+      break;
+    }
   }
-  return { key: 'otra', mono: initials(name) };
+  if (memo.size > 2000) memo.clear();
+  memo.set(raw, Object.freeze(out));
+  return out;
+}
+
+/** Primera palabra del rótulo, para el nombre en grande de fondo («BP GETAFE» → «BP»). */
+export const brandWord = (brand) => String(brand ?? '').trim().split(/[\s\-–·]+/)[0];
+
+/**
+ * Identificador de la marca para ocultarla: la clave si es conocida
+ * («REPSOL ALHAMBRA» → «repsol») o la primera palabra («RASPAOIL ALMERIA» → «RASPAOIL»).
+ */
+export function brandId(brand) {
+  const { key } = brandStyle(brand);
+  return key !== 'otra' ? key : norm(brandWord(brand));
 }
 
 export const BRAND_KEYS = BRANDS.map(([k]) => k);

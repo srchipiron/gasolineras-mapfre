@@ -1,6 +1,6 @@
 // Plantillas HTML de resultados, resumen y ficha de la gasolinera.
 
-import { brandStyle } from '/shared/marcas.js';
+import { brandStyle, brandWord } from '/shared/marcas.js';
 import { html, raw, eurL, eur, km, num2, pct, date, cents } from './format.js';
 import { openStatus } from '/shared/horario.js';
 import { FUELS, fuelLabel } from '/shared/fuels.js';
@@ -12,11 +12,14 @@ import { provinciaName } from '/shared/provincias.js';
 // Cuadradito con el emblema y los colores de la marca.
 function brandTile(brand, cls = '', extra = '') {
   const b = brandStyle(brand);
-  return html`<span class="brand-tile b-${b.key} ${cls}" aria-hidden="true"><span class="mono">${b.mono}</span>${raw(extra)}</span>`;
+  return html`<span class="brand-tile b-${b.key} ${cls} ${b.logoShape === 'sq' ? 'has-logo' : ''}" aria-hidden="true">${tileFace(b)}${raw(extra)}</span>`;
 }
 
-// Primera palabra del rótulo, para el nombre en grande de fondo («BP GETAFE» → «BP»).
-const brandWord = (brand) => String(brand ?? '').trim().split(/[\s\-–·]+/)[0];
+// Lo de dentro del cuadradito: el logotipo si cabe; si no, el emblema.
+const tileFace = (b) => (b.logoShape === 'sq'
+  ? html`<img src="${b.logo}" alt="" loading="lazy" decoding="async">`
+  : html`<span class="mono">${b.mono}</span>`);
+
 
 function openBadge(r) {
   if (r.open === true) return html`<span class="badge ok">Abierta</span>`;
@@ -53,12 +56,13 @@ function companyPrice(r) {
 
 export function resultItem(r, i, { litres, mode = 'nearby', favorite = false, markMode = false, note = null, company = false }) {
   const st = r.station;
+  const bs = brandStyle(st.brand);
   const where = mode === 'route'
     ? `km ${Math.round(st.alongKm)} de la ruta · desvío ${km(st.offRouteKm)}`
     : km(st.distanceKm);
   return html`
   <li class="result ${r.mapfre ? 'is-mapfre' : ''} ${r.approx ? 'is-approx' : ''}" data-id="${st.id}" tabindex="0">
-    <div class="rank brand-tile b-${brandStyle(st.brand).key}" aria-label="Puesto ${i + 1}"><span class="mono" aria-hidden="true">${brandStyle(st.brand).mono}</span><span class="rank-n">${i + 1}</span></div>
+    <div class="rank brand-tile b-${bs.key} ${bs.logoShape === 'sq' ? 'has-logo' : ''}" aria-label="Puesto ${i + 1}">${tileFace(bs)}<span class="rank-n">${i + 1}</span></div>
     <div class="info">
       <div class="title">
         <strong>${st.brand}</strong>
@@ -293,6 +297,17 @@ function navLinks(st) {
     <a class="btn" target="_blank" rel="noopener" href="https://maps.apple.com/?daddr=${ll}">Apple Maps</a>`;
 }
 
+/** Píldora «▼ 4,2 cts vs media»: cuánto se aparta del precio medio de la zona que ves. */
+function vsAvg(price, avg) {
+  if (price == null || !(avg > 0)) return '';
+  const cts = Math.round((price - avg) * 1000) / 10;
+  if (Math.abs(cts) < 0.1) return html`<span class="hero-pill">＝ en la media</span>`;
+  const n = Math.abs(cts).toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return cts < 0
+    ? html`<span class="hero-pill good" title="Más barata que la media de la zona">▼ ${n} cts vs media</span>`
+    : html`<span class="hero-pill bad" title="Más cara que la media de la zona">▲ ${n} cts vs media</span>`;
+}
+
 const SOURCE_TEXT = {
   official: 'Está en la lista oficial del mapa de Club MAPFRE.',
   brand: 'Por la marca, según las condiciones publicadas.',
@@ -300,7 +315,7 @@ const SOURCE_TEXT = {
   manual: 'La has marcado tú como adherida.',
 };
 
-export function detailHtml(st, { settings, official, favorite, fecha, note = null, capLeft = Infinity, now = new Date() }) {
+export function detailHtml(st, { settings, official, favorite, fecha, note = null, capLeft = Infinity, now = new Date(), areaAvg = null }) {
   const { program, overrides, fuel, litres } = settings;
   const rule = findRule(st, program, overrides, official);
   const p = percentFor(rule, now);
@@ -330,10 +345,11 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
     <div class="hero-top">
       <span class="hero-pill">${status.open === true ? '● ' : ''}${status.label}</span>
       ${price != null ? html`<span class="hero-pill">⛽ ${fuelLabel(fuel)} · ${eurL(price)}</span>` : ''}
+      ${vsAvg(price, areaAvg)}
       ${rule && eligible ? html`<span class="hero-pill lime">🍀 ${pct(p)}</span>` : ''}
     </div>
     <div class="hero-row">
-      <span class="hero-tile" aria-hidden="true">${bs.mono}</span>
+      <span class="hero-tile ${bs.logo ? `has-logo ${bs.logoShape}` : ''}" aria-hidden="true">${bs.logo ? html`<img src="${bs.logo}" alt="" decoding="async">` : bs.mono}</span>
       <div class="hero-text">
         <h2>${st.brand}</h2>
         <p class="small">${st.address}, ${st.postalCode} ${st.locality} (${st.province})</p>
@@ -389,6 +405,7 @@ export function detailHtml(st, { settings, official, favorite, fecha, note = nul
       <button class="btn" data-action="fav">${favorite ? '★ Quitar de favoritas' : '☆ Añadir a favoritas'}</button>
       <button class="btn primary" data-action="refuel">Registrar repostaje</button>
       <button class="btn" data-action="share">Compartir</button>
+      <button class="btn" data-action="hide-brand">🙈 Ocultar esta marca</button>
     </div>
     <p class="small muted">Precios del Ministerio para la Transición Ecológica · ${fecha ?? ''} · ID ${st.id}</p>
   </div>`;

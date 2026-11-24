@@ -3,6 +3,7 @@
 
 import { findRule, percentFor, treblesFor, fuelEligible, eligibleAmount, isApprox, normalizeBrand } from './treboles.js';
 import { isOpenAt, parseSchedule } from './horario.js';
+import { brandId } from './marcas.js';
 
 // Los km por carretera suelen ser ~30 % más que en línea recta.
 export const ROAD_FACTOR = 1.3;
@@ -87,8 +88,10 @@ export const OFFICIAL_FILTERS = {
   repsol: 'Gasolinera Repsol',
 };
 
-export function filterResults(list, { onlyMapfre = false, openNow = false, hideRestricted = true, tipo = 'all' } = {}) {
+export function filterResults(list, { onlyMapfre = false, openNow = false, hideRestricted = true, tipo = 'all', hiddenBrands = [] } = {}) {
+  const hidden = new Set(hiddenBrands ?? []);
   return list.filter((r) => {
+    if (hidden.size && hidden.has(brandId(r.station.brand))) return false;
     if (onlyMapfre && !r.mapfre) return false;
     // Como en el mapa oficial: «Más EESS colaboradoras» o «Gasolinera Repsol».
     // Las que marcas tú a mano se ven siempre.
