@@ -8,6 +8,14 @@
 
 export const CHANGELOG = [
   {
+    version: '1.16.0',
+    date: '2026-11-25',
+    changes: [
+      'Versión web para el ordenador: abre la app en el navegador del PC y verás la búsqueda y la lista en una columna a la izquierda y el mapa ocupando el resto de la pantalla, fijo mientras bajas por la lista.',
+      'En el ordenador los filtros pasan de línea en vez de quedar escondidos a la derecha.',
+    ],
+  },
+  {
     version: '1.15.0',
     date: '2026-11-24',
     changes: [
