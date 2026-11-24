@@ -8,6 +8,17 @@
 
 export const CHANGELOG = [
   {
+    version: '1.13.0',
+    date: '2026-11-24',
+    changes: [
+      'Logotipos oficiales de las marcas (Repsol, BP, Shell, Galp, Moeve, Cepsa, Plenergy, Petroprix, Avia, Esso, Q8, E.Leclerc, Costco…), sacados de Wikimedia: en la lista, en «Te aconsejo» y en la cabecera de la ficha. Las marcas sin logo siguen con su emblema de colores.',
+      '«🙈 Ocultar esta marca» en la ficha: si no te fías de una cadena, deja de salir en la lista, el mapa y los consejos. En Ajustes → Filtros ves las que has ocultado y las recuperas con un toque.',
+      'En la ficha, una píldora te dice si está por debajo (▼) o por encima (▲) de la media de la zona, en céntimos.',
+      'Más rápida al repintar listas largas (la marca de cada gasolinera se calcula una sola vez).',
+      'Arreglado: en Ajustes, las opciones con frases largas se salían de la pantalla.',
+    ],
+  },
+  {
     version: '1.12.1',
     date: '2026-11-24',
     changes: [

@@ -1,5 +1,6 @@
 // Aplicación principal: búsqueda, mapa, lista y pestañas.
 
+import { brandId, brandWord } from '/shared/marcas.js';
 import { api } from './api.js';
 import './pump.js';
 import { createMap } from './map.js';
@@ -123,7 +124,7 @@ function computeList(stations, sort) {
     capLeft: capLeftToday(),
   });
   // Todas las gasolineras (para comparar) y las que se ven en la lista.
-  const all = filterResults(enriched, { openNow: s.openNow, hideRestricted: s.hideRestricted });
+  const all = filterResults(enriched, { openNow: s.openNow, hideRestricted: s.hideRestricted, hiddenBrands: s.hiddenBrands });
   const tipo = s.officialFilter ?? 'all';
   const filtered = filterResults(all, { onlyMapfre: s.onlyMapfre, tipo, hideRestricted: false });
   return {
@@ -198,6 +199,7 @@ function recompute({ fit = false } = {}) {
   if (state.nearby) {
     const { results, summary, comparison, companyCmp, recommendation, all } = computeList(state.nearby.stations, s[sortKey(s)]);
     state.computed.nearby = results;
+    state.areaAvg = summary.avg ?? null; // para «vs media» en la ficha
     summary.recommended = recommendation?.best ?? null; // se destaca en el mapa
     $('#summary').innerHTML = recommendHtml(recommendation, { litres: s.litres, tv: s.program.trebolValue ?? 1 })
       + summaryHtml(summary, summaryOpts(comparison, companyCmp, { radiusKm: state.nearby.radiusKm }));
@@ -354,6 +356,7 @@ function renderRoute({ fit }) {
   const r = state.route;
   const { results, summary, comparison, companyCmp, recommendation, all } = computeList(r.stations, s[routeSortKey(s)]);
   const advice = recommendation;
+  state.areaAvg = summary.avg ?? null;
   summary.recommended = advice?.best ?? null;
   const planned = routePlan(r, all);
   state.plan = planned.plan;
@@ -918,7 +921,7 @@ function openDetail(st) {
   const draw = () => {
     dlg.innerHTML = detailHtml(st, {
       settings: s, official: state.official, favorite: isFavorite(state.favorites, st.id), fecha: state.nearby?.fecha ?? state.status?.fecha,
-      note: state.notes[st.id], capLeft: capLeftToday(),
+      note: state.notes[st.id], capLeft: capLeftToday(), areaAvg: state.areaAvg,
     });
     dlg.querySelectorAll('[data-action]').forEach((b) => b.addEventListener('click', () => onAction(b.dataset.action)));
     dlg.querySelector('#station-note')?.addEventListener('change', (e) => {
@@ -946,6 +949,13 @@ function openDetail(st) {
     } else if (action === 'verdict-ok' || action === 'verdict-ko') {
       setVerdict(st, action === 'verdict-ok' ? 'ok' : 'ko');
       draw();
+    } else if (action === 'hide-brand') {
+      const id = brandId(st.brand);
+      s.hiddenBrands = [...new Set([...(s.hiddenBrands ?? []), id])];
+      persist();
+      dlg.close();
+      recompute();
+      toast(`🙈 Ya no verás ${brandWord(st.brand)}. Puedes volver a verla en Ajustes → Filtros`);
     } else if (action === 'card') {
       dlg.close();
       openCard(ctx);

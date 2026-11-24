@@ -61,6 +61,7 @@ export const DEFAULT_SETTINGS = {
   lastLocation: null, // { lat, lon, label }
   installDismissed: false, // aviso de «Instalar la app» cerrado
   brandsOpen: true, // tarjeta «La más barata de cada marca» desplegada
+  hiddenBrands: [], // marcas que no quieres ver (brandId de shared/marcas.js)
 };
 
 export function loadSettings() {
