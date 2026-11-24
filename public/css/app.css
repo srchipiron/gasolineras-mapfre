@@ -1025,3 +1025,30 @@ dialog.sheet::backdrop { background: rgba(8, 16, 12, 0.55); -webkit-backdrop-fil
 .brand-hero .hero-pill.bad { background: rgba(255, 255, 255, 0.92); color: #c2263a; border-color: transparent; }
 /* Ajustes: los chips con frases largas pasan de línea en vez de salirse */
 #settings .chip { white-space: normal; flex: 0 1 auto; max-width: 100%; border-radius: 18px; line-height: 1.3; padding-top: 8px; padding-bottom: 8px; }
+
+/* =====================================================================
+   Versión web (ordenador, 1100 px o más): columna a la izquierda con todo
+   (cabecera, búsqueda, avisos, pestañas y lista) y el mapa ocupando el
+   resto de la pantalla, fijo mientras bajas por la lista.
+   ===================================================================== */
+@media (min-width: 1100px) {
+  :root { --side: 460px; }
+  html { background: var(--bg); }
+  body { width: var(--side); height: auto; min-height: 100dvh; border-right: 1px solid var(--line); }
+  .layout { display: block; overflow: visible; }
+  .map {
+    position: fixed; top: 0; bottom: 0; left: var(--side); right: 0; z-index: 1;
+    height: auto; min-height: 0; margin: 14px; border-radius: 26px;
+  }
+  .panel { width: auto; overflow: visible; border-right: 0; }
+  .tabs { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 0 6px; }
+  .subtitle { display: block; }
+  /* En la columna los filtros van como en el móvil, pero los chips pasan
+     de línea en vez de quedar escondidos a la derecha. */
+  .filters { grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr) minmax(0, 1.2fr); }
+  .chips { grid-column: 1 / -1; flex-wrap: wrap; overflow: visible; margin: 4px 0 0; padding: 2px 0; }
+  .suggestions { right: 12px; width: auto; }
+  .credit { flex-wrap: wrap; }
+  /* Avisos flotantes: centrados sobre el mapa. */
+  .toast { left: calc(var(--side) + (100vw - var(--side)) / 2); }
+}
