@@ -85,7 +85,13 @@ test('con la lista oficial: carnet 6 %/3 % y, si el mapa indica un porcentaje, e
   const repsol = list.find((r) => r.station.id === '1003');
   assert.equal(galp.mapfre, true);
   assert.equal(galp.percent, 6, 'día 2: 6 % con el carnet');
-  assert.equal(repsol.percent, 6, 'porcentaje del texto de ventajas');
+  assert.equal(repsol.percent, 0, 'sin la Tarjeta Repsol Carburante, el carnet no da nada');
+  assert.equal(repsol.mapfre, false);
+  assert.equal(repsol.adherida, true);
+  assert.equal(repsol.rule.needsCard, true);
+  const conTarjeta = { ...cloneProgram(), repsolCard: true };
+  const lc = enrich(near, { fuel: 'gasoleoA', program: conTarjeta, official, now: new Date(2026, 11, 2) });
+  assert.equal(lc.find((r) => r.station.id === '1003').percent, 6, 'con la tarjeta: porcentaje del texto de ventajas');
   assert.equal(repsol.rule.ventajas, '6% en Tréboles con la Tarjeta Repsol Carburante');
   assert.equal(list.find((r) => r.station.id === '1002').mapfre, false);
   // Filtro por tipo, como el desplegable del mapa oficial
@@ -95,7 +101,7 @@ test('con la lista oficial: carnet 6 %/3 % y, si el mapa indica un porcentaje, e
   assert.deepEqual(ids('all'), ['1001', '1002', '1003']);
   assert.deepEqual(ids('colaboradora'), ['1001', '1002'], 'la marcada a mano se ve siempre');
   assert.deepEqual(ids('repsol'), ['1002', '1003']);
-  const later = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), official, now: new Date(2026, 11, 20) });
+  const later = enrich(near, { fuel: 'gasoleoA', program: conTarjeta, official, now: new Date(2026, 11, 20) });
   assert.equal(later.find((r) => r.station.id === '1001').percent, 3);
   assert.equal(later.find((r) => r.station.id === '1003').percent, 6, 'el porcentaje del mapa no depende del día');
 });
@@ -145,7 +151,7 @@ test('variación frente a ayer', () => {
 
 test('resumen y filtros', () => {
   const near = nearby(stations, { ...MADRID, radiusKm: 50 });
-  const list = enrich(near, { fuel: 'gasoleoA', program: cloneProgram(), official: { provinces: [], stations: { 1001: { tipo: 'colaboradora', nombre: 'GALP' }, 1003: { tipo: 'colaboradora', nombre: 'REPSOL', ventajas: '6% en Tréboles con la Tarjeta Repsol Carburante' } } }, now: new Date(2026, 11, 20, 12) });
+  const list = enrich(near, { fuel: 'gasoleoA', program: { ...cloneProgram(), repsolCard: true }, official: { provinces: [], stations: { 1001: { tipo: 'colaboradora', nombre: 'GALP' }, 1003: { tipo: 'colaboradora', nombre: 'REPSOL', ventajas: '6% en Tréboles con la Tarjeta Repsol Carburante' } } }, now: new Date(2026, 11, 20, 12) });
   assert.equal(filterResults(list, { hideRestricted: true }).length, 3);
   assert.equal(filterResults(list, { hideRestricted: false }).length, 4);
   assert.equal(filterResults(list, { onlyMapfre: true }).length, 2);

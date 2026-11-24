@@ -280,6 +280,7 @@ export function renderSettings(ctx) {
     <h3>Condiciones de Ahorro al Repostar</h3>
     <ul class="small conditions">
       <li><b>Con el carnet de socio</b>: <b>6 %</b> en tréboles del día 1 al 5 de cada mes y <b>3 %</b> el resto. 1 trébol = 1 € de descuento en tu seguro.</li>
+      <li>En las <b>«Gasolinera Repsol»</b> del mapa oficial el carnet no vale: dan el <b>6 % todos los días</b>, pero solo pagando con la <b>Tarjeta Repsol Carburante</b> de MAPFRE.</li>
       <li>Para canjear los tréboles necesitas al menos 5 y una póliza MAPFRE (coche, moto, hogar, salud…).</li>
       <li>Tope: compra máxima de <b>${s.program.cap?.perDay ?? 100} € al día</b> o <b>${s.program.cap?.perWeek ?? 300} € a la semana</b>.</li>
       <li>No dan tréboles el <b>GLP</b> ni el <b>GNC</b>, ni los vehículos de más de 3.500 kg de uso no particular.</li>
@@ -289,6 +290,7 @@ export function renderSettings(ctx) {
     </ul>
     <label class="field"><span>Valor de 1 trébol (€)</span><input type="number" min="0" max="5" step="0.05" data-k="trebolValue" value="${s.program.trebolValue}"></label>
     <p class="small muted">Si no vas a poder gastar los tréboles en tus seguros, pon un valor menor.</p>
+    <label class="chip"><input type="checkbox" data-k="repsolCard" ${s.program.repsolCard ? 'checked' : ''}> 💳 Tengo la Tarjeta Repsol Carburante de MAPFRE (6 % en las «Gasolinera Repsol»)</label>
 
     ${Object.keys(s.overrides).length ? html`<p class="small"><button type="button" class="btn small" id="clear-overrides">Borrar mis marcas manuales</button></p>` : ''}
 
@@ -340,7 +342,8 @@ export function renderSettings(ctx) {
   root.querySelectorAll('[data-k]').forEach((el) =>
     el.addEventListener('change', () => {
       const k = el.dataset.k;
-      if (el.type === 'checkbox') s[k] = el.checked;
+      if (k === 'repsolCard') s.program.repsolCard = el.checked;
+      else if (el.type === 'checkbox') s[k] = el.checked;
       else if (k === 'trebolValue') s.program.trebolValue = Math.max(0, Number(el.value) || 0);
       else s[k] = Math.max(0, Number(el.value) || 0);
       if (k === 'hideRestricted') return ctx.reload();

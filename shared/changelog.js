@@ -8,6 +8,14 @@
 
 export const CHANGELOG = [
   {
+    version: '1.13.2',
+    date: '2026-11-24',
+    changes: [
+      'Arreglado: las «Gasolinera Repsol» ya no cuentan el 6 % con el carnet. Ese 6 % es solo pagando con la Tarjeta Repsol Carburante; con el carnet allí no se ganan tréboles. Salen como «💳 solo con Tarjeta Repsol».',
+      'Si tienes esa tarjeta, actívala en Ajustes → Condiciones y vuelven a contar con el 6 %.',
+    ],
+  },
+  {
     version: '1.13.1',
     date: '2026-11-24',
     changes: ['Logotipos oficiales también para Disa y Eroski.'],
