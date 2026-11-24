@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    version: '1.12.1',
+    date: '2026-11-24',
+    changes: [
+      '«Te aconsejo» se pinta con los colores de la gasolinera que te aconseja (naranja y rojo si es Repsol, rojo si es Alcampo…), con su emblema y su nombre en grande de fondo, también con el coche de empresa.',
+      '«Mejor para ti» y «Más barata» llevan una franja y un toque del color de su marca, con su emblema.',
+      'Arreglado: el nombre de fondo de la ficha salía con el rótulo entero en vez de solo la marca.',
+    ],
+  },
+  {
     version: '1.12.0',
     date: '2026-11-24',
     changes: [
