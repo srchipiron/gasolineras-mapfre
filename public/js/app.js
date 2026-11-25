@@ -171,7 +171,20 @@ function bindOpeners(root, results) {
     };
     li.addEventListener('click', open);
     li.addEventListener('keydown', (e) => e.key === 'Enter' && open());
+    // En el ordenador: al pasar el ratón por la lista se resalta en el mapa.
+    if (canHover) {
+      li.addEventListener('mouseenter', () => map.highlight(li.dataset.id));
+      li.addEventListener('mouseleave', () => map.highlight(null));
+    }
   });
+}
+
+const canHover = window.matchMedia?.('(hover: hover) and (pointer: fine)').matches ?? false;
+
+/** Y al revés: el ratón sobre un pin del mapa resalta su fila en la lista. */
+function hoverRow(id) {
+  document.querySelectorAll('.result.hl').forEach((li) => li.classList.remove('hl'));
+  if (id) document.querySelectorAll(`.result[data-id="${CSS.escape(id)}"]`).forEach((li) => li.classList.add('hl'));
 }
 
 function bindSummaryLinks(root, results) {
@@ -1121,7 +1134,18 @@ function bindControls() {
 }
 
 // ---------------------------------------------------------------- arranque
-const map = createMap($('#map'), { onSelect: (r) => openDetail(r.station) });
+const map = createMap($('#map'), { onSelect: (r) => openDetail(r.station), onHover: hoverRow });
+
+// «/» lleva al buscador (como en muchas webs), si no estás escribiendo ya.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t.closest?.('input, textarea, select, [contenteditable], dialog[open]')) return;
+  e.preventDefault();
+  selectTab('results');
+  $('#q').focus();
+  $('#q').select();
+});
 
 const ctx = {
   state, api, toast, persist, recompute, renderBoost, refreshTab, openDetailById, syncControls, afterRefuel,

@@ -4,11 +4,11 @@ import { priceLevel } from '/shared/ranking.js';
 import { spreadPins, declutterLabels } from '/shared/pins.js';
 import { num3, esc } from './format.js';
 
-export function createMap(el, { onSelect }) {
+export function createMap(el, { onSelect, onHover = () => {} }) {
   const L = window.L;
   if (!L) {
     el.innerHTML = '<p class="map-error">No se pudo cargar el mapa.</p>';
-    return { showResults() {}, showRoute() {}, showUser() {}, focus() {}, invalidate() {}, clearRoute() {} };
+    return { showResults() {}, showRoute() {}, showUser() {}, focus() {}, highlight() {}, invalidate() {}, clearRoute() {} };
   }
   const map = L.map(el, { zoomControl: true, attributionControl: true, zoomSnap: 0.25 }).setView([40.2, -3.7], 6);
   // Mapa de OpenStreetMap. Sus servidores exigen el origen de la web
@@ -41,6 +41,7 @@ export function createMap(el, { onSelect }) {
   const routeLayer = L.layerGroup().addTo(map);
   const byId = new Map();
   let userMarker = null;
+  let hl = null;
   let current = { results: [], summary: null };
 
   // Para que el mapa se pueda leer, solo llevan etiqueta de precio las más
@@ -80,6 +81,7 @@ export function createMap(el, { onSelect }) {
     const { results, summary } = current;
     markerLayer.clearLayers();
     byId.clear();
+    hl = null;
     const bestId = summary?.bestEffective?.station.id;
     const bestMapfreId = summary?.bestMapfre?.station.id;
     const byPrice = results.slice().sort((a, b) => a.effective - b.effective);
@@ -115,6 +117,8 @@ export function createMap(el, { onSelect }) {
         zIndexOffset: best ? 2000 : labelled ? 1000 - i : 0,
       });
       m.on('click', () => onSelect(r));
+      m.on('mouseover', () => onHover(r.station.id));
+      m.on('mouseout', () => onHover(null));
       m.addTo(markerLayer);
       byId.set(r.station.id, m);
     }
@@ -158,6 +162,20 @@ export function createMap(el, { onSelect }) {
       userMarker = L.circleMarker([lat, lon], {
         radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1, interactive: false,
       }).addTo(map);
+    },
+    // Resalta en el mapa la gasolinera que tienes debajo del ratón en la lista.
+    highlight(id) {
+      if (hl) {
+        hl.getElement()?.classList.remove('hl');
+        hl.setZIndexOffset(hl.options.baseZ ?? 0);
+        hl = null;
+      }
+      const m = id && byId.get(id);
+      if (!m) return;
+      m.options.baseZ ??= m.options.zIndexOffset;
+      m.setZIndexOffset(9000);
+      m.getElement()?.classList.add('hl');
+      hl = m;
     },
     focus(id) {
       const m = byId.get(id);
