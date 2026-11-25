@@ -8,6 +8,13 @@
 
 export const CHANGELOG = [
   {
+    version: '1.16.1',
+    date: '2026-11-25',
+    changes: [
+      'Arreglado: en el ordenador con tema oscuro, las opciones de los desplegables (como «Todas las adheridas») salían en gris claro sobre blanco y no se leían.',
+    ],
+  },
+  {
     version: '1.16.0',
     date: '2026-11-25',
     changes: [

@@ -1052,3 +1052,9 @@ dialog.sheet::backdrop { background: rgba(8, 16, 12, 0.55); -webkit-backdrop-fil
   /* Avisos flotantes: centrados sobre el mapa. */
   .toast { left: calc(var(--side) + (100vw - var(--side)) / 2); }
 }
+
+/* Lista de opciones de los desplegables: los que van dentro de un chip tienen
+   fondo transparente y, en el ordenador con tema oscuro, Windows pintaba la
+   lista en blanco con el texto claro heredado (no se leía). */
+select option, select optgroup { background-color: var(--surface); color: var(--text); }
+select option:checked { background-color: var(--surface-2); }
