@@ -349,6 +349,10 @@ input:focus-visible, select:focus-visible, button:focus-visible, .result:focus-v
 .pin.mapfre { border-color: #ffd84d; }
 .pin.top { transform: scale(1.18); box-shadow: 0 0 0 3px rgb(20 128 74 / 0.45), 0 2px 8px rgb(0 0 0 / 0.4); }
 .pin.closed { opacity: 0.55; }
+/* Resaltada desde la lista (ordenador) */
+.hl .pin, .hl .dot { outline: 3px solid var(--lime, #c6f067); outline-offset: 2px; transform: scale(1.22); transition: transform 0.12s; }
+.hl .dot { transform: scale(1.9); outline-width: 2px; box-shadow: 0 0 0 6px rgb(198 240 103 / 0.35); }
+.result.hl { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* Apartado para no tapar a otra gasolinera pegada: su pico ya no señala el punto. */
 .pin.moved::after { display: none; }
 .pin.moved { border-style: dotted; }

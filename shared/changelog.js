@@ -8,6 +8,14 @@
 
 export const CHANGELOG = [
   {
+    version: '1.17.0',
+    date: '2026-11-25',
+    changes: [
+      'En el ordenador: al pasar el ratón por una gasolinera de la lista se resalta en el mapa, y al pasarlo por un pin del mapa se resalta su fila en la lista.',
+      'Atajo de teclado: pulsa «/» para ir directamente al buscador.',
+    ],
+  },
+  {
     version: '1.16.1',
     date: '2026-11-25',
     changes: [
